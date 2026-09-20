@@ -1,316 +1,1087 @@
+/* ============================================
+   ISLAND SURVIVAL VR
+   MAIN GAME STYLE
+   ============================================ */
+
+
+/* ============================================
+   GLOBAL RESET
+   ============================================ */
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
+
 
 html,
 body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+}
 
+
+body {
   font-family:
+    Inter,
     Arial,
     Helvetica,
     sans-serif;
 
-  background: #000;
+  background:
+    linear-gradient(
+      180deg,
+      #82c9ee 0%,
+      #b8e5f5 100%
+    );
+
+  color: white;
+
+  user-select: none;
+
+  touch-action: none;
 }
 
 
-/* =================================
-   START SCREEN
-================================= */
+/* ============================================
+   THREE.JS CANVAS
+   ============================================ */
 
-#startScreen {
+canvas {
+  display: block;
+
+  width: 100%;
+  height: 100%;
 
   position: fixed;
 
   inset: 0;
 
-  z-index: 20;
+  z-index: 1;
+}
+
+
+/* ============================================
+   START SCREEN
+   ============================================ */
+
+#startScreen {
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 100;
 
   display: flex;
 
-  justify-content: center;
-
   align-items: center;
 
+  justify-content: center;
+
+  padding: 20px;
+
   background:
-    linear-gradient(
-      180deg,
-      #75c9f5,
-      #7fcf8a 55%,
-      #d8c889
+    radial-gradient(
+      circle at center,
+      rgba(70, 150, 100, 0.15),
+      rgba(0, 0, 0, 0.72)
     );
 
+  backdrop-filter: blur(8px);
+
+  -webkit-backdrop-filter: blur(8px);
+
+  transition:
+    opacity 0.35s ease,
+    visibility 0.35s ease;
 }
 
 
-.panel {
+/* ============================================
+   START PANEL
+   ============================================ */
 
+#startScreen .panel {
   width: min(
-    90%,
-    480px
+    92vw,
+    520px
   );
 
-  padding: 35px;
+  padding: 38px 30px 32px;
 
   text-align: center;
 
-  color: white;
+  border-radius: 28px;
+
+  border: 1px solid
+    rgba(255, 255, 255, 0.18);
 
   background:
-    rgba(
-      0,
-      0,
-      0,
-      0.55
+    linear-gradient(
+      145deg,
+      rgba(22, 42, 29, 0.94),
+      rgba(9, 21, 15, 0.92)
     );
+
+  box-shadow:
+    0 30px 80px
+      rgba(0, 0, 0, 0.45),
+
+    inset 0 1px 0
+      rgba(255, 255, 255, 0.08);
+}
+
+
+/* ============================================
+   GAME ICON
+   ============================================ */
+
+.game-icon {
+  width: 82px;
+
+  height: 82px;
+
+  margin:
+    0 auto 18px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
 
   border-radius: 24px;
 
-  border:
-    1px solid
-    rgba(
-      255,
-      255,
-      255,
-      0.25
+  font-size: 46px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #2f8c54,
+      #174c32
     );
 
-  backdrop-filter:
-    blur(15px);
+  box-shadow:
+    0 12px 30px
+      rgba(0, 0, 0, 0.3);
 
+  border: 1px solid
+    rgba(255, 255, 255, 0.12);
 }
 
 
-.panel h1 {
+/* ============================================
+   TITLE
+   ============================================ */
 
-  font-size: 30px;
+#startScreen h1 {
+  font-size: clamp(
+    28px,
+    6vw,
+    44px
+  );
 
-  margin-bottom: 15px;
+  line-height: 1;
 
+  letter-spacing:
+    1.5px;
+
+  font-weight: 900;
+
+  margin-bottom: 18px;
+
+  color: #ffffff;
+
+  text-shadow:
+    0 4px 20px
+      rgba(0, 0, 0, 0.35);
 }
 
 
-.panel p {
+/* ============================================
+   DESCRIPTION
+   ============================================ */
 
-  margin-bottom: 10px;
-
+#startScreen p {
   font-size: 17px;
 
+  line-height: 1.5;
+
+  color:
+    rgba(255, 255, 255, 0.88);
+
+  margin-bottom: 8px;
 }
 
 
-.panel .small {
+#startScreen p.small {
+  font-size: 13px;
 
-  opacity: 0.8;
+  letter-spacing:
+    1.5px;
 
-  font-size: 14px;
+  text-transform:
+    uppercase;
 
+  color:
+    rgba(255, 255, 255, 0.55);
+
+  margin-bottom: 26px;
 }
 
 
-/* =================================
-   ENTER VR
-================================= */
+/* ============================================
+   ENTER VR BUTTON
+   ============================================ */
 
 #enterVR {
-
   width: 100%;
 
-  margin-top: 25px;
-
-  padding: 18px;
+  min-height: 58px;
 
   border: none;
 
-  border-radius: 14px;
+  border-radius: 16px;
 
   background:
-    #ffffff;
+    linear-gradient(
+      135deg,
+      #43b96b,
+      #19723e
+    );
 
-  color:
-    #17351d;
+  color: white;
 
-  font-size: 18px;
+  font-size: 17px;
 
-  font-weight: bold;
+  font-weight: 900;
+
+  letter-spacing:
+    1px;
 
   cursor: pointer;
 
+  box-shadow:
+    0 10px 25px
+      rgba(15, 100, 50, 0.35),
+
+    inset 0 1px 0
+      rgba(255, 255, 255, 0.25);
+
+  transition:
+    transform 0.15s ease,
+    filter 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+
+#enterVR:hover {
+  filter: brightness(1.08);
+
+  box-shadow:
+    0 14px 32px
+      rgba(15, 100, 50, 0.45);
 }
 
 
 #enterVR:active {
-
-  transform: scale(0.97);
-
+  transform:
+    scale(0.97);
 }
 
 
-/* =================================
-   STATUS
-================================= */
+/* ============================================
+   VR STATUS
+   ============================================ */
 
 #status {
-
   margin-top: 15px;
 
-  font-size: 13px;
+  min-height: 20px;
 
-  opacity: 0.8;
+  font-size: 12px;
 
+  color:
+    rgba(255, 255, 255, 0.55);
+
+  letter-spacing:
+    0.4px;
 }
 
 
-/* =================================
-   CANVAS
-================================= */
-
-canvas {
-
-  display: block;
-
-  width: 100%;
-
-  height: 100%;
-
-}
-
-
-/* =================================
+/* ============================================
    HUD
-================================= */
+   ============================================ */
 
 #hud {
-
   position: fixed;
 
-  top: 20px;
+  top: 18px;
 
-  left: 20px;
+  left: 18px;
 
-  z-index: 10;
+  z-index: 20;
 
   display: flex;
 
+  flex-direction: column;
+
   gap: 8px;
 
-  flex-wrap: wrap;
-
   pointer-events: none;
-
 }
 
+
+/* ============================================
+   HUD STAT
+   ============================================ */
 
 .stat {
+  min-width: 116px;
+
+  height: 38px;
 
   padding:
-    9px 13px;
+    0 13px;
 
-  border-radius:
-    12px;
+  display: flex;
 
-  color: white;
+  align-items: center;
+
+  gap: 8px;
+
+  border-radius: 12px;
 
   background:
-    rgba(
-      0,
-      0,
-      0,
-      0.55
-    );
+    rgba(7, 19, 13, 0.68);
+
+  border: 1px solid
+    rgba(255, 255, 255, 0.12);
+
+  box-shadow:
+    0 6px 20px
+      rgba(0, 0, 0, 0.22);
 
   backdrop-filter:
-    blur(8px);
+    blur(10px);
 
-  font-weight:
-    bold;
+  -webkit-backdrop-filter:
+    blur(10px);
 
-  font-size:
-    14px;
+  font-size: 15px;
 
+  font-weight: 800;
 }
 
 
-/* =================================
-   MESSAGE
-================================= */
+.stat span {
+  min-width: 30px;
+
+  text-align: right;
+
+  color: #ffffff;
+}
+
+
+/* ============================================
+   MESSAGE SYSTEM
+   ============================================ */
 
 #message {
-
   position: fixed;
 
   left: 50%;
 
-  bottom: 40px;
+  bottom: 30px;
 
   transform:
     translateX(-50%);
 
-  z-index: 15;
+  z-index: 30;
+
+  max-width: min(
+    90vw,
+    500px
+  );
 
   padding:
     12px 20px;
 
-  border-radius:
-    12px;
+  border-radius: 14px;
+
+  background:
+    rgba(7, 18, 12, 0.82);
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.13);
+
+  box-shadow:
+    0 10px 30px
+      rgba(0, 0, 0, 0.3);
+
+  backdrop-filter:
+    blur(12px);
+
+  -webkit-backdrop-filter:
+    blur(12px);
 
   color: white;
 
-  background:
-    rgba(
-      0,
-      0,
-      0,
-      0.7
-    );
+  font-size: 14px;
+
+  font-weight: 700;
+
+  text-align: center;
 
   opacity: 0;
 
   pointer-events: none;
 
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 
-/* =================================
-   MOBILE
-================================= */
+#message.show {
+  opacity: 1;
 
-@media (
-  max-width: 600px
-) {
+  transform:
+    translateX(-50%)
+    translateY(-4px);
+}
 
-  .panel {
 
-    padding: 25px;
+/* ============================================
+   FUTURE INVENTORY UI
+   ============================================ */
 
-  }
+#inventory {
+  position: fixed;
 
-  .panel h1 {
+  inset: 0;
 
-    font-size: 24px;
+  z-index: 50;
 
-  }
+  display: none;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding: 20px;
+
+  background:
+    rgba(0, 0, 0, 0.58);
+
+  backdrop-filter:
+    blur(7px);
+
+  -webkit-backdrop-filter:
+    blur(7px);
+}
+
+
+#inventory.active {
+  display: flex;
+}
+
+
+.inventory-panel {
+  width: min(
+    94vw,
+    760px
+  );
+
+  max-height: 88vh;
+
+  overflow-y: auto;
+
+  padding: 24px;
+
+  border-radius: 24px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(22, 42, 29, 0.97),
+      rgba(8, 19, 13, 0.97)
+    );
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.14);
+
+  box-shadow:
+    0 30px 80px
+      rgba(0, 0, 0, 0.5);
+}
+
+
+/* ============================================
+   FUTURE INVENTORY SLOTS
+   ============================================ */
+
+.inventory-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(90px, 1fr)
+    );
+
+  gap: 10px;
+}
+
+
+.inventory-slot {
+  min-height: 90px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 5px;
+
+  border-radius: 14px;
+
+  background:
+    rgba(255, 255, 255, 0.055);
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.1);
+
+  color: white;
+
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+
+.inventory-slot:hover {
+  background:
+    rgba(255, 255, 255, 0.1);
+
+  transform:
+    translateY(-2px);
+}
+
+
+.inventory-slot .icon {
+  font-size: 28px;
+}
+
+
+.inventory-slot .name {
+  font-size: 12px;
+
+  opacity: 0.75;
+}
+
+
+.inventory-slot .amount {
+  font-size: 14px;
+
+  font-weight: 900;
+}
+
+
+/* ============================================
+   FUTURE CRAFTING UI
+   ============================================ */
+
+#crafting {
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 51;
+
+  display: none;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding: 20px;
+
+  background:
+    rgba(0, 0, 0, 0.58);
+}
+
+
+#crafting.active {
+  display: flex;
+}
+
+
+.crafting-panel {
+  width: min(
+    94vw,
+    760px
+  );
+
+  max-height: 88vh;
+
+  overflow-y: auto;
+
+  padding: 24px;
+
+  border-radius: 24px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(22, 42, 29, 0.97),
+      rgba(8, 19, 13, 0.97)
+    );
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.14);
+
+  box-shadow:
+    0 30px 80px
+      rgba(0, 0, 0, 0.5);
+}
+
+
+.recipe-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(180px, 1fr)
+    );
+
+  gap: 12px;
+}
+
+
+.recipe {
+  padding: 18px;
+
+  border-radius: 16px;
+
+  background:
+    rgba(255, 255, 255, 0.055);
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.1);
+}
+
+
+.recipe h3 {
+  margin-bottom: 8px;
+
+  font-size: 16px;
+}
+
+
+.recipe p {
+  font-size: 12px;
+
+  line-height: 1.5;
+
+  color:
+    rgba(255, 255, 255, 0.65);
+}
+
+
+/* ============================================
+   FUTURE GUIDE BOOK
+   ============================================ */
+
+#guide {
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 52;
+
+  display: none;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding: 20px;
+
+  background:
+    rgba(0, 0, 0, 0.58);
+}
+
+
+#guide.active {
+  display: flex;
+}
+
+
+.guide-book {
+  width: min(
+    94vw,
+    700px
+  );
+
+  max-height: 88vh;
+
+  overflow-y: auto;
+
+  padding: 32px;
+
+  border-radius: 22px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #e5d0a2,
+      #c8ad78
+    );
+
+  color:
+    #302515;
+
+  box-shadow:
+    0 30px 80px
+      rgba(0, 0, 0, 0.5);
+}
+
+
+.guide-book h1,
+.guide-book h2 {
+  margin-bottom: 14px;
+}
+
+
+.guide-book p {
+  line-height: 1.6;
+
+  margin-bottom: 12px;
+}
+
+
+/* ============================================
+   FUTURE BUILDING UI
+   ============================================ */
+
+#building {
+  position: fixed;
+
+  left: 50%;
+
+  bottom: 18px;
+
+  transform:
+    translateX(-50%);
+
+  z-index: 25;
+
+  display: none;
+
+  gap: 8px;
+
+  padding: 10px;
+
+  border-radius: 18px;
+
+  background:
+    rgba(7, 18, 12, 0.82);
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.12);
+
+  backdrop-filter:
+    blur(12px);
+
+  -webkit-backdrop-filter:
+    blur(12px);
+}
+
+
+#building.active {
+  display: flex;
+}
+
+
+.building-option {
+  width: 58px;
+
+  height: 58px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  border-radius: 13px;
+
+  background:
+    rgba(255, 255, 255, 0.06);
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.1);
+
+  color: white;
+
+  font-size: 25px;
+
+  cursor: pointer;
+}
+
+
+.building-option:hover {
+  background:
+    rgba(255, 255, 255, 0.13);
+}
+
+
+/* ============================================
+   GENERAL UI BUTTON
+   ============================================ */
+
+button {
+  font-family: inherit;
+
+  border: none;
+
+  outline: none;
+}
+
+
+.ui-button {
+  min-height: 44px;
+
+  padding:
+    0 18px;
+
+  border-radius: 12px;
+
+  background:
+    rgba(255, 255, 255, 0.09);
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.12);
+
+  color: white;
+
+  font-weight: 800;
+
+  cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+
+.ui-button:hover {
+  background:
+    rgba(255, 255, 255, 0.15);
+}
+
+
+.ui-button:active {
+  transform:
+    scale(0.96);
+}
+
+
+/* ============================================
+   SCROLLBARS
+   ============================================ */
+
+*::-webkit-scrollbar {
+  width: 6px;
+}
+
+
+*::-webkit-scrollbar-track {
+  background:
+    transparent;
+}
+
+
+*::-webkit-scrollbar-thumb {
+  background:
+    rgba(255, 255, 255, 0.18);
+
+  border-radius: 20px;
+}
+
+
+/* ============================================
+   QUEST / VR MODE
+   ============================================ */
+
+@media (min-width: 900px) {
 
   #hud {
-
-    top: 10px;
-
-    left: 10px;
-
+    top: 24px;
+    left: 24px;
   }
 
   .stat {
+    min-width: 130px;
+    height: 42px;
+    font-size: 16px;
+  }
+
+}
+
+
+/* ============================================
+   PHONE / SMALL SCREEN
+   ============================================ */
+
+@media (max-width: 600px) {
+
+  #startScreen {
+    padding: 14px;
+  }
+
+
+  #startScreen .panel {
+    padding:
+      30px 22px 25px;
+
+    border-radius: 22px;
+  }
+
+
+  .game-icon {
+    width: 68px;
+    height: 68px;
+
+    font-size: 38px;
+
+    border-radius: 20px;
+  }
+
+
+  #startScreen h1 {
+    font-size: 28px;
+  }
+
+
+  #startScreen p {
+    font-size: 14px;
+  }
+
+
+  #hud {
+    top: 10px;
+    left: 10px;
+
+    gap: 5px;
+  }
+
+
+  .stat {
+    min-width: 94px;
+
+    height: 32px;
+
+    padding:
+      0 9px;
+
+    border-radius: 9px;
+
+    font-size: 12px;
+  }
+
+
+  #message {
+    bottom: 18px;
 
     font-size: 12px;
 
     padding:
-      7px 9px;
+      10px 15px;
+  }
 
+}
+
+
+/* ============================================
+   LANDSCAPE PHONE
+   ============================================ */
+
+@media (
+  max-height: 500px
+) and (
+  orientation: landscape
+) {
+
+  #startScreen .panel {
+    padding:
+      18px 24px;
+  }
+
+
+  .game-icon {
+    display: none;
+  }
+
+
+  #startScreen h1 {
+    font-size: 26px;
+
+    margin-bottom: 10px;
+  }
+
+
+  #startScreen p {
+    font-size: 13px;
+
+    margin-bottom: 4px;
+  }
+
+
+  #startScreen p.small {
+    margin-bottom: 12px;
+  }
+
+
+  #enterVR {
+    min-height: 46px;
+  }
+
+}
+
+
+/* ============================================
+   ACCESSIBILITY / REDUCED MOTION
+   ============================================ */
+
+@media (
+  prefers-reduced-motion: reduce
+) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+
+    animation-iteration-count: 1 !important;
+
+    transition-duration: 0.01ms !important;
   }
 
 }
