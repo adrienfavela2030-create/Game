@@ -1,52 +1,38 @@
-/*
-==========================================================
-ISLAND SURVIVAL VR
-CRAFTING SYSTEM
-==========================================================
-
-This file connects to:
-
-- game.js
-- inventory.js
-- index.html
-- future building.js
-- future guide.js
-- future world.js
-
-DO NOT replace game.js when adding this file.
-
-==========================================================
-*/
+/* =========================================================
+   CRAFTING.JS
+   Island Survival VR crafting system
+========================================================= */
 
 import {
   GAME,
   addItem,
   removeItem,
-  hasItem,
   getItemCount,
-  unlockRecipe,
+  registerCraft,
+  gameEvent,
   recipeUnlocked,
-  gameEvent
+  unlockRecipe
 } from "./game.js";
 
-/* ========================================================
-   CRAFTING VERSION
-======================================================== */
-
-export const CRAFTING_VERSION = 1;
+import {
+  ITEMS
+} from "./inventory.js";
 
 
-/* ========================================================
-   RECIPE DATABASE
-======================================================== */
+const SurvivalVR =
+  window.SurvivalVR;
+
+
+/* =========================================================
+   RECIPES
+========================================================= */
 
 export const RECIPES = {
 
   string: {
     id: "string",
     name: "String",
-    description: "Basic fiber twisted into useful string.",
-    category: "basic",
+    icon: "🧵",
 
     ingredients: {
       fiber: 3
@@ -56,15 +42,19 @@ export const RECIPES = {
       string: 1
     },
 
-    unlocked: true
+    category: "basic",
+
+    unlocked: true,
+
+    description:
+      "Twist plant fiber together to make strong string."
   },
 
 
   stick: {
     id: "stick",
-    name: "Stick",
-    description: "A simple wooden stick.",
-    category: "basic",
+    name: "Sticks",
+    icon: "🥢",
 
     ingredients: {
       wood: 1
@@ -74,15 +64,19 @@ export const RECIPES = {
       stick: 2
     },
 
-    unlocked: true
+    category: "basic",
+
+    unlocked: true,
+
+    description:
+      "Split wood into smaller sticks."
   },
 
 
   woodPlank: {
     id: "woodPlank",
-    name: "Wood Plank",
-    description: "Processed wood used for crafting and building.",
-    category: "wood",
+    name: "Wood Planks",
+    icon: "🪵",
 
     ingredients: {
       log: 1
@@ -92,15 +86,19 @@ export const RECIPES = {
       wood: 4
     },
 
-    unlocked: true
+    category: "wood",
+
+    unlocked: true,
+
+    description:
+      "Process a log into usable building wood."
   },
 
 
   stone: {
     id: "stone",
-    name: "Stone",
-    description: "Break down a rock into usable stone.",
-    category: "stone",
+    name: "Stone Pieces",
+    icon: "⬜",
 
     ingredients: {
       rock: 1
@@ -110,15 +108,19 @@ export const RECIPES = {
       stone: 3
     },
 
-    unlocked: true
+    category: "stone",
+
+    unlocked: true,
+
+    description:
+      "Break a rock into smaller pieces."
   },
 
 
   rope: {
     id: "rope",
     name: "Rope",
-    description: "Stronger material made from twisted string.",
-    category: "basic",
+    icon: "🪢",
 
     ingredients: {
       string: 3
@@ -128,15 +130,19 @@ export const RECIPES = {
       string: 5
     },
 
-    unlocked: false
+    category: "advanced",
+
+    unlocked: false,
+
+    description:
+      "Combine string into a stronger bundle."
   },
 
 
   stoneAxe: {
     id: "stoneAxe",
     name: "Stone Axe",
-    description: "A basic tool for gathering wood.",
-    category: "tools",
+    icon: "🪓",
 
     ingredients: {
       stick: 2,
@@ -148,15 +154,19 @@ export const RECIPES = {
       stoneAxe: 1
     },
 
-    unlocked: false
+    category: "tools",
+
+    unlocked: false,
+
+    description:
+      "A basic tool for chopping trees."
   },
 
 
   stonePickaxe: {
     id: "stonePickaxe",
     name: "Stone Pickaxe",
-    description: "A basic tool for gathering stone.",
-    category: "tools",
+    icon: "⛏️",
 
     ingredients: {
       stick: 2,
@@ -168,15 +178,19 @@ export const RECIPES = {
       stonePickaxe: 1
     },
 
-    unlocked: false
+    category: "tools",
+
+    unlocked: false,
+
+    description:
+      "A basic tool for breaking rocks."
   },
 
 
   campfire: {
     id: "campfire",
     name: "Campfire",
-    description: "A small survival campfire.",
-    category: "survival",
+    icon: "🔥",
 
     ingredients: {
       stone: 6,
@@ -187,15 +201,19 @@ export const RECIPES = {
       campfire: 1
     },
 
-    unlocked: false
+    category: "survival",
+
+    unlocked: false,
+
+    description:
+      "Provides warmth and lets you cook food."
   },
 
 
   storageBox: {
     id: "storageBox",
     name: "Storage Box",
-    description: "A box for storing extra items.",
-    category: "building",
+    icon: "📦",
 
     ingredients: {
       wood: 8,
@@ -206,33 +224,19 @@ export const RECIPES = {
       storageBox: 1
     },
 
-    unlocked: false
-  },
-
-
-  woodWall: {
-    id: "woodWall",
-    name: "Wood Wall",
-    description: "A simple wooden wall.",
     category: "building",
 
-    ingredients: {
-      wood: 6
-    },
+    unlocked: false,
 
-    output: {
-      woodWall: 1
-    },
-
-    unlocked: false
+    description:
+      "A container for storing extra resources."
   },
 
 
   woodFloor: {
     id: "woodFloor",
     name: "Wood Floor",
-    description: "A wooden floor foundation.",
-    category: "building",
+    icon: "🪵",
 
     ingredients: {
       wood: 5
@@ -242,15 +246,41 @@ export const RECIPES = {
       woodFloor: 1
     },
 
-    unlocked: false
+    category: "building",
+
+    unlocked: false,
+
+    description:
+      "A wooden floor piece for your shelter."
+  },
+
+
+  woodWall: {
+    id: "woodWall",
+    name: "Wood Wall",
+    icon: "🧱",
+
+    ingredients: {
+      wood: 6
+    },
+
+    output: {
+      woodWall: 1
+    },
+
+    category: "building",
+
+    unlocked: false,
+
+    description:
+      "A wooden wall for protecting your shelter."
   },
 
 
   woodDoor: {
     id: "woodDoor",
     name: "Wood Door",
-    description: "A simple wooden door.",
-    category: "building",
+    icon: "🚪",
 
     ingredients: {
       wood: 8,
@@ -261,427 +291,184 @@ export const RECIPES = {
       woodDoor: 1
     },
 
-    unlocked: false
+    category: "building",
+
+    unlocked: false,
+
+    description:
+      "A wooden doorway for your shelter."
   }
 
 };
 
 
-/* ========================================================
+/* =========================================================
    CRAFTING STATE
-======================================================== */
+========================================================= */
 
 const craftingState = {
 
   open: false,
 
-  selectedCategory: "all",
-
   selectedRecipe: null,
 
-  categories: [
-    "all",
-    "basic",
-    "wood",
-    "stone",
-    "tools",
-    "survival",
-    "building"
-  ],
+  category: "all",
 
-  craftedCount: {},
-
-  lastCrafted: null
-
+  initialized: false
 };
 
 
-/* ========================================================
-   REGISTER SYSTEM
-======================================================== */
+/* =========================================================
+   SYSTEM
+========================================================= */
 
-if (
-  window.SurvivalVR &&
-  window.SurvivalVR.systems
-) {
-  window.SurvivalVR.systems.crafting = {
-    version: CRAFTING_VERSION,
+const craftingSystem = {
 
-    recipes: RECIPES,
+  recipes: RECIPES,
 
-    state: craftingState,
+  state: craftingState,
 
-    open: openCrafting,
+  open,
 
-    close: closeCrafting,
+  close,
 
-    toggle: toggleCrafting,
+  toggle,
 
-    craft: craft,
+  refresh,
 
-    canCraft: canCraft,
+  craft,
 
-    getRecipe: getRecipe,
+  canCraft,
 
-    getRecipes: getRecipes,
+  unlock,
 
-    unlock: unlockCraftingRecipe,
+  selectRecipe,
 
-    isUnlocked: isRecipeUnlocked
-  };
-}
+  getRecipe,
+
+  getRecipes
+};
 
 
-/* ========================================================
-   RECIPE HELPERS
-======================================================== */
-
-export function getRecipe(recipeId) {
-
-  return RECIPES[recipeId] || null;
-
-}
+SurvivalVR.systems.crafting =
+  craftingSystem;
 
 
-export function getRecipes() {
+/* =========================================================
+   REGISTER RECIPES
+========================================================= */
 
-  return Object.values(RECIPES);
+Object.values(
+  RECIPES
+).forEach(
+  recipe => {
 
-}
+    registerCraft(
+      recipe.id,
+      recipe
+    );
 
-
-export function isRecipeUnlocked(recipeId) {
-
-  const recipe = getRecipe(recipeId);
-
-  if (!recipe) {
-    return false;
   }
-
-  if (recipe.unlocked) {
-    return true;
-  }
-
-  return recipeUnlocked(recipeId);
-
-}
+);
 
 
-export function unlockCraftingRecipe(recipeId) {
+/* =========================================================
+   INITIAL RECIPE UNLOCKS
+========================================================= */
 
-  const recipe = getRecipe(recipeId);
-
-  if (!recipe) {
-    return false;
-  }
-
-  unlockRecipe(recipeId);
-
-  renderCraftingMenu();
-
-  return true;
-
-}
-
-
-/* ========================================================
-   INGREDIENT CHECKING
-======================================================== */
-
-export function canCraft(recipeId) {
-
-  const recipe = getRecipe(recipeId);
-
-  if (!recipe) {
-    return false;
-  }
-
-  if (!isRecipeUnlocked(recipeId)) {
-    return false;
-  }
-
-  for (
-    const [item, amount] of
-    Object.entries(recipe.ingredients)
-  ) {
+Object.values(
+  RECIPES
+).forEach(
+  recipe => {
 
     if (
-      getItemCount(item) < amount
+      recipe.unlocked &&
+      !recipeUnlocked(recipe.id)
     ) {
-      return false;
+
+      unlockRecipe(
+        recipe.id
+      );
+
     }
 
   }
+);
 
-  return true;
 
+/* =========================================================
+   GETTERS
+========================================================= */
+
+function getRecipe(
+  recipeId
+) {
+
+  return RECIPES[
+    recipeId
+  ] || null;
 }
 
 
-/* ========================================================
-   CRAFT ITEM
-======================================================== */
+function getRecipes() {
 
-export function craft(recipeId) {
-
-  const recipe = getRecipe(recipeId);
-
-  if (!recipe) {
-
-    showCraftMessage(
-      "Recipe not found."
-    );
-
-    return false;
-
-  }
-
-
-  if (!isRecipeUnlocked(recipeId)) {
-
-    showCraftMessage(
-      `${recipe.name} is locked.`
-    );
-
-    return false;
-
-  }
-
-
-  if (!canCraft(recipeId)) {
-
-    showCraftMessage(
-      `You don't have enough materials for ${recipe.name}.`
-    );
-
-    return false;
-
-  }
-
-
-  /*
-  ------------------------------------------
-  Remove ingredients
-  ------------------------------------------
-  */
-
-  for (
-    const [item, amount] of
-    Object.entries(recipe.ingredients)
-  ) {
-
-    removeItem(
-      item,
-      amount
-    );
-
-  }
-
-
-  /*
-  ------------------------------------------
-  Give output
-  ------------------------------------------
-  */
-
-  for (
-    const [item, amount] of
-    Object.entries(recipe.output)
-  ) {
-
-    addItem(
-      item,
-      amount
-    );
-
-  }
-
-
-  /*
-  ------------------------------------------
-  Track crafting
-  ------------------------------------------
-  */
-
-  if (
-    !craftingState.craftedCount[recipeId]
-  ) {
-
-    craftingState.craftedCount[recipeId] = 0;
-
-  }
-
-  craftingState.craftedCount[recipeId] += 1;
-
-  craftingState.lastCrafted = recipeId;
-
-
-  /*
-  ------------------------------------------
-  Game event
-  ------------------------------------------
-  */
-
-  gameEvent(
-    "crafted",
-    {
-      recipe: recipeId,
-      name: recipe.name,
-      ingredients: recipe.ingredients,
-      output: recipe.output
-    }
+  return Object.values(
+    RECIPES
   );
-
-
-  /*
-  ------------------------------------------
-  Special connections
-  ------------------------------------------
-  */
-
-  if (
-    recipe.category === "building"
-  ) {
-
-    window.dispatchEvent(
-      new CustomEvent(
-        "survival-building-material-crafted",
-        {
-          detail: {
-            recipe: recipeId,
-            output: recipe.output
-          }
-        }
-      )
-    );
-
-  }
-
-
-  if (
-    recipe.category === "tools"
-  ) {
-
-    window.dispatchEvent(
-      new CustomEvent(
-        "survival-tool-crafted",
-        {
-          detail: {
-            recipe: recipeId,
-            output: recipe.output
-          }
-        }
-      )
-    );
-
-  }
-
-
-  showCraftMessage(
-    `Crafted ${recipe.name}!`
-  );
-
-
-  renderCraftingMenu();
-
-
-  return true;
-
 }
 
 
-/* ========================================================
-   OPEN / CLOSE
-======================================================== */
-
-export function openCrafting() {
-
-  craftingState.open = true;
-
-  let menu =
-    document.getElementById(
-      "craftingMenu"
-    );
-
-  if (!menu) {
-    createCraftingUI();
-  }
-
-  renderCraftingMenu();
-
-}
-
-
-export function closeCrafting() {
-
-  craftingState.open = false;
-
-  const menu =
-    document.getElementById(
-      "craftingMenu"
-    );
-
-  if (menu) {
-    menu.classList.remove(
-      "visible"
-    );
-  }
-
-}
-
-
-export function toggleCrafting() {
-
-  if (craftingState.open) {
-    closeCrafting();
-  } else {
-    openCrafting();
-  }
-
-}
-
-
-/* ========================================================
+/* =========================================================
    CREATE UI
-======================================================== */
+========================================================= */
 
-function createCraftingUI() {
+function createUI() {
 
   if (
     document.getElementById(
-      "craftingMenu"
+      "craftingUI"
     )
   ) {
     return;
   }
 
 
-  const menu =
+  const ui =
     document.createElement(
       "div"
     );
 
-  menu.id = "craftingMenu";
 
-  menu.innerHTML = `
+  ui.id =
+    "craftingUI";
 
-    <div class="crafting-window">
 
-      <div class="crafting-header">
+  ui.className =
+    "overlay hidden";
+
+
+  ui.innerHTML = `
+
+    <div class="uiPanel crafting-panel">
+
+      <div class="uiHeader">
 
         <div>
-          <div class="crafting-title">
-            CRAFTING
+
+          <div class="uiTitle">
+            Crafting
           </div>
 
-          <div class="crafting-subtitle">
-            Create tools, materials and survival items
+          <div class="uiSubtitle">
+            Turn resources into tools, supplies, and structures.
           </div>
+
         </div>
 
         <button
-          id="closeCrafting"
-          class="crafting-close"
+          id="craftingClose"
+          class="closeButton"
+          type="button"
         >
           ×
         </button>
@@ -690,29 +477,71 @@ function createCraftingUI() {
 
 
       <div
-        id="craftingCategories"
-        class="crafting-categories"
-      ></div>
-
-
-      <div
-        id="craftingRecipes"
-        class="crafting-recipes"
-      ></div>
-
-
-      <div
-        id="craftingDetails"
-        class="crafting-details"
+        class="buttonGrid"
+        style="margin-bottom:15px;"
       >
 
-        <div class="crafting-empty">
+        <button
+          class="uiButton"
+          data-craft-filter="all"
+          type="button"
+        >
+          All
+        </button>
 
-          Select a recipe to see
-          what you need.
+        <button
+          class="uiButton"
+          data-craft-filter="basic"
+          type="button"
+        >
+          Basic
+        </button>
 
-        </div>
+        <button
+          class="uiButton"
+          data-craft-filter="tools"
+          type="button"
+        >
+          Tools
+        </button>
 
+        <button
+          class="uiButton"
+          data-craft-filter="survival"
+          type="button"
+        >
+          Survival
+        </button>
+
+        <button
+          class="uiButton"
+          data-craft-filter="building"
+          type="button"
+        >
+          Building
+        </button>
+
+      </div>
+
+
+      <div
+        id="recipeGrid"
+        class="recipeGrid"
+      ></div>
+
+
+      <div
+        id="craftingSelected"
+        style="
+          margin-top:15px;
+          padding:13px;
+          border-radius:13px;
+          background:rgba(255,255,255,.04);
+          color:#a9bdb1;
+          font-size:12px;
+        "
+      >
+        Select a recipe to see more information.
       </div>
 
     </div>
@@ -721,756 +550,823 @@ function createCraftingUI() {
 
 
   document.body.appendChild(
-    menu
+    ui
   );
 
 
   document
     .getElementById(
-      "closeCrafting"
+      "craftingClose"
     )
     .addEventListener(
       "click",
-      closeCrafting
+      close
     );
 
 
-  menu.addEventListener(
-    "click",
-    event => {
+  ui
+    .querySelectorAll(
+      "[data-craft-filter]"
+    )
+    .forEach(
+      button => {
 
-      if (
-        event.target === menu
-      ) {
+        button.addEventListener(
+          "click",
+          () => {
 
-        closeCrafting();
+            craftingState.category =
+              button.dataset.craftFilter;
 
-      }
+            refresh();
 
-    }
-  );
-
-}
-
-
-/* ========================================================
-   RENDER MENU
-======================================================== */
-
-function renderCraftingMenu() {
-
-  const menu =
-    document.getElementById(
-      "craftingMenu"
-    );
-
-  if (!menu) {
-    return;
-  }
-
-
-  menu.classList.add(
-    "visible"
-  );
-
-
-  renderCategories();
-
-  renderRecipes();
-
-  renderRecipeDetails();
-
-}
-
-
-/* ========================================================
-   CATEGORY BUTTONS
-======================================================== */
-
-function renderCategories() {
-
-  const container =
-    document.getElementById(
-      "craftingCategories"
-    );
-
-  if (!container) {
-    return;
-  }
-
-
-  container.innerHTML = "";
-
-
-  craftingState.categories.forEach(
-    category => {
-
-      const button =
-        document.createElement(
-          "button"
-        );
-
-      button.className =
-        "crafting-category";
-
-
-      if (
-        craftingState.selectedCategory ===
-        category
-      ) {
-
-        button.classList.add(
-          "active"
+          }
         );
 
       }
+    );
 
 
-      button.textContent =
-        category === "all"
-          ? "All"
-          : capitalize(category);
-
-
-      button.addEventListener(
-        "click",
-        () => {
-
-          craftingState.selectedCategory =
-            category;
-
-          renderCraftingMenu();
-
-        }
-      );
-
-
-      container.appendChild(
-        button
-      );
-
-    }
-  );
-
+  craftingState.initialized =
+    true;
 }
 
 
-/* ========================================================
-   RECIPE LIST
-======================================================== */
+/* =========================================================
+   OPEN
+========================================================= */
 
-function renderRecipes() {
+function open() {
 
-  const container =
-    document.getElementById(
-      "craftingRecipes"
+  createUI();
+
+
+  craftingState.open =
+    true;
+
+
+  document
+    .getElementById(
+      "craftingUI"
+    )
+    .classList.remove(
+      "hidden"
     );
 
-  if (!container) {
-    return;
+
+  refresh();
+
+
+  gameEvent(
+    "crafting-opened"
+  );
+}
+
+
+/* =========================================================
+   CLOSE
+========================================================= */
+
+function close() {
+
+  const ui =
+    document.getElementById(
+      "craftingUI"
+    );
+
+
+  if (ui) {
+
+    ui.classList.add(
+      "hidden"
+    );
+
   }
 
 
-  container.innerHTML = "";
+  craftingState.open =
+    false;
 
 
-  let recipes =
-    getRecipes();
+  craftingState.selectedRecipe =
+    null;
+
+
+  gameEvent(
+    "crafting-closed"
+  );
+}
+
+
+/* =========================================================
+   TOGGLE
+========================================================= */
+
+function toggle() {
+
+  if (
+    craftingState.open
+  ) {
+
+    close();
+
+  } else {
+
+    open();
+
+  }
+}
+
+
+/* =========================================================
+   CAN CRAFT
+========================================================= */
+
+function canCraft(
+  recipeId
+) {
+
+  const recipe =
+    RECIPES[recipeId];
+
+
+  if (!recipe) {
+    return false;
+  }
 
 
   if (
-    craftingState.selectedCategory !==
-    "all"
+    !recipeUnlocked(
+      recipeId
+    )
+  ) {
+    return false;
+  }
+
+
+  for (
+    const [
+      itemId,
+      amount
+    ]
+    of Object.entries(
+      recipe.ingredients
+    )
   ) {
 
-    recipes =
-      recipes.filter(
-        recipe =>
-          recipe.category ===
-          craftingState.selectedCategory
-      );
+    if (
+      getItemCount(
+        itemId
+      ) < amount
+    ) {
+
+      return false;
+
+    }
 
   }
 
 
-  recipes.forEach(
+  return true;
+}
+
+
+/* =========================================================
+   CRAFT
+========================================================= */
+
+function craft(
+  recipeId
+) {
+
+  const recipe =
+    RECIPES[recipeId];
+
+
+  if (!recipe) {
+
+    return {
+      success: false,
+      reason: "missing-recipe"
+    };
+
+  }
+
+
+  if (
+    !recipeUnlocked(
+      recipeId
+    )
+  ) {
+
+    gameEvent(
+      "craft-failed",
+      {
+        recipeId,
+        reason: "locked"
+      }
+    );
+
+
+    return {
+      success: false,
+      reason: "locked"
+    };
+
+  }
+
+
+  if (
+    !canCraft(
+      recipeId
+    )
+  ) {
+
+    gameEvent(
+      "craft-failed",
+      {
+        recipeId,
+        reason: "materials"
+      }
+    );
+
+
+    showCraftMessage(
+      "You don't have the required materials."
+    );
+
+
+    return {
+      success: false,
+      reason: "materials"
+    };
+
+  }
+
+
+  /*
+    Remove ingredients.
+  */
+
+  for (
+    const [
+      itemId,
+      amount
+    ]
+    of Object.entries(
+      recipe.ingredients
+    )
+  ) {
+
+    removeItem(
+      itemId,
+      amount
+    );
+
+  }
+
+
+  /*
+    Add outputs.
+  */
+
+  for (
+    const [
+      itemId,
+      amount
+    ]
+    of Object.entries(
+      recipe.output
+    )
+  ) {
+
+    addItem(
+      itemId,
+      amount
+    );
+
+  }
+
+
+  GAME.crafting.crafted[
+    recipeId
+  ] =
+    Number(
+      GAME.crafting.crafted[
+        recipeId
+      ] || 0
+    ) + 1;
+
+
+  GAME.crafting.lastCrafted =
+    recipeId;
+
+
+  if (
+    !GAME.guide.discoveredRecipes.includes(
+      recipeId
+    )
+  ) {
+
+    GAME.guide.discoveredRecipes.push(
+      recipeId
+    );
+
+  }
+
+
+  gameEvent(
+    "tool-crafted",
+    {
+      recipeId,
+      recipe
+    }
+  );
+
+
+  gameEvent(
+    "survival-crafting-complete",
+    {
+      recipeId,
+      recipe
+    }
+  );
+
+
+  showCraftMessage(
+    `Crafted ${getOutputName(recipe)}.`
+  );
+
+
+  refresh();
+
+
+  return {
+    success: true,
+    recipeId,
+    recipe
+  };
+}
+
+
+/* =========================================================
+   OUTPUT NAME
+========================================================= */
+
+function getOutputName(
+  recipe
+) {
+
+  const firstOutput =
+    Object.keys(
+      recipe.output
+    )[0];
+
+
+  const item =
+    ITEMS[firstOutput];
+
+
+  return item
+    ? item.name
+    : firstOutput;
+}
+
+
+/* =========================================================
+   UNLOCK
+========================================================= */
+
+function unlock(
+  recipeId
+) {
+
+  const recipe =
+    RECIPES[recipeId];
+
+
+  if (!recipe) {
+    return false;
+  }
+
+
+  unlockRecipe(
+    recipeId
+  );
+
+
+  if (
+    !GAME.guide.discoveredRecipes.includes(
+      recipeId
+    )
+  ) {
+
+    GAME.guide.discoveredRecipes.push(
+      recipeId
+    );
+
+  }
+
+
+  gameEvent(
+    "recipe-unlocked",
+    {
+      recipeId
+    }
+  );
+
+
+  refresh();
+
+
+  return true;
+}
+
+
+/* =========================================================
+   REFRESH
+========================================================= */
+
+function refresh() {
+
+  createUI();
+
+  refreshRecipes();
+
+  refreshSelected();
+}
+
+
+/* =========================================================
+   RECIPE CARDS
+========================================================= */
+
+function refreshRecipes() {
+
+  const grid =
+    document.getElementById(
+      "recipeGrid"
+    );
+
+
+  if (!grid) {
+    return;
+  }
+
+
+  grid.innerHTML = "";
+
+
+  Object.values(
+    RECIPES
+  ).forEach(
     recipe => {
 
+      if (
+        craftingState.category !==
+        "all" &&
+        recipe.category !==
+        craftingState.category
+      ) {
+
+        return;
+
+      }
+
+
       const unlocked =
-        isRecipeUnlocked(
+        recipeUnlocked(
           recipe.id
         );
 
 
-      const button =
+      const possible =
+        canCraft(
+          recipe.id
+        );
+
+
+      const card =
         document.createElement(
-          "button"
+          "div"
         );
 
-      button.className =
-        "crafting-recipe";
 
-
-      if (
-        craftingState.selectedRecipe ===
-        recipe.id
-      ) {
-
-        button.classList.add(
-          "selected"
-        );
-
-      }
+      card.className =
+        "recipeCard";
 
 
       if (!unlocked) {
 
-        button.classList.add(
+        card.classList.add(
           "locked"
         );
 
       }
 
 
-      const craftable =
-        canCraft(
-          recipe.id
-        );
+      const ingredientsHTML =
+        Object.entries(
+          recipe.ingredients
+        )
+        .map(
+          ([itemId, amount]) => {
+
+            const item =
+              ITEMS[itemId];
 
 
-      if (craftable) {
-
-        button.classList.add(
-          "craftable"
-        );
-
-      }
+            const current =
+              getItemCount(
+                itemId
+              );
 
 
-      button.innerHTML = `
+            const enough =
+              current >= amount;
 
-        <div class="recipe-icon">
-          ${getRecipeIcon(recipe.id)}
+
+            return `
+
+              <div
+                style="
+                  color:
+                    ${
+                      enough
+                        ? "#a9bdb1"
+                        : "#ff7676"
+                    };
+                "
+              >
+                ${item?.icon || "•"}
+                ${item?.name || itemId}
+                ×${amount}
+                (${current})
+              </div>
+
+            `;
+
+          }
+        )
+        .join("");
+
+
+      card.innerHTML = `
+
+        <div
+          style="
+            font-size:28px;
+            margin-bottom:8px;
+          "
+        >
+          ${recipe.icon}
         </div>
 
-        <div class="recipe-info">
-
-          <div class="recipe-name">
-            ${
-              unlocked
-                ? recipe.name
-                : "Locked"
-            }
-          </div>
-
-          <div class="recipe-category">
-            ${
-              capitalize(
-                recipe.category
-              )
-            }
-          </div>
-
+        <div class="recipeName">
+          ${recipe.name}
         </div>
 
-        <div class="recipe-arrow">
-          ›
+        <div
+          class="recipeIngredients"
+        >
+          ${ingredientsHTML}
         </div>
+
+        <div
+          style="
+            margin-top:9px;
+            color:#a9bdb1;
+            font-size:11px;
+          "
+        >
+          ${recipe.description}
+        </div>
+
+        <button
+          class="uiButton"
+          type="button"
+          data-craft="${recipe.id}"
+          ${
+            !unlocked ||
+            !possible
+              ? "disabled"
+              : ""
+          }
+        >
+          ${
+            !unlocked
+              ? "🔒 Locked"
+              : possible
+                ? "Craft"
+                : "Need Materials"
+          }
+        </button>
 
       `;
 
 
-      button.addEventListener(
+      card.addEventListener(
         "click",
-        () => {
+        event => {
 
-          craftingState.selectedRecipe =
-            recipe.id;
+          if (
+            event.target.closest(
+              "[data-craft]"
+            )
+          ) {
+            return;
+          }
 
-          renderCraftingMenu();
+
+          selectRecipe(
+            recipe.id
+          );
 
         }
       );
 
 
-      container.appendChild(
-        button
+      grid.appendChild(
+        card
       );
 
     }
   );
 
+
+  grid
+    .querySelectorAll(
+      "[data-craft]"
+    )
+    .forEach(
+      button => {
+
+        button.addEventListener(
+          "click",
+          event => {
+
+            event.stopPropagation();
+
+
+            craft(
+              button.dataset.craft
+            );
+
+          }
+        );
+
+      }
+    );
 }
 
 
-/* ========================================================
-   RECIPE DETAILS
-======================================================== */
+/* =========================================================
+   SELECT RECIPE
+========================================================= */
 
-function renderRecipeDetails() {
+function selectRecipe(
+  recipeId
+) {
 
-  const container =
+  if (
+    !RECIPES[recipeId]
+  ) {
+    return;
+  }
+
+
+  craftingState.selectedRecipe =
+    recipeId;
+
+
+  refreshSelected();
+
+
+  gameEvent(
+    "crafting-recipe-selected",
+    {
+      recipeId
+    }
+  );
+}
+
+
+/* =========================================================
+   SELECTED RECIPE
+========================================================= */
+
+function refreshSelected() {
+
+  const element =
     document.getElementById(
-      "craftingDetails"
+      "craftingSelected"
     );
 
-  if (!container) {
+
+  if (!element) {
     return;
   }
 
 
   const recipe =
-    getRecipe(
-      craftingState.selectedRecipe
-    );
+    craftingState.selectedRecipe
+      ? RECIPES[
+          craftingState.selectedRecipe
+        ]
+      : null;
 
 
   if (!recipe) {
 
-    container.innerHTML = `
-
-      <div class="crafting-empty">
-
-        Select a recipe to see
-        what you need.
-
-      </div>
-
-    `;
+    element.innerHTML =
+      "Select a recipe to see more information.";
 
     return;
-
   }
 
 
   const unlocked =
-    isRecipeUnlocked(
+    recipeUnlocked(
       recipe.id
     );
 
 
-  if (!unlocked) {
-
-    container.innerHTML = `
-
-      <div class="recipe-detail-title">
-        🔒 Locked Recipe
-      </div>
-
-      <div class="recipe-detail-name">
-        ${recipe.name}
-      </div>
-
-      <div class="recipe-detail-description">
-        ${recipe.description}
-      </div>
-
-      <div class="recipe-locked">
-        Find this recipe through
-        exploration and the survival guide.
-      </div>
-
-    `;
-
-    return;
-
-  }
-
-
-  const ingredientHTML =
-    Object.entries(
-      recipe.ingredients
-    )
-    .map(
-      ([item, amount]) => {
-
-        const current =
-          getItemCount(item);
-
-        const enough =
-          current >= amount;
-
-
-        return `
-
-          <div
-            class="ingredient ${
-              enough
-                ? "enough"
-                : "missing"
-            }"
-          >
-
-            <span>
-              ${getItemIcon(item)}
-              ${getItemName(item)}
-            </span>
-
-            <span>
-              ${current} / ${amount}
-            </span>
-
-          </div>
-
-        `;
-
-      }
-    )
-    .join("");
-
-
-  const outputHTML =
-    Object.entries(
-      recipe.output
-    )
-    .map(
-      ([item, amount]) => `
-
-        <div class="output-item">
-
-          ${getItemIcon(item)}
-
-          ${getItemName(item)}
-
-          ×${amount}
-
-        </div>
-
-      `
-    )
-    .join("");
-
-
-  const craftable =
+  const possible =
     canCraft(
       recipe.id
     );
 
 
-  container.innerHTML = `
+  element.innerHTML = `
 
-    <div class="recipe-detail-title">
-      ${getRecipeIcon(recipe.id)}
+    <strong
+      style="
+        color:white;
+        font-size:14px;
+      "
+    >
+      ${recipe.icon}
       ${recipe.name}
-    </div>
+    </strong>
 
-
-    <div class="recipe-detail-description">
+    <div
+      style="
+        margin-top:6px;
+        line-height:1.6;
+      "
+    >
       ${recipe.description}
     </div>
 
-
-    <div class="detail-section">
-
-      <div class="detail-heading">
-        MATERIALS
-      </div>
-
-      <div class="ingredients-list">
-
-        ${ingredientHTML}
-
-      </div>
-
-    </div>
-
-
-    <div class="detail-section">
-
-      <div class="detail-heading">
-        CREATES
-      </div>
-
-      <div class="outputs-list">
-
-        ${outputHTML}
-
-      </div>
-
-    </div>
-
-
-    <button
-      id="craftSelected"
-      class="craft-button"
-      ${craftable ? "" : "disabled"}
+    <div
+      style="
+        margin-top:8px;
+      "
     >
-
       ${
-        craftable
-          ? `CRAFT ${recipe.name.toUpperCase()}`
-          : "MISSING MATERIALS"
+        unlocked
+          ? possible
+            ? "Ready to craft."
+            : "Gather the missing materials."
+          : "This recipe has not been unlocked yet."
       }
-
-    </button>
+    </div>
 
   `;
-
-
-  const craftButton =
-    document.getElementById(
-      "craftSelected"
-    );
-
-
-  if (craftButton) {
-
-    craftButton.addEventListener(
-      "click",
-      () => {
-
-        craft(
-          recipe.id
-        );
-
-      }
-    );
-
-  }
-
 }
 
 
-/* ========================================================
-   ITEM NAMES
-======================================================== */
-
-function getItemName(item) {
-
-  const names = {
-
-    rock: "Rock",
-
-    stone: "Stone",
-
-    log: "Log",
-
-    wood: "Wood",
-
-    stick: "Stick",
-
-    fiber: "Fiber",
-
-    string: "String",
-
-    leaf: "Leaf",
-
-    food: "Food",
-
-    water: "Water",
-
-    rawMeat: "Raw Meat",
-
-    cookedMeat: "Cooked Meat",
-
-    stoneAxe: "Stone Axe",
-
-    stonePickaxe: "Stone Pickaxe",
-
-    campfire: "Campfire",
-
-    storageBox: "Storage Box",
-
-    woodWall: "Wood Wall",
-
-    woodFloor: "Wood Floor",
-
-    woodDoor: "Wood Door"
-
-  };
-
-
-  return (
-    names[item] ||
-    capitalize(item)
-  );
-
-}
-
-
-/* ========================================================
-   ITEM ICONS
-======================================================== */
-
-function getItemIcon(item) {
-
-  const icons = {
-
-    rock: "🪨",
-
-    stone: "🪨",
-
-    log: "🪵",
-
-    wood: "🪵",
-
-    stick: "🪵",
-
-    fiber: "🌿",
-
-    string: "🧵",
-
-    leaf: "🍃",
-
-    food: "🍎",
-
-    water: "💧",
-
-    rawMeat: "🥩",
-
-    cookedMeat: "🍖",
-
-    stoneAxe: "🪓",
-
-    stonePickaxe: "⛏️",
-
-    campfire: "🔥",
-
-    storageBox: "📦",
-
-    woodWall: "🧱",
-
-    woodFloor: "🪵",
-
-    woodDoor: "🚪"
-
-  };
-
-
-  return icons[item] || "📦";
-
-}
-
-
-/* ========================================================
-   RECIPE ICONS
-======================================================== */
-
-function getRecipeIcon(recipeId) {
-
-  const icons = {
-
-    string: "🧵",
-
-    stick: "🪵",
-
-    woodPlank: "🪵",
-
-    stone: "🪨",
-
-    rope: "🧵",
-
-    stoneAxe: "🪓",
-
-    stonePickaxe: "⛏️",
-
-    campfire: "🔥",
-
-    storageBox: "📦",
-
-    woodWall: "🧱",
-
-    woodFloor: "🪵",
-
-    woodDoor: "🚪"
-
-  };
-
-
-  return icons[recipeId] || "🔨";
-
-}
-
-
-/* ========================================================
-   MESSAGE
-======================================================== */
-
-function showCraftMessage(
-  message
-) {
-
-  const messageElement =
-    document.getElementById(
-      "message"
-    );
-
-
-  if (messageElement) {
-
-    messageElement.textContent =
-      message;
-
-    messageElement.classList.add(
-      "show"
-    );
-
-
-    clearTimeout(
-      showCraftMessage.timeout
-    );
-
-
-    showCraftMessage.timeout =
-      setTimeout(
-        () => {
-
-          messageElement.classList.remove(
-            "show"
-          );
-
-        },
-        2200
-      );
-
-  }
-
-
-  window.dispatchEvent(
-    new CustomEvent(
-      "survival-crafting-message",
-      {
-        detail: {
-          message
-        }
-      }
-    )
-  );
-
-}
-
-
-/* ========================================================
-   KEYBOARD SUPPORT
-======================================================== */
+/* =========================================================
+   KEYBOARD CONTROLS
+========================================================= */
 
 window.addEventListener(
   "keydown",
   event => {
 
-    /*
-    C = Crafting
-    */
-
     if (
-      event.key.toLowerCase() === "c" &&
-      !isTyping()
+      event.repeat
     ) {
-
-      toggleCrafting();
-
+      return;
     }
 
 
-    /*
-    ESC = close
-    */
-
     if (
-      event.key === "Escape"
+      event.code === "KeyC"
     ) {
 
-      closeCrafting();
+      toggle();
+
+      return;
+    }
+
+
+    if (
+      event.code === "Escape" &&
+      craftingState.open
+    ) {
+
+      close();
 
     }
 
@@ -1478,19 +1374,39 @@ window.addEventListener(
 );
 
 
-/* ========================================================
-   INVENTORY UPDATE CONNECTION
-======================================================== */
+/* =========================================================
+   INVENTORY CHANGES
+========================================================= */
 
 window.addEventListener(
   "survival-inventory-changed",
   () => {
 
     if (
+      craftingState.initialized
+    ) {
+
+      refresh();
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   VR MENU BUTTON
+========================================================= */
+
+window.addEventListener(
+  "survival-menu-button",
+  () => {
+
+    if (
       craftingState.open
     ) {
 
-      renderCraftingMenu();
+      close();
 
     }
 
@@ -1498,90 +1414,32 @@ window.addEventListener(
 );
 
 
-/* ========================================================
-   GAME EVENT CONNECTION
-======================================================== */
+/* =========================================================
+   START
+========================================================= */
 
-window.addEventListener(
-  "survival-recipe-unlocked",
-  event => {
+createUI();
 
-    if (
-      !event.detail
-    ) {
-      return;
-    }
-
-
-    renderCraftingMenu();
-
-  }
-);
-
-
-/* ========================================================
-   INPUT SAFETY
-======================================================== */
-
-function isTyping() {
-
-  const active =
-    document.activeElement;
-
-  if (!active) {
-    return false;
-  }
-
-
-  const tag =
-    active.tagName.toLowerCase();
-
-
-  return (
-    tag === "input" ||
-    tag === "textarea" ||
-    tag === "select"
-  );
-
-}
-
-
-/* ========================================================
-   TEXT HELPER
-======================================================== */
-
-function capitalize(
-  value
-) {
-
-  if (!value) {
-    return "";
-  }
-
-
-  return (
-    value.charAt(0).toUpperCase() +
-    value.slice(1)
-  );
-
-}
-
-
-/* ========================================================
-   DEFAULT RECIPE UNLOCKS
-======================================================== */
-
-/*
-These are intentionally unlocked later
-through the guide/exploration system.
-
-The two basic recipes already work immediately.
-*/
 
 console.log(
-  "🔨 Crafting system loaded."
+  "[Crafting] Crafting system loaded."
 );
 
-console.log(
-  `📋 ${Object.keys(RECIPES).length} recipes registered.`
-);
+
+/* =========================================================
+   EXPORTS
+========================================================= */
+
+export {
+  craftingSystem,
+  open,
+  close,
+  toggle,
+  refresh,
+  craft,
+  canCraft,
+  unlock,
+  selectRecipe,
+  getRecipe,
+  getRecipes
+};
