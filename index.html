@@ -10,39 +10,61 @@
 
   <meta
     name="theme-color"
-    content="#08140f"
+    content="#07150f"
   >
 
-  <title>Island Survival VR</title>
+  <title>Survival VR</title>
 
-  <link rel="stylesheet" href="./style.css">
+  <link
+    rel="stylesheet"
+    href="./style.css"
+  >
+
+  <!--
+    Three.js
+    The importmap lets all of our JavaScript files use:
+    import * as THREE from "three";
+  -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+    }
+  }
+  </script>
 </head>
 
 <body>
 
-  <!-- =====================================================
+  <!-- ========================================================
        START SCREEN
-  ====================================================== -->
+       ======================================================== -->
 
   <div id="startScreen">
 
     <div class="startPanel">
 
       <div class="gameLogo">
-        ISLAND
-        <span>SURVIVAL VR</span>
+        SURVIVAL
+        <span>VR</span>
       </div>
 
       <p class="startDescription">
-        Survive. Explore. Build. Discover.
+        Explore a procedurally generated island,
+        gather resources, craft tools, build shelter,
+        and survive.
       </p>
 
-      <button id="startButton">
-        ENTER ISLAND
+      <button
+        id="startButton"
+        type="button"
+      >
+        START SURVIVAL
       </button>
 
       <div id="vrStatus">
-        Checking VR support...
+        Checking VR...
       </div>
 
     </div>
@@ -50,102 +72,251 @@
   </div>
 
 
-  <!-- =====================================================
-       HUD
-  ====================================================== -->
+  <!-- ========================================================
+       GAME HUD
+       ======================================================== -->
 
-  <div id="hud">
+  <div
+    id="hud"
+    class="hidden"
+  >
 
     <div class="hudStats">
 
       <div class="stat">
-        <span>❤️</span>
-        <span id="health">100</span>
+        <span class="statLabel">
+          HEALTH
+        </span>
+
+        <span id="healthDisplay">
+          100
+        </span>
       </div>
 
       <div class="stat">
-        <span>🍗</span>
-        <span id="hunger">100</span>
+        <span class="statLabel">
+          HUNGER
+        </span>
+
+        <span id="hungerDisplay">
+          100
+        </span>
       </div>
 
       <div class="stat">
-        <span>💧</span>
-        <span id="thirst">100</span>
+        <span class="statLabel">
+          THIRST
+        </span>
+
+        <span id="thirstDisplay">
+          100
+        </span>
       </div>
 
       <div class="stat">
-        <span>⚡</span>
-        <span id="stamina">100</span>
-      </div>
+        <span class="statLabel">
+          STAMINA
+        </span>
 
-      <div class="stat">
-        <span>🪨</span>
-        <span id="rockCount">1</span>
+        <span id="staminaDisplay">
+          100
+        </span>
       </div>
 
     </div>
 
+
     <div id="worldInfo">
-      <span id="dayDisplay">Day 1</span>
-      <span id="timeDisplay">08:00</span>
+
+      <div>
+        DAY
+        <span id="dayDisplay">
+          1
+        </span>
+      </div>
+
+      <div>
+        TIME
+        <span id="timeDisplay">
+          08:00
+        </span>
+      </div>
+
     </div>
 
   </div>
 
 
-  <!-- =====================================================
-       MESSAGE
-  ====================================================== -->
+  <!-- ========================================================
+       MESSAGE TOAST
+       ======================================================== -->
 
-  <div id="message"></div>
-
-
-  <!-- =====================================================
-       THREE.JS
-  ====================================================== -->
-
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"
-    }
-  }
-  </script>
+  <div
+    id="message"
+    class="hidden"
+  ></div>
 
 
-  <!-- =====================================================
-       MAIN GAME MODULE
-  ====================================================== -->
+  <!-- ========================================================
+       SYSTEM UI CONTAINERS
+       ======================================================== -->
+
+  <!-- Inventory creates its own contents here. -->
+  <div
+    id="inventoryContainer"
+    class="systemContainer"
+  ></div>
+
+  <!-- Crafting creates its own contents here. -->
+  <div
+    id="craftingContainer"
+    class="systemContainer"
+  ></div>
+
+  <!-- Building creates its own contents here. -->
+  <div
+    id="buildingContainer"
+    class="systemContainer"
+  ></div>
+
+  <!-- Guide creates its own contents here. -->
+  <div
+    id="guideContainer"
+    class="systemContainer"
+  ></div>
+
+  <!-- Save system creates its own contents here. -->
+  <div
+    id="saveContainer"
+    class="systemContainer"
+  ></div>
+
+  <!-- Home system creates its own contents here. -->
+  <div
+    id="homeContainer"
+    class="systemContainer"
+  ></div>
+
+  <!-- Settings system creates its own contents here. -->
+  <div
+    id="settingsContainer"
+    class="systemContainer"
+  ></div>
+
+
+  <!-- ========================================================
+       LOADING
+       ======================================================== -->
+
+  <div
+    id="loadingScreen"
+    class="hidden"
+  >
+
+    <div class="loadingPanel">
+
+      <div class="loadingTitle">
+        GENERATING ISLAND
+      </div>
+
+      <div class="loadingBar">
+        <div
+          id="loadingProgress"
+          class="loadingProgress"
+        ></div>
+      </div>
+
+      <div id="loadingText">
+        Preparing world...
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- ========================================================
+       PAUSE
+       ======================================================== -->
+
+  <div
+    id="pauseScreen"
+    class="hidden"
+  >
+
+    <div class="pausePanel">
+
+      <div class="pauseTitle">
+        PAUSED
+      </div>
+
+      <p>
+        Open the survival menu to continue.
+      </p>
+
+      <button
+        id="resumeButton"
+        type="button"
+      >
+        RESUME
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- ========================================================
+       VR BUTTON
+       ======================================================== -->
+
+  <div id="vrButton"></div>
+
+
+  <!-- ========================================================
+       MAIN GAME SCRIPT
+       ======================================================== -->
 
   <script type="module">
+
+    /*
+     * IMPORTANT:
+     *
+     * game.js and hands.js are loaded first.
+     *
+     * SurvivalVR is created before the rest of the
+     * systems are dynamically imported.
+     *
+     * This prevents the ES-module initialization
+     * problem where a system tries to access
+     * window.SurvivalVR before it exists.
+     */
 
     import * as THREE from "three";
 
     import {
       VRButton
-    } from
-      "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/webxr/VRButton.js";
-
+    } from "three/addons/webxr/VRButton.js";
 
     import {
       GAME,
       player,
-      movePlayer,
-      turnPlayer,
-      updateSurvival
+      gameEvent,
+      updateSurvival,
+      setPaused,
+      setVRState,
+      setSprinting
     } from "./game.js";
 
-
     import {
-      attachHand,
-      setupGrip,
-      updateHand
+      setupHands,
+      updateHands
     } from "./hands.js";
 
 
-    /* =====================================================
-       CORE
-    ====================================================== */
+    // ========================================================
+    // SURVIVAL VR CORE
+    // ========================================================
 
     window.SurvivalVR = {
 
@@ -202,1149 +373,1275 @@
 
       },
 
-      ready: false
+      ready: false,
+
+      worldData: null,
+
+      world: null,
+
+      hands: null,
+
+      updateHands: null,
+
+      rendererInitialized: false
 
     };
 
 
-    /* =====================================================
-       SCENE
-    ====================================================== */
+    // ========================================================
+    // DOM
+    // ========================================================
 
-    const scene =
-      new THREE.Scene();
-
-    scene.background =
-      new THREE.Color(
-        0x82c9ee
+    const startScreen =
+      document.getElementById(
+        "startScreen"
       );
 
-    scene.fog =
-      new THREE.Fog(
-        0x82c9ee,
-        45,
-        120
+    const startButton =
+      document.getElementById(
+        "startButton"
+      );
+
+    const vrStatus =
+      document.getElementById(
+        "vrStatus"
+      );
+
+    const hud =
+      document.getElementById(
+        "hud"
+      );
+
+    const message =
+      document.getElementById(
+        "message"
+      );
+
+    const vrButton =
+      document.getElementById(
+        "vrButton"
+      );
+
+    const loadingScreen =
+      document.getElementById(
+        "loadingScreen"
+      );
+
+    const loadingProgress =
+      document.getElementById(
+        "loadingProgress"
+      );
+
+    const loadingText =
+      document.getElementById(
+        "loadingText"
+      );
+
+    const pauseScreen =
+      document.getElementById(
+        "pauseScreen"
+      );
+
+    const resumeButton =
+      document.getElementById(
+        "resumeButton"
       );
 
 
-    window.SurvivalVR.scene =
-      scene;
+    // ========================================================
+    // GAME STATE
+    // ========================================================
+
+    let initialized =
+      false;
+
+    let systemsLoaded =
+      false;
+
+    let lastFrameTime =
+      performance.now();
+
+    let messageTimer =
+      null;
 
 
-    /* =====================================================
-       CAMERA
-    ====================================================== */
+    // ========================================================
+    // MESSAGE
+    // ========================================================
 
-    const camera =
-      new THREE.PerspectiveCamera(
-        70,
-        window.innerWidth /
-        window.innerHeight,
-        0.05,
+    function showMessage(
+      text,
+      duration = 2500
+    ) {
+
+      if (!message) {
+        return;
+      }
+
+      message.textContent =
+        text;
+
+      message.classList.remove(
+        "hidden"
+      );
+
+      clearTimeout(
+        messageTimer
+      );
+
+      messageTimer =
+        setTimeout(
+          () => {
+            message.classList.add(
+              "hidden"
+            );
+          },
+          duration
+        );
+
+    }
+
+
+    window.SurvivalVR.showMessage =
+      showMessage;
+
+
+    // ========================================================
+    // LOADING
+    // ========================================================
+
+    function setLoading(
+      percent,
+      text
+    ) {
+
+      if (
+        loadingProgress
+      ) {
+        loadingProgress.style.width =
+          `${percent}%`;
+      }
+
+      if (
+        loadingText &&
+        text
+      ) {
+        loadingText.textContent =
+          text;
+      }
+
+    }
+
+
+    function showLoading(
+      text =
+        "Preparing world..."
+    ) {
+
+      if (!loadingScreen) {
+        return;
+      }
+
+      loadingScreen.classList.remove(
+        "hidden"
+      );
+
+      setLoading(
+        0,
+        text
+      );
+
+    }
+
+
+    function hideLoading() {
+
+      if (!loadingScreen) {
+        return;
+      }
+
+      setLoading(
+        100,
+        "Ready!"
+      );
+
+      setTimeout(
+        () => {
+          loadingScreen.classList.add(
+            "hidden"
+          );
+        },
         250
       );
 
-
-    camera.position.set(
-      0,
-      1.65,
-      8
-    );
-
-
-    window.SurvivalVR.camera =
-      camera;
-
-
-    /* =====================================================
-       PLAYER GROUP
-    ====================================================== */
-
-    const playerGroup =
-      new THREE.Group();
-
-
-    playerGroup.position.set(
-      0,
-      0,
-      8
-    );
-
-
-    playerGroup.add(
-      camera
-    );
-
-
-    scene.add(
-      playerGroup
-    );
-
-
-    window.SurvivalVR.playerGroup =
-      playerGroup;
-
-
-    /* =====================================================
-       LIGHTING
-    ====================================================== */
-
-    const hemisphereLight =
-      new THREE.HemisphereLight(
-        0xbfeeff,
-        0x26351e,
-        1.5
-      );
-
-
-    scene.add(
-      hemisphereLight
-    );
-
-
-    const sun =
-      new THREE.DirectionalLight(
-        0xfff3cf,
-        3.2
-      );
-
-
-    sun.position.set(
-      -25,
-      35,
-      20
-    );
-
-
-    sun.castShadow =
-      true;
-
-
-    sun.shadow.mapSize.width =
-      2048;
-
-    sun.shadow.mapSize.height =
-      2048;
-
-
-    sun.shadow.camera.left =
-      -50;
-
-    sun.shadow.camera.right =
-      50;
-
-    sun.shadow.camera.top =
-      50;
-
-    sun.shadow.camera.bottom =
-      -50;
-
-
-    scene.add(
-      sun
-    );
-
-
-    /* =====================================================
-       RENDERER
-    ====================================================== */
-
-    const renderer =
-      new THREE.WebGLRenderer({
-        antialias: true,
-        powerPreference: "high-performance"
-      });
-
-
-    renderer.setPixelRatio(
-      Math.min(
-        window.devicePixelRatio,
-        2
-      )
-    );
-
-
-    renderer.setSize(
-      window.innerWidth,
-      window.innerHeight
-    );
-
-
-    renderer.xr.enabled =
-      true;
-
-
-    renderer.shadowMap.enabled =
-      true;
-
-
-    renderer.shadowMap.type =
-      THREE.PCFSoftShadowMap;
-
-
-    renderer.outputColorSpace =
-      THREE.SRGBColorSpace;
-
-
-    renderer.toneMapping =
-      THREE.ACESFilmicToneMapping;
-
-
-    renderer.toneMappingExposure =
-      1.05;
-
-
-    document.body.appendChild(
-      renderer.domElement
-    );
-
-
-    window.SurvivalVR.renderer =
-      renderer;
-
-
-    /* =====================================================
-       VR BUTTON
-    ====================================================== */
-
-    const vrButton =
-      VRButton.createButton(
-        renderer
-      );
-
-
-    vrButton.id =
-      "vrButton";
-
-
-    document.body.appendChild(
-      vrButton
-    );
-
-
-    /* =====================================================
-       MATERIAL HELPERS
-    ====================================================== */
-
-    function material(
-      color,
-      roughness = 0.8
-    ) {
-
-      return new THREE.MeshStandardMaterial({
-
-        color,
-
-        roughness,
-
-        metalness: 0
-
-      });
-
     }
 
 
-    /* =====================================================
-       ISLAND
-    ====================================================== */
+    // ========================================================
+    // RENDERER
+    // ========================================================
 
-    const islandGeometry =
-      new THREE.CylinderGeometry(
-        28,
-        30,
-        2.2,
-        64
-      );
+    function createRenderer() {
 
-
-    const islandMaterial =
-      material(
-        0x4f873b
-      );
-
-
-    const island =
-      new THREE.Mesh(
-        islandGeometry,
-        islandMaterial
-      );
-
-
-    island.position.y =
-      -1.1;
-
-
-    island.receiveShadow =
-      true;
-
-
-    scene.add(
-      island
-    );
-
-
-    /* =====================================================
-       BEACH
-    ====================================================== */
-
-    const beachGeometry =
-      new THREE.CylinderGeometry(
-        27.8,
-        29,
-        0.35,
-        64
-      );
-
-
-    const beach =
-      new THREE.Mesh(
-        beachGeometry,
-        material(
-          0xd8c486
-        )
-      );
-
-
-    beach.position.y =
-      0.02;
-
-
-    beach.receiveShadow =
-      true;
-
-
-    scene.add(
-      beach
-    );
-
-
-    /* =====================================================
-       GRASS TOP
-    ====================================================== */
-
-    const grassGeometry =
-      new THREE.CylinderGeometry(
-        25.8,
-        27.8,
-        0.45,
-        64
-      );
-
-
-    const grassTop =
-      new THREE.Mesh(
-        grassGeometry,
-        material(
-          0x4c8d3c
-        )
-      );
-
-
-    grassTop.position.y =
-      0.25;
-
-
-    grassTop.receiveShadow =
-      true;
-
-
-    scene.add(
-      grassTop
-    );
-
-
-    /* =====================================================
-       LAKE
-    ====================================================== */
-
-    const lakeGeometry =
-      new THREE.CircleGeometry(
-        9,
-        64
-      );
-
-
-    const lakeMaterial =
-      new THREE.MeshStandardMaterial({
-
-        color: 0x238fc1,
-
-        roughness: 0.12,
-
-        metalness: 0.15,
-
-        transparent: true,
-
-        opacity: 0.82
-
-      });
-
-
-    const lake =
-      new THREE.Mesh(
-        lakeGeometry,
-        lakeMaterial
-      );
-
-
-    lake.rotation.x =
-      -Math.PI / 2;
-
-
-    lake.position.set(
-      9,
-      0.48,
-      -7
-    );
-
-
-    lake.userData.type =
-      "water";
-
-
-    lake.userData.radius =
-      9;
-
-
-    lake.receiveShadow =
-      true;
-
-
-    scene.add(
-      lake
-    );
-
-
-    window.SurvivalVR.objects.push(
-      lake
-    );
-
-
-    /* =====================================================
-       WATER RINGS
-    ====================================================== */
-
-    for (
-      let i = 0;
-      i < 8;
-      i++
-    ) {
-
-      const ringGeometry =
-        new THREE.RingGeometry(
-          1.5 + i * 0.9,
-          1.54 + i * 0.9,
-          64
-        );
-
-
-      const ringMaterial =
-        new THREE.MeshBasicMaterial({
-
-          color: 0x83dfff,
-
-          transparent: true,
-
-          opacity:
-            0.16 -
-            i * 0.012,
-
-          side:
-            THREE.DoubleSide
-
-        });
-
-
-      const ring =
-        new THREE.Mesh(
-          ringGeometry,
-          ringMaterial
-        );
-
-
-      ring.rotation.x =
-        -Math.PI / 2;
-
-
-      ring.position.set(
-        9,
-        0.51 + i * 0.002,
-        -7
-      );
-
-
-      ring.userData.type =
-        "waterWave";
-
-
-      ring.userData.phase =
-        i * 0.7;
-
-
-      scene.add(
-        ring
-      );
-
-
-      window.SurvivalVR.objects.push(
-        ring
-      );
-
-    }
-
-
-    /* =====================================================
-       TREE CREATOR
-    ====================================================== */
-
-    function createTree(
-      x,
-      z,
-      scale = 1
-    ) {
-
-      const tree =
-        new THREE.Group();
-
-
-      tree.position.set(
-        x,
-        0.45,
-        z
-      );
-
-
-      tree.scale.setScalar(
-        scale
-      );
-
-
-      tree.userData.type =
-        "tree";
-
-
-      tree.userData.resource =
-        "wood";
-
-
-      tree.userData.health =
-        5;
-
-
-      /* Trunk */
-
-      const trunk =
-        new THREE.Mesh(
-          new THREE.CylinderGeometry(
-            0.32,
-            0.45,
-            4,
-            12
-          ),
-          material(
-            0x68401f
-          )
-        );
-
-
-      trunk.position.y =
-        2;
-
-
-      trunk.castShadow =
-        true;
-
-
-      trunk.receiveShadow =
-        true;
-
-
-      trunk.userData.type =
-        "treeTrunk";
-
-
-      trunk.userData.parentResource =
-        tree;
-
-
-      tree.add(
-        trunk
-      );
-
-
-      /* Main leaves */
-
-      const leafMaterial =
-        material(
-          0x1e642f
-        );
-
-
-      for (
-        let i = 0;
-        i < 4;
-        i++
+      if (
+        window.SurvivalVR.renderer
       ) {
-
-        const leaves =
-          new THREE.Mesh(
-            new THREE.SphereGeometry(
-              1.5 -
-              i * 0.12,
-              12,
-              10
-            ),
-            leafMaterial
-          );
-
-
-        leaves.position.set(
-          (i % 2 === 0 ? -0.55 : 0.55),
-          3.3 +
-          i * 0.65,
-          i % 2 === 0 ? 0.2 : -0.2
-        );
-
-
-        leaves.scale.y =
-          0.8;
-
-
-        leaves.castShadow =
-          true;
-
-
-        leaves.receiveShadow =
-          true;
-
-
-        leaves.userData.type =
-          "treeLeaves";
-
-
-        leaves.userData.parentResource =
-          tree;
-
-
-        tree.add(
-          leaves
-        );
-
+        return window.SurvivalVR.renderer;
       }
 
-
-      scene.add(
-        tree
-      );
-
-
-      window.SurvivalVR.resources.push(
-        tree
-      );
-
-
-      return tree;
-
-    }
-
-
-    /* =====================================================
-       TREES
-    ====================================================== */
-
-    const treePositions = [
-
-      [-17, -15, 1.15],
-      [-12, -7, 0.95],
-      [-18, -2, 1.1],
-      [-15, 9, 1.05],
-      [-7, 16, 1.0],
-      [2, 18, 1.15],
-      [13, 17, 1.05],
-      [19, 10, 0.95],
-      [19, 1, 1.1],
-      [17, -14, 1.0],
-      [3, -19, 1.15],
-      [-8, -19, 0.95],
-      [-22, 5, 0.9]
-
-    ];
-
-
-    for (
-      const [
-        x,
-        z,
-        scale
-      ]
-      of treePositions
-    ) {
-
-      createTree(
-        x,
-        z,
-        scale
-      );
-
-    }
-
-
-    /* =====================================================
-       ROCK CREATOR
-    ====================================================== */
-
-    function createRock(
-      x,
-      z,
-      scale = 1
-    ) {
-
-      const rock =
-        new THREE.Mesh(
-          new THREE.DodecahedronGeometry(
-            0.75,
-            1
-          ),
-          material(
-            0x747a78
-          )
-        );
-
-
-      rock.position.set(
-        x,
-        0.65,
-        z
-      );
-
-
-      rock.scale.set(
-        scale * 1.2,
-        scale * 0.8,
-        scale
-      );
-
-
-      rock.rotation.set(
-        Math.random(),
-        Math.random(),
-        Math.random()
-      );
-
-
-      rock.castShadow =
-        true;
-
-
-      rock.receiveShadow =
-        true;
-
-
-      rock.userData.type =
-        "rock";
-
-
-      rock.userData.resource =
-        "rock";
-
-
-      rock.userData.health =
-        3;
-
-
-      scene.add(
-        rock
-      );
-
-
-      window.SurvivalVR.resources.push(
-        rock
-      );
-
-
-      return rock;
-
-    }
-
-
-    /* =====================================================
-       ROCKS
-    ====================================================== */
-
-    const rockPositions = [
-
-      [-13, 13, 1],
-      [-4, 14, 0.8],
-      [8, 14, 1.1],
-      [16, 5, 0.85],
-      [-19, -10, 1],
-      [-7, -12, 0.9],
-      [20, -4, 0.8],
-      [4, 21, 0.9]
-
-    ];
-
-
-    for (
-      const [
-        x,
-        z,
-        scale
-      ]
-      of rockPositions
-    ) {
-
-      createRock(
-        x,
-        z,
-        scale
-      );
-
-    }
-
-
-    /* =====================================================
-       LOG CREATOR
-    ====================================================== */
-
-    function createLog(
-      x,
-      z,
-      rotation = 0
-    ) {
-
-      const log =
-        new THREE.Mesh(
-          new THREE.CylinderGeometry(
-            0.35,
-            0.42,
-            2.5,
-            12
-          ),
-          material(
-            0x754821
-          )
-        );
-
-
-      log.position.set(
-        x,
-        0.55,
-        z
-      );
-
-
-      log.rotation.z =
-        Math.PI / 2;
-
-
-      log.rotation.y =
-        rotation;
-
-
-      log.castShadow =
-        true;
-
-
-      log.receiveShadow =
-        true;
-
-
-      log.userData.type =
-        "log";
-
-
-      log.userData.item =
-        "log";
-
-
-      scene.add(
-        log
-      );
-
-
-      window.SurvivalVR.resources.push(
-        log
-      );
-
-
-      return log;
-
-    }
-
-
-    createLog(
-      -3,
-      4,
-      0.5
-    );
-
-
-    createLog(
-      5,
-      12,
-      1.3
-    );
-
-
-    /* =====================================================
-       STARTING ROCK
-    ====================================================== */
-
-    const startingRock =
-      new THREE.Mesh(
-        new THREE.DodecahedronGeometry(
-          0.16,
-          1
-        ),
-        material(
-          0x737979
+      const renderer =
+        new THREE.WebGLRenderer({
+          antialias: true,
+          alpha: false,
+          powerPreference:
+            "high-performance"
+        });
+
+      renderer.setPixelRatio(
+        Math.min(
+          window.devicePixelRatio ||
+            1,
+          1.5
         )
       );
 
+      renderer.setSize(
+        window.innerWidth,
+        window.innerHeight
+      );
 
-    startingRock.position.set(
-      0.35,
-      -0.15,
-      -0.6
-    );
+      renderer.xr.enabled =
+        true;
+
+      renderer.shadowMap.enabled =
+        true;
+
+      renderer.shadowMap.type =
+        THREE.PCFSoftShadowMap;
+
+      renderer.outputColorSpace =
+        THREE.SRGBColorSpace;
+
+      renderer.toneMapping =
+        THREE.ACESFilmicToneMapping;
+
+      renderer.toneMappingExposure =
+        1;
+
+      document.body.appendChild(
+        renderer.domElement
+      );
+
+      window.SurvivalVR.renderer =
+        renderer;
+
+      window.SurvivalVR.rendererInitialized =
+        true;
+
+      return renderer;
+
+    }
 
 
-    startingRock.userData.type =
-      "holdable";
+    // ========================================================
+    // SCENE
+    // ========================================================
+
+    function createScene() {
+
+      if (
+        window.SurvivalVR.scene
+      ) {
+        return window.SurvivalVR.scene;
+      }
+
+      const scene =
+        new THREE.Scene();
+
+      scene.background =
+        new THREE.Color(
+          0x78bde0
+        );
+
+      scene.fog =
+        new THREE.Fog(
+          0x78bde0,
+          45,
+          100
+        );
+
+      window.SurvivalVR.scene =
+        scene;
+
+      return scene;
+
+    }
 
 
-    startingRock.userData.item =
-      "rock";
+    // ========================================================
+    // CAMERA
+    // ========================================================
 
+    function createCamera() {
 
-    startingRock.userData.holdable =
-      true;
+      if (
+        window.SurvivalVR.camera
+      ) {
+        return window.SurvivalVR.camera;
+      }
 
+      const camera =
+        new THREE.PerspectiveCamera(
+          70,
+          window.innerWidth /
+            window.innerHeight,
+          0.03,
+          150
+        );
 
-    camera.add(
-      startingRock
-    );
-
-
-    /* =====================================================
-       VR CONTROLLERS
-    ====================================================== */
-
-    const controller1 =
-      renderer.xr.getController(
+      camera.position.set(
+        0,
+        1.65,
         0
       );
 
+      window.SurvivalVR.camera =
+        camera;
 
-    const controller2 =
-      renderer.xr.getController(
-        1
-      );
-
-
-    controller1.userData.hand =
-      "left";
-
-
-    controller2.userData.hand =
-      "right";
-
-
-    scene.add(
-      controller1
-    );
-
-
-    scene.add(
-      controller2
-    );
-
-
-    window.SurvivalVR.controllers =
-      [
-        controller1,
-        controller2
-      ];
-
-
-    /* =====================================================
-       HANDS
-    ====================================================== */
-
-    attachHand(
-      controller1,
-      "left"
-    );
-
-
-    attachHand(
-      controller2,
-      "right"
-    );
-
-
-    setupGrip(
-      controller1,
-      "left"
-    );
-
-
-    setupGrip(
-      controller2,
-      "right"
-    );
-
-
-    /* =====================================================
-       VR GRAB EVENTS
-    ====================================================== */
-
-    controller1.addEventListener(
-      "selectstart",
-      () => {
-
-        window.dispatchEvent(
-          new CustomEvent(
-            "survival-grab",
-            {
-              detail: {
-                hand: "left",
-                controller:
-                  controller1
-              }
-            }
-          )
-        );
-
-      }
-    );
-
-
-    controller2.addEventListener(
-      "selectstart",
-      () => {
-
-        window.dispatchEvent(
-          new CustomEvent(
-            "survival-grab",
-            {
-              detail: {
-                hand: "right",
-                controller:
-                  controller2
-              }
-            }
-          )
-        );
-
-      }
-    );
-
-
-    controller1.addEventListener(
-      "selectend",
-      () => {
-
-        window.dispatchEvent(
-          new CustomEvent(
-            "survival-release",
-            {
-              detail: {
-                hand: "left",
-                controller:
-                  controller1
-              }
-            }
-          )
-        );
-
-      }
-    );
-
-
-    controller2.addEventListener(
-      "selectend",
-      () => {
-
-        window.dispatchEvent(
-          new CustomEvent(
-            "survival-release",
-            {
-              detail: {
-                hand: "right",
-                controller:
-                  controller2
-              }
-            }
-          )
-        );
-
-      }
-    );
-
-
-    /* =====================================================
-       THUMBSTICK
-    ====================================================== */
-
-    function getThumbstick(
-      controller
-    ) {
-
-      const gamepad =
-        controller?.gamepad;
-
-
-      if (!gamepad) {
-
-        return {
-          x: 0,
-          y: 0
-        };
-
-      }
-
-
-      const axes =
-        gamepad.axes || [];
-
-
-      if (
-        axes.length >= 4
-      ) {
-
-        return {
-          x: axes[2] || 0,
-          y: axes[3] || 0
-        };
-
-      }
-
-
-      return {
-        x: axes[0] || 0,
-        y: axes[1] || 0
-      };
+      return camera;
 
     }
 
 
-    /* =====================================================
-       DESKTOP CONTROLS
-    ====================================================== */
+    // ========================================================
+    // PLAYER GROUP
+    // ========================================================
 
-    const keys =
-      {};
+    function createPlayerGroup() {
 
+      if (
+        window.SurvivalVR.playerGroup
+      ) {
+        return window.SurvivalVR.playerGroup;
+      }
+
+      const playerGroup =
+        new THREE.Group();
+
+      playerGroup.name =
+        "Player";
+
+      playerGroup.add(
+        window.SurvivalVR.camera
+      );
+
+      window.SurvivalVR.scene.add(
+        playerGroup
+      );
+
+      window.SurvivalVR.playerGroup =
+        playerGroup;
+
+      return playerGroup;
+
+    }
+
+
+    // ========================================================
+    // VR BUTTON
+    // ========================================================
+
+    function createVRButton() {
+
+      if (
+        !window.SurvivalVR.renderer
+      ) {
+        return;
+      }
+
+      if (
+        !vrButton
+      ) {
+        return;
+      }
+
+      vrButton.innerHTML =
+        "";
+
+      const button =
+        VRButton.createButton(
+          window.SurvivalVR.renderer
+        );
+
+      button.id =
+        "survivalVRButton";
+
+      vrButton.appendChild(
+        button
+      );
+
+      window.SurvivalVR.renderer.xr
+        .addEventListener(
+          "sessionstart",
+          () => {
+
+            setVRState(
+              true
+            );
+
+            if (
+              vrStatus
+            ) {
+              vrStatus.textContent =
+                "VR ACTIVE";
+            }
+
+            gameEvent(
+              "survival-vr-started"
+            );
+
+          }
+        );
+
+      window.SurvivalVR.renderer.xr
+        .addEventListener(
+          "sessionend",
+          () => {
+
+            setVRState(
+              false
+            );
+
+            if (
+              vrStatus
+            ) {
+              vrStatus.textContent =
+                "VR READY";
+            }
+
+            gameEvent(
+              "survival-vr-ended"
+            );
+
+          }
+        );
+
+    }
+
+
+    // ========================================================
+    // SYSTEM LOADER
+    // ========================================================
+
+    async function loadSystems() {
+
+      if (
+        systemsLoaded
+      ) {
+        return;
+      }
+
+      setLoading(
+        10,
+        "Loading survival systems..."
+      );
+
+      /*
+       * These are intentionally dynamic imports.
+       *
+       * SurvivalVR already exists at this point.
+       */
+
+      await import(
+        "./inventory.js"
+      );
+
+      setLoading(
+        20,
+        "Loading inventory..."
+      );
+
+      await import(
+        "./crafting.js"
+      );
+
+      setLoading(
+        28,
+        "Loading crafting..."
+      );
+
+      await import(
+        "./building.js"
+      );
+
+      setLoading(
+        36,
+        "Loading building..."
+      );
+
+      await import(
+        "./guide.js"
+      );
+
+      setLoading(
+        44,
+        "Loading guide..."
+      );
+
+      await import(
+        "./world.js"
+      );
+
+      setLoading(
+        54,
+        "Generating world system..."
+      );
+
+      await import(
+        "./save.js"
+      );
+
+      setLoading(
+        62,
+        "Loading save system..."
+      );
+
+      await import(
+        "./home.js"
+      );
+
+      setLoading(
+        69,
+        "Loading home..."
+      );
+
+      await import(
+        "./settings.js"
+      );
+
+      setLoading(
+        76,
+        "Loading settings..."
+      );
+
+      await import(
+        "./audio.js"
+      );
+
+      setLoading(
+        82,
+        "Loading audio..."
+      );
+
+      await import(
+        "./environment.js"
+      );
+
+      setLoading(
+        88,
+        "Loading environment..."
+      );
+
+      await import(
+        "./animals.js"
+      );
+
+      setLoading(
+        94,
+        "Loading animals..."
+      );
+
+
+      systemsLoaded =
+        true;
+
+      window.SurvivalVR.ready =
+        true;
+
+      gameEvent(
+        "survival-systems-loaded"
+      );
+
+      setLoading(
+        100,
+        "Systems ready."
+      );
+
+    }
+
+
+    // ========================================================
+    // HANDS
+    // ========================================================
+
+    function initializeHands() {
+
+      if (
+        typeof setupHands !==
+        "function"
+      ) {
+        return;
+      }
+
+      setupHands(
+        window.SurvivalVR.renderer,
+        window.SurvivalVR.camera,
+        window.SurvivalVR.scene
+      );
+
+    }
+
+
+    // ========================================================
+    // START GAME
+    // ========================================================
+
+    async function startGame() {
+
+      if (
+        initialized
+      ) {
+        return;
+      }
+
+      initialized =
+        true;
+
+      startButton.disabled =
+        true;
+
+      showLoading(
+        "Starting Survival VR..."
+      );
+
+      try {
+
+        setLoading(
+          5,
+          "Creating renderer..."
+        );
+
+        createRenderer();
+
+        setLoading(
+          8,
+          "Creating scene..."
+        );
+
+        createScene();
+
+        setLoading(
+          12,
+          "Creating camera..."
+        );
+
+        createCamera();
+
+        setLoading(
+          15,
+          "Creating player..."
+        );
+
+        createPlayerGroup();
+
+        setLoading(
+          18,
+          "Connecting VR..."
+        );
+
+        createVRButton();
+
+        setLoading(
+          20,
+          "Connecting systems..."
+        );
+
+        initializeHands();
+
+        await loadSystems();
+
+        setLoading(
+          96,
+          "Preparing island..."
+        );
+
+
+        // ----------------------------------------------------
+        // GENERATE WORLD
+        // ----------------------------------------------------
+
+        if (
+          window.SurvivalVR.systems.world
+        ) {
+
+          const worldSystem =
+            window.SurvivalVR.systems.world;
+
+          if (
+            typeof worldSystem.generateWorld ===
+            "function"
+          ) {
+
+            worldSystem.generateWorld();
+
+          }
+
+        }
+
+
+        // ----------------------------------------------------
+        // START AUDIO
+        // ----------------------------------------------------
+
+        if (
+          window.SurvivalVR.systems.audio
+        ) {
+
+          await window.SurvivalVR
+            .systems
+            .audio
+            .start();
+
+        }
+
+
+        // ----------------------------------------------------
+        // INITIALIZE ENVIRONMENT
+        // ----------------------------------------------------
+
+        if (
+          window.SurvivalVR.systems
+            .environment
+        ) {
+
+          window.SurvivalVR.systems
+            .environment
+            .initialize();
+
+        }
+
+
+        // ----------------------------------------------------
+        // INITIALIZE ANIMALS
+        // ----------------------------------------------------
+
+        if (
+          window.SurvivalVR.systems
+            .animals
+        ) {
+
+          window.SurvivalVR.systems
+            .animals
+            .initialize();
+
+        }
+
+
+        // ----------------------------------------------------
+        // GAME STARTED
+        // ----------------------------------------------------
+
+        GAME.state.started =
+          true;
+
+        GAME.state.paused =
+          false;
+
+        GAME.state.gameOver =
+          false;
+
+        setPaused(
+          false
+        );
+
+
+        startScreen.classList.add(
+          "hidden"
+        );
+
+        hud.classList.remove(
+          "hidden"
+        );
+
+
+        gameEvent(
+          "survival-game-started"
+        );
+
+
+        hideLoading();
+
+        showMessage(
+          "Welcome to your island.",
+          3500
+        );
+
+        lastFrameTime =
+          performance.now();
+
+        requestAnimationFrame(
+          firstFrame
+        );
+
+      } catch (
+        error
+      ) {
+
+        console.error(
+          "[SurvivalVR] Failed to start:",
+          error
+        );
+
+        initialized =
+          false;
+
+        startButton.disabled =
+          false;
+
+        setLoading(
+          100,
+          "Startup failed."
+        );
+
+        showMessage(
+          "The game could not start. Check the console.",
+          5000
+        );
+
+      }
+
+    }
+
+
+    function firstFrame(
+      time
+    ) {
+
+      lastFrameTime =
+        time;
+
+      requestAnimationFrame(
+        animate
+      );
+
+    }
+
+
+    // ========================================================
+    // MAIN GAME LOOP
+    // ========================================================
+
+    function animate(
+      time
+    ) {
+
+      const delta =
+        Math.min(
+          (time -
+            lastFrameTime) /
+            1000,
+          0.1
+        );
+
+      lastFrameTime =
+        time;
+
+
+      // ------------------------------------------------------
+      // SURVIVAL
+      // ------------------------------------------------------
+
+      if (
+        GAME.state.started &&
+        !GAME.state.paused &&
+        !GAME.state.gameOver
+      ) {
+
+        updateSurvival(
+          delta
+        );
+
+      }
+
+
+      // ------------------------------------------------------
+      // HANDS
+      // ------------------------------------------------------
+
+      if (
+        typeof updateHands ===
+        "function"
+      ) {
+
+        updateHands(
+          delta
+        );
+
+      } else if (
+        typeof window.SurvivalVR
+          .updateHands ===
+        "function"
+      ) {
+
+        window.SurvivalVR
+          .updateHands(
+            delta
+          );
+
+      }
+
+
+      // ------------------------------------------------------
+      // WORLD
+      // ------------------------------------------------------
+
+      if (
+        window.SurvivalVR.systems
+          .world?.update
+      ) {
+
+        window.SurvivalVR.systems
+          .world
+          .update(
+            delta
+          );
+
+      }
+
+
+      // ------------------------------------------------------
+      // ENVIRONMENT
+      // ------------------------------------------------------
+
+      if (
+        window.SurvivalVR.systems
+          .environment?.update
+      ) {
+
+        window.SurvivalVR.systems
+          .environment
+          .update(
+            delta
+          );
+
+      }
+
+
+      // ------------------------------------------------------
+      // ANIMALS
+      // ------------------------------------------------------
+
+      if (
+        window.SurvivalVR.systems
+          .animals?.update
+      ) {
+
+        window.SurvivalVR.systems
+          .animals
+          .update(
+            delta
+          );
+
+      }
+
+
+      // ------------------------------------------------------
+      // BUILDING
+      // ------------------------------------------------------
+
+      if (
+        window.SurvivalVR.systems
+          .building?.update
+      ) {
+
+        window.SurvivalVR.systems
+          .building
+          .update(
+            delta
+          );
+
+      }
+
+
+      // ------------------------------------------------------
+      // RENDER
+      // ------------------------------------------------------
+
+      if (
+        window.SurvivalVR.renderer &&
+        window.SurvivalVR.scene &&
+        window.SurvivalVR.camera
+      ) {
+
+        window.SurvivalVR.renderer.render(
+          window.SurvivalVR.scene,
+          window.SurvivalVR.camera
+        );
+
+      }
+
+    }
+
+
+    // ========================================================
+    // HUD
+    // ========================================================
+
+    function updateHUD() {
+
+      if (!hud) {
+        return;
+      }
+
+      const playerState =
+        GAME.player ||
+        {};
+
+      const health =
+        document.getElementById(
+          "healthDisplay"
+        );
+
+      const hunger =
+        document.getElementById(
+          "hungerDisplay"
+        );
+
+      const thirst =
+        document.getElementById(
+          "thirstDisplay"
+        );
+
+      const stamina =
+        document.getElementById(
+          "staminaDisplay"
+        );
+
+      const day =
+        document.getElementById(
+          "dayDisplay"
+        );
+
+      const time =
+        document.getElementById(
+          "timeDisplay"
+        );
+
+
+      if (health) {
+        health.textContent =
+          Math.round(
+            playerState.health ??
+            100
+          );
+      }
+
+      if (hunger) {
+        hunger.textContent =
+          Math.round(
+            playerState.hunger ??
+            100
+          );
+      }
+
+      if (thirst) {
+        thirst.textContent =
+          Math.round(
+            playerState.thirst ??
+            100
+          );
+      }
+
+      if (stamina) {
+        stamina.textContent =
+          Math.round(
+            playerState.stamina ??
+            100
+          );
+      }
+
+
+      if (day) {
+        day.textContent =
+          GAME.world?.day ??
+          1;
+      }
+
+
+      if (time) {
+
+        const worldTime =
+          Number(
+            GAME.world?.time
+          ) || 0;
+
+        const hours =
+          Math.floor(
+            worldTime
+          );
+
+        const minutes =
+          Math.floor(
+            (worldTime -
+              hours) *
+              60
+          );
+
+        time.textContent =
+          `${String(
+            hours
+          ).padStart(
+            2,
+            "0"
+          )}:${String(
+            minutes
+          ).padStart(
+            2,
+            "0"
+          )}`;
+
+      }
+
+    }
+
+
+    // ========================================================
+    // HUD UPDATE TIMER
+    // ========================================================
+
+    setInterval(
+      () => {
+
+        if (
+          GAME.state.started
+        ) {
+
+          updateHUD();
+
+        }
+
+      },
+      200
+    );
+
+
+    // ========================================================
+    // PAUSE
+    // ========================================================
+
+    function showPause() {
+
+      if (
+        pauseScreen
+      ) {
+
+        pauseScreen.classList.remove(
+          "hidden"
+        );
+
+      }
+
+    }
+
+
+    function hidePause() {
+
+      if (
+        pauseScreen
+      ) {
+
+        pauseScreen.classList.add(
+          "hidden"
+        );
+
+      }
+
+    }
+
+
+    function togglePause() {
+
+      if (
+        !GAME.state.started ||
+        GAME.state.gameOver
+      ) {
+        return;
+      }
+
+      const paused =
+        !GAME.state.paused;
+
+      setPaused(
+        paused
+      );
+
+      if (paused) {
+        showPause();
+      } else {
+        hidePause();
+      }
+
+    }
+
+
+    // ========================================================
+    // RESUME
+    // ========================================================
+
+    if (
+      resumeButton
+    ) {
+
+      resumeButton.addEventListener(
+        "click",
+        () => {
+
+          setPaused(
+            false
+          );
+
+          hidePause();
+
+        }
+      );
+
+    }
+
+
+    // ========================================================
+    // KEYBOARD
+    // ========================================================
 
     window.addEventListener(
       "keydown",
       event => {
 
-        keys[
-          event.key.toLowerCase()
-        ] = true;
+        if (
+          event.key ===
+          "Escape"
+        ) {
+
+          if (
+            GAME.state.started &&
+            !GAME.state.gameOver
+          ) {
+
+            togglePause();
+
+          }
+
+        }
+
+        if (
+          event.key ===
+          "Shift"
+        ) {
+
+          setSprinting(
+            true
+          );
+
+        }
 
       }
     );
@@ -1354,475 +1651,120 @@
       "keyup",
       event => {
 
-        keys[
-          event.key.toLowerCase()
-        ] = false;
+        if (
+          event.key ===
+          "Shift"
+        ) {
+
+          setSprinting(
+            false
+          );
+
+        }
 
       }
     );
 
 
-    /* =====================================================
-       MOVEMENT
-    ====================================================== */
+    // ========================================================
+    // RESIZE
+    // ========================================================
 
-    function updateMovement(
-      delta
+    window.addEventListener(
+      "resize",
+      () => {
+
+        const camera =
+          window.SurvivalVR.camera;
+
+        const renderer =
+          window.SurvivalVR.renderer;
+
+        if (
+          camera
+        ) {
+
+          camera.aspect =
+            window.innerWidth /
+            window.innerHeight;
+
+          camera.updateProjectionMatrix();
+
+        }
+
+        if (
+          renderer
+        ) {
+
+          renderer.setSize(
+            window.innerWidth,
+            window.innerHeight
+          );
+
+        }
+
+      }
+    );
+
+
+    // ========================================================
+    // START BUTTON
+    // ========================================================
+
+    if (
+      startButton
     ) {
 
-      let forward = 0;
-
-      let sideways = 0;
-
-
-      if (
-        keys.w
-      ) forward += 1;
-
-      if (
-        keys.s
-      ) forward -= 1;
-
-      if (
-        keys.a
-      ) sideways -= 1;
-
-      if (
-        keys.d
-      ) sideways += 1;
-
-
-      const leftStick =
-        getThumbstick(
-          controller1
-        );
-
-
-      if (
-        Math.abs(leftStick.x) >
-        0.15
-      ) {
-
-        sideways +=
-          leftStick.x;
-
-      }
-
-
-      if (
-        Math.abs(leftStick.y) >
-        0.15
-      ) {
-
-        forward -=
-          leftStick.y;
-
-      }
-
-
-      const length =
-        Math.sqrt(
-          forward * forward +
-          sideways * sideways
-        );
-
-
-      if (
-        length > 1
-      ) {
-
-        forward /=
-          length;
-
-        sideways /=
-          length;
-
-      }
-
-
-      const speed =
-        keys.shift
-          ? 4.5
-          : 2.5;
-
-
-      movePlayer(
-        sideways *
-        speed *
-        delta,
-
-        forward *
-        speed *
-        delta
-      );
-
-
-      let turn =
-        0;
-
-
-      if (
-        keys.q
-      ) turn -= 1;
-
-      if (
-        keys.e
-      ) turn += 1;
-
-
-      const rightStick =
-        getThumbstick(
-          controller2
-        );
-
-
-      if (
-        Math.abs(rightStick.x) >
-        0.18
-      ) {
-
-        turn +=
-          rightStick.x;
-
-      }
-
-
-      if (
-        Math.abs(turn) >
-        0.01
-      ) {
-
-        turnPlayer(
-          turn *
-          1.7 *
-          delta
-        );
-
-      }
-
-    }
-
-
-    /* =====================================================
-       KEEP PLAYER ON ISLAND
-    ====================================================== */
-
-    function keepPlayerOnIsland() {
-
-      if (
-        !playerGroup
-      ) {
-
-        return;
-
-      }
-
-
-      const x =
-        playerGroup.position.x;
-
-
-      const z =
-        playerGroup.position.z;
-
-
-      const distance =
-        Math.sqrt(
-          x * x +
-          z * z
-        );
-
-
-      const maxDistance =
-        26;
-
-
-      if (
-        distance >
-        maxDistance
-      ) {
-
-        const scale =
-          maxDistance /
-          distance;
-
-
-        playerGroup.position.x *=
-          scale;
-
-
-        playerGroup.position.z *=
-          scale;
-
-      }
-
-    }
-
-
-    /* =====================================================
-       UPDATE HUD
-    ====================================================== */
-
-    function updateHUD() {
-
-      const health =
-        document.getElementById(
-          "health"
-        );
-
-
-      const hunger =
-        document.getElementById(
-          "hunger"
-        );
-
-
-      const thirst =
-        document.getElementById(
-          "thirst"
-        );
-
-
-      const stamina =
-        document.getElementById(
-          "stamina"
-        );
-
-
-      const rockCount =
-        document.getElementById(
-          "rockCount"
-        );
-
-
-      if (health) {
-
-        health.textContent =
-          Math.round(
-            GAME.health ?? 100
-          );
-
-      }
-
-
-      if (hunger) {
-
-        hunger.textContent =
-          Math.round(
-            GAME.hunger ?? 100
-          );
-
-      }
-
-
-      if (thirst) {
-
-        thirst.textContent =
-          Math.round(
-            GAME.thirst ?? 100
-          );
-
-      }
-
-
-      if (stamina) {
-
-        stamina.textContent =
-          Math.round(
-            GAME.stamina ?? 100
-          );
-
-      }
-
-
-      if (rockCount) {
-
-        rockCount.textContent =
-          GAME.inventory?.rock ??
-          GAME.resources?.rock ??
-          1;
-
-      }
-
-    }
-
-
-    /* =====================================================
-       TIME HUD
-    ====================================================== */
-
-    function updateTimeHUD() {
-
-      const world =
-        window.SurvivalVR.systems.world;
-
-
-      if (
-        !world
-      ) {
-
-        return;
-
-      }
-
-
-      const time =
-        world.getTime();
-
-
-      const day =
-        world.getDay();
-
-
-      const hour =
-        Math.floor(
-          time
-        );
-
-
-      const minute =
-        Math.floor(
-          (time - hour) * 60
-        );
-
-
-      const timeElement =
-        document.getElementById(
-          "timeDisplay"
-        );
-
-
-      const dayElement =
-        document.getElementById(
-          "dayDisplay"
-        );
-
-
-      if (
-        timeElement
-      ) {
-
-        timeElement.textContent =
-          String(hour).padStart(
-            2,
-            "0"
-          ) +
-          ":" +
-          String(minute).padStart(
-            2,
-            "0"
-          );
-
-      }
-
-
-      if (
-        dayElement
-      ) {
-
-        dayElement.textContent =
-          `Day ${day}`;
-
-      }
-
-    }
-
-
-    /* =====================================================
-       START GAME
-    ====================================================== */
-
-    const startButton =
-      document.getElementById(
-        "startButton"
-      );
-
-
-    const startScreen =
-      document.getElementById(
-        "startScreen"
-      );
-
-
-    let started =
-      false;
-
-
-    function startGame() {
-
-      if (
-        started
-      ) {
-
-        return;
-
-      }
-
-
-      started =
-        true;
-
-
-      startScreen?.classList.add(
-        "hidden"
-      );
-
-
-      renderer.setAnimationLoop(
-        animate
+      startButton.addEventListener(
+        "click",
+        startGame
       );
 
     }
 
 
-    startButton?.addEventListener(
-      "click",
-      startGame
-    );
-
-
-    /* =====================================================
-       VR SUPPORT
-    ====================================================== */
+    // ========================================================
+    // CHECK VR
+    // ========================================================
 
     async function checkVR() {
 
-      const status =
-        document.getElementById(
-          "vrStatus"
-        );
-
+      if (
+        !vrStatus
+      ) {
+        return;
+      }
 
       if (
         !navigator.xr
       ) {
 
-        if (status) {
-
-          status.textContent =
-            "WebXR unavailable — desktop/mobile mode available.";
-
-        }
+        vrStatus.textContent =
+          "WebXR not available";
 
         return;
 
       }
 
-
       try {
 
         const supported =
-          await navigator.xr.isSessionSupported(
-            "immersive-vr"
-          );
+          await navigator.xr
+            .isSessionSupported(
+              "immersive-vr"
+            );
 
+        if (
+          supported
+        ) {
 
-        if (status) {
+          vrStatus.textContent =
+            "VR READY";
 
-          status.textContent =
-            supported
-              ? "VR Ready"
-              : "VR not available on this device.";
+        } else {
+
+          vrStatus.textContent =
+            "VR NOT AVAILABLE";
 
         }
 
@@ -1831,348 +1773,95 @@
       ) {
 
         console.warn(
-          "WebXR check failed:",
+          "[SurvivalVR] VR check failed:",
           error
         );
 
-
-        if (status) {
-
-          status.textContent =
-            "VR support could not be checked.";
-
-        }
+        vrStatus.textContent =
+          "VR CHECK FAILED";
 
       }
 
     }
 
 
-    checkVR();
-
-
-    /* =====================================================
-       WINDOW RESIZE
-    ====================================================== */
+    // ========================================================
+    // SYSTEM EVENTS
+    // ========================================================
 
     window.addEventListener(
-      "resize",
+      "survival-game-over",
       () => {
 
-        camera.aspect =
-          window.innerWidth /
-          window.innerHeight;
-
-
-        camera.updateProjectionMatrix();
-
-
-        renderer.setSize(
-          window.innerWidth,
-          window.innerHeight
-        );
-
-      }
-    );
-
-
-    /* =====================================================
-       WATER ANIMATION
-    ====================================================== */
-
-    function animateWater(
-      elapsed
-    ) {
-
-      const objects =
-        window.SurvivalVR.objects;
-
-
-      for (
-        const object
-        of objects
-      ) {
-
-        if (
-          object?.userData?.type !==
-          "waterWave"
-        ) {
-
-          continue;
-
-        }
-
-
-        const phase =
-          object.userData.phase ||
-          0;
-
-
-        const pulse =
-          1 +
-          Math.sin(
-            elapsed * 0.8 +
-            phase
-          ) *
-          0.025;
-
-
-        object.scale.set(
-          pulse,
-          pulse,
-          pulse
-        );
-
-
-        object.material.opacity =
-          0.10 +
-          (
-            Math.sin(
-              elapsed * 0.7 +
-              phase
-            ) + 1
-          ) *
-          0.035;
-
-      }
-
-    }
-
-
-    /* =====================================================
-       LOAD ALL GAME SYSTEMS
-       
-       IMPORTANT:
-       These are dynamic imports because
-       window.SurvivalVR must exist BEFORE
-       the systems register themselves.
-    ====================================================== */
-
-    async function loadSystems() {
-
-      try {
-
-        await import(
-          "./inventory.js"
-        );
-
-        await import(
-          "./crafting.js"
-        );
-
-        await import(
-          "./building.js"
-        );
-
-        await import(
-          "./guide.js"
-        );
-
-        await import(
-          "./world.js"
-        );
-
-
-        /*
-        Future systems will be loaded
-        here in the same way:
-
-        await import("./home.js");
-        await import("./settings.js");
-        await import("./save.js");
-        await import("./audio.js");
-        await import("./environment.js");
-        await import("./animals.js");
-        */
-
-
-        window.SurvivalVR.ready =
+        GAME.state.gameOver =
           true;
 
+        GAME.state.paused =
+          false;
 
-        window.dispatchEvent(
-          new Event(
-            "survival-core-ready"
-          )
+        hidePause();
+
+        showMessage(
+          "You did not survive.",
+          5000
         );
 
+      }
+    );
+
+
+    window.addEventListener(
+      "survival-new-day",
+      () => {
+
+        showMessage(
+          `Day ${
+            GAME.world?.day ||
+            1
+          } has begun.`,
+          3000
+        );
+
+      }
+    );
+
+
+    window.addEventListener(
+      "survival-night-started",
+      () => {
+
+        showMessage(
+          "Night is falling.",
+          3000
+        );
+
+      }
+    );
+
+
+    window.addEventListener(
+      "survival-world-generated",
+      event => {
+
+        const seed =
+          event.detail?.seed ||
+          GAME.world?.seed ||
+          "Unknown";
 
         console.log(
-          "✅ All current survival systems connected."
-        );
-
-
-      } catch (
-        error
-      ) {
-
-        console.error(
-          "❌ Failed to load survival system:",
-          error
-        );
-
-        showStartupError(
-          error
+          "[SurvivalVR] World generated:",
+          seed
         );
 
       }
-
-    }
-
-
-    /* =====================================================
-       STARTUP ERROR
-    ====================================================== */
-
-    function showStartupError(
-      error
-    ) {
-
-      const status =
-        document.getElementById(
-          "vrStatus"
-        );
-
-
-      if (status) {
-
-        status.textContent =
-          "Game system error. Check the browser console.";
-
-      }
-
-
-      console.error(
-        error
-      );
-
-    }
-
-
-    /* =====================================================
-       MAIN LOOP
-    ====================================================== */
-
-    let lastTime =
-      performance.now();
-
-
-    function animate() {
-
-      const now =
-        performance.now();
-
-
-      let delta =
-        (now - lastTime) /
-        1000;
-
-
-      lastTime =
-        now;
-
-
-      /*
-      Prevent huge jumps after
-      the browser pauses.
-      */
-
-      delta =
-        Math.min(
-          delta,
-          0.05
-        );
-
-
-      /* Movement */
-
-      updateMovement(
-        delta
-      );
-
-
-      /* Island boundary */
-
-      keepPlayerOnIsland();
-
-
-      /* Survival */
-
-      updateSurvival(
-        delta
-      );
-
-
-      /* World system */
-
-      const world =
-        window.SurvivalVR.systems.world;
-
-
-      if (
-        world
-      ) {
-
-        world.update(
-          delta
-        );
-
-      }
-
-
-      /* Hands */
-
-      updateHand(
-        controller1,
-        delta
-      );
-
-
-      updateHand(
-        controller2,
-        delta
-      );
-
-
-      /* Water */
-
-      animateWater(
-        now / 1000
-      );
-
-
-      /* HUD */
-
-      updateHUD();
-
-
-      updateTimeHUD();
-
-
-      /* Render */
-
-      renderer.render(
-        scene,
-        camera
-      );
-
-    }
-
-
-    /* =====================================================
-       LOAD SYSTEMS
-    ====================================================== */
-
-    loadSystems();
-
-
-    /* =====================================================
-       READY
-    ====================================================== */
-
-    console.log(
-      "🏝️ Island Survival VR core loaded."
     );
+
+
+    // ========================================================
+    // INITIAL VR CHECK
+    // ========================================================
+
+    checkVR();
 
   </script>
 
