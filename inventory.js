@@ -1,751 +1,400 @@
-// ============================================
-// ISLAND SURVIVAL VR
-// INVENTORY SYSTEM
-// ============================================
-//
-// Connects to:
-//   game.js
-//   index.html
-//   hands.js
-//
-// Future systems:
-//   crafting.js
-//   building.js
-//   guide.js
-//   world.js
-//
-// ============================================
-
+/* =========================================================
+   INVENTORY.JS
+   Island Survival VR inventory + two side storage slots
+========================================================= */
 
 import {
   GAME,
   addItem,
   removeItem,
-  hasItem,
   getItemCount,
-  holdItem,
-  releaseItem,
   putOnSide,
   takeFromSide,
-  getHeldItem
+  holdItem,
+  releaseItem,
+  getHeldItem,
+  eatFood,
+  drinkWater,
+  gameEvent
 } from "./game.js";
 
-
-// ============================================
-// INVENTORY VERSION
-// ============================================
-
-export const INVENTORY_VERSION = 1;
+const SurvivalVR = window.SurvivalVR;
 
 
-// ============================================
-// ITEM DEFINITIONS
-// ============================================
+/* =========================================================
+   ITEM DEFINITIONS
+========================================================= */
 
 export const ITEMS = {
 
   rock: {
     name: "Rock",
     icon: "🪨",
-    category: "resource",
-    stack: 20,
-    usable: true,
-    holdable: true
+    category: "resource"
   },
 
   stone: {
     name: "Stone",
-    icon: "🪨",
-    category: "resource",
-    stack: 50,
-    usable: true,
-    holdable: true
-  },
-
-  log: {
-    name: "Log",
-    icon: "🪵",
-    category: "resource",
-    stack: 10,
-    usable: true,
-    holdable: true
+    icon: "⬜",
+    category: "resource"
   },
 
   wood: {
     name: "Wood",
     icon: "🪵",
-    category: "resource",
-    stack: 50,
-    usable: true,
-    holdable: true
+    category: "resource"
+  },
+
+  log: {
+    name: "Log",
+    icon: "🌲",
+    category: "resource"
   },
 
   stick: {
     name: "Stick",
     icon: "🥢",
-    category: "resource",
-    stack: 50,
-    usable: true,
-    holdable: true
+    category: "resource"
   },
 
   fiber: {
     name: "Fiber",
     icon: "🌿",
-    category: "resource",
-    stack: 50,
-    usable: true,
-    holdable: true
+    category: "resource"
   },
 
   string: {
     name: "String",
     icon: "🧵",
-    category: "material",
-    stack: 50,
-    usable: true,
-    holdable: true
+    category: "craft"
   },
 
   leaf: {
     name: "Leaf",
     icon: "🍃",
-    category: "material",
-    stack: 50,
-    usable: true,
-    holdable: true
+    category: "resource"
   },
 
   food: {
     name: "Food",
-    icon: "🍖",
-    category: "food",
-    stack: 10,
-    usable: true,
-    holdable: true
+    icon: "🍎",
+    category: "food"
   },
 
   water: {
     name: "Water",
     icon: "💧",
-    category: "drink",
-    stack: 10,
-    usable: true,
-    holdable: true
+    category: "drink"
   },
 
   rawMeat: {
     name: "Raw Meat",
     icon: "🥩",
-    category: "food",
-    stack: 10,
-    usable: true,
-    holdable: true
+    category: "food"
   },
 
   cookedMeat: {
     name: "Cooked Meat",
     icon: "🍖",
-    category: "food",
-    stack: 10,
-    usable: true,
-    holdable: true
+    category: "food"
+  },
+
+  stoneAxe: {
+    name: "Stone Axe",
+    icon: "🪓",
+    category: "tool"
+  },
+
+  stonePickaxe: {
+    name: "Stone Pickaxe",
+    icon: "⛏️",
+    category: "tool"
+  },
+
+  campfire: {
+    name: "Campfire",
+    icon: "🔥",
+    category: "building"
+  },
+
+  storageBox: {
+    name: "Storage Box",
+    icon: "📦",
+    category: "building"
+  },
+
+  woodWall: {
+    name: "Wood Wall",
+    icon: "🧱",
+    category: "building"
+  },
+
+  woodFloor: {
+    name: "Wood Floor",
+    icon: "🪵",
+    category: "building"
+  },
+
+  woodDoor: {
+    name: "Wood Door",
+    icon: "🚪",
+    category: "building"
   }
-
 };
 
 
-// ============================================
-// INVENTORY SLOT SETTINGS
-// ============================================
-
-export const INVENTORY_SETTINGS = {
-
-  slots: 24,
-
-  hotbarSlots: 6,
-
-  leftSideSlot: true,
-
-  rightSideSlot: true,
-
-  allowStacking: true
-
-};
-
-
-// ============================================
-// INVENTORY STATE
-// ============================================
+/* =========================================================
+   INVENTORY STATE
+========================================================= */
 
 const inventoryState = {
 
   open: false,
 
-  selectedSlot: 0,
+  selectedItem: null,
 
-  selectedCategory: "all",
+  filter: "all",
 
-  draggingItem: null,
+  maxSlots: 36,
 
   initialized: false
-
 };
 
 
-// ============================================
-// INVENTORY ELEMENT
-// ============================================
+/* =========================================================
+   SYSTEM OBJECT
+========================================================= */
 
-let inventoryElement = null;
+const inventorySystem = {
 
-let inventoryPanel = null;
+  state: inventoryState,
 
-let inventoryGrid = null;
+  items: ITEMS,
 
-let sideStorageElement = null;
+  open,
 
-let heldItemsElement = null;
+  close,
+
+  toggle,
+
+  refresh,
+
+  selectItem,
+
+  useItem,
+
+  equipItem,
+
+  storeItem,
+
+  takeSideItem,
+
+  getInventory,
+
+  getSideSlots,
+
+  getHeldItems,
+
+  getItemDefinition
+};
 
 
-// ============================================
-// GET ITEM INFORMATION
-// ============================================
+SurvivalVR.systems.inventory =
+  inventorySystem;
 
-export function getItemInfo(
-  item
-) {
 
-  return (
-    ITEMS[item] ||
-    {
-      name: item,
-      icon: "❔",
-      category: "unknown",
-      stack: 1,
-      usable: false,
-      holdable: false
-    }
-  );
+/* =========================================================
+   GETTERS
+========================================================= */
 
+function getInventory() {
+
+  return GAME.inventory;
 }
 
 
-// ============================================
-// GET INVENTORY
-// ============================================
-
-export function getInventory() {
+function getSideSlots() {
 
   return {
-    ...GAME.inventory
+    left: GAME.equipment.leftSide,
+    right: GAME.equipment.rightSide
   };
-
 }
 
 
-// ============================================
-// GET ALL NON-EMPTY ITEMS
-// ============================================
+function getHeldItems() {
 
-export function getStoredItems() {
-
-  return Object.entries(
-    GAME.inventory
-  )
-    .filter(
-      ([, amount]) =>
-        amount > 0
-    )
-    .map(
-      ([item, amount]) => ({
-        item,
-        amount,
-        info:
-          getItemInfo(item)
-      })
-    );
-
+  return {
+    left: getHeldItem("left"),
+    right: getHeldItem("right")
+  };
 }
 
 
-// ============================================
-// GET ITEM TOTAL
-// ============================================
-
-export function countItem(
-  item
+function getItemDefinition(
+  itemId
 ) {
 
-  return getItemCount(
-    item
-  );
-
+  return ITEMS[itemId] || null;
 }
 
 
-// ============================================
-// ADD ITEM SAFELY
-// ============================================
-
-export function giveItem(
-  item,
-  amount = 1
-) {
-
-  if (
-    !ITEMS[item]
-  ) {
-
-    console.warn(
-      "Unknown inventory item:",
-      item
-    );
-
-  }
-
-
-  const result =
-    addItem(
-      item,
-      amount
-    );
-
-
-  refreshInventoryUI();
-
-
-  return result;
-
-}
-
-
-// ============================================
-// REMOVE ITEM SAFELY
-// ============================================
-
-export function takeItem(
-  item,
-  amount = 1
-) {
-
-  const result =
-    removeItem(
-      item,
-      amount
-    );
-
-
-  refreshInventoryUI();
-
-
-  return result;
-
-}
-
-
-// ============================================
-// MOVE ITEM INTO HAND
-// ============================================
-
-export function equipItem(
-  item,
-  hand
-) {
-
-  const info =
-    getItemInfo(
-      item
-    );
-
-
-  if (
-    !info.holdable
-  ) {
-
-    showInventoryMessage(
-      `${info.name} cannot be held.`
-    );
-
-    return false;
-
-  }
-
-
-  if (
-    getHeldItem(hand)
-  ) {
-
-    showInventoryMessage(
-      `${hand} hand is already holding something.`
-    );
-
-    return false;
-
-  }
-
-
-  const result =
-    holdItem(
-      hand,
-      item
-    );
-
-
-  if (
-    result
-  ) {
-
-    updateHeldVisuals();
-
-    refreshInventoryUI();
-
-    showInventoryMessage(
-      `${info.name} equipped.`
-    );
-
-  }
-
-
-  return result;
-
-}
-
-
-// ============================================
-// REMOVE ITEM FROM HAND
-// ============================================
-
-export function unequipItem(
-  hand
-) {
-
-  const item =
-    getHeldItem(
-      hand
-    );
-
-
-  if (
-    !item
-  ) {
-
-    return false;
-
-  }
-
-
-  const info =
-    getItemInfo(
-      item
-    );
-
-
-  const result =
-    releaseItem(
-      hand
-    );
-
-
-  if (
-    result
-  ) {
-
-    updateHeldVisuals();
-
-    refreshInventoryUI();
-
-    showInventoryMessage(
-      `${info.name} returned to inventory.`
-    );
-
-  }
-
-
-  return result;
-
-}
-
-
-// ============================================
-// PUT ITEM INTO SIDE STORAGE
-// ============================================
-
-export function storeSideItem(
-  side,
-  item
-) {
-
-  const info =
-    getItemInfo(
-      item
-    );
-
-
-  const result =
-    putOnSide(
-      side,
-      item
-    );
-
-
-  if (
-    result
-  ) {
-
-    refreshInventoryUI();
-
-    showInventoryMessage(
-      `${info.name} stored on your ${side} side.`
-    );
-
-  }
-
-
-  return result;
-
-}
-
-
-// ============================================
-// TAKE ITEM FROM SIDE STORAGE
-// ============================================
-
-export function retrieveSideItem(
-  side
-) {
-
-  const item =
-    takeFromSide(
-      side
-    );
-
-
-  if (
-    item
-  ) {
-
-    const info =
-      getItemInfo(
-        item
-      );
-
-
-    refreshInventoryUI();
-
-    showInventoryMessage(
-      `${info.name} returned to inventory.`
-    );
-
-  }
-
-
-  return item;
-
-}
-
-
-// ============================================
-// USE ITEM
-// ============================================
-
-export function useItem(
-  item
-) {
-
-  if (
-    !hasItem(
-      item,
-      1
-    )
-  ) {
-
-    return false;
-
-  }
-
-
-  // Food
-
-  if (
-    item === "food" ||
-    item === "cookedMeat"
-  ) {
-
-    removeItem(
-      item,
-      1
-    );
-
-
-    GAME.hunger =
-      Math.min(
-        GAME.maxHunger,
-        GAME.hunger + 25
-      );
-
-
-    showInventoryMessage(
-      "You ate some food."
-    );
-
-
-    refreshInventoryUI();
-
-    return true;
-
-  }
-
-
-  // Water
-
-  if (
-    item === "water"
-  ) {
-
-    removeItem(
-      item,
-      1
-    );
-
-
-    GAME.thirst =
-      Math.min(
-        GAME.maxThirst,
-        GAME.thirst + 35
-      );
-
-
-    showInventoryMessage(
-      "You drank some water."
-    );
-
-
-    refreshInventoryUI();
-
-    return true;
-
-  }
-
-
-  showInventoryMessage(
-    `${getItemInfo(item).name} cannot be used yet.`
-  );
-
-
-  return false;
-
-}
-
-
-// ============================================
-// CREATE INVENTORY UI
-// ============================================
-
-export function createInventoryUI() {
+/* =========================================================
+   INVENTORY UI
+========================================================= */
+
+function createUI() {
 
   if (
     document.getElementById(
-      "inventory"
+      "inventoryUI"
     )
   ) {
-
-    inventoryElement =
-      document.getElementById(
-        "inventory"
-      );
-
-    inventoryPanel =
-      inventoryElement.querySelector(
-        ".inventory-panel"
-      );
-
-    inventoryGrid =
-      inventoryElement.querySelector(
-        ".inventory-grid"
-      );
-
     return;
-
   }
 
 
-  inventoryElement =
-    document.createElement(
-      "div"
-    );
+  const ui =
+    document.createElement("div");
+
+  ui.id =
+    "inventoryUI";
+
+  ui.className =
+    "overlay hidden";
 
 
-  inventoryElement.id =
-    "inventory";
+  ui.innerHTML = `
 
+    <div class="uiPanel inventory-panel">
 
-  inventoryElement.innerHTML = `
-
-    <div class="inventory-panel">
-
-      <div
-        style="
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-          margin-bottom:20px;
-        "
-      >
+      <div class="uiHeader">
 
         <div>
-
-          <h2
-            style="
-              font-size:26px;
-              margin-bottom:5px;
-            "
-          >
+          <div class="uiTitle">
             Inventory
-          </h2>
-
-          <div
-            style="
-              font-size:12px;
-              opacity:.55;
-            "
-          >
-            Your collected survival items
           </div>
 
+          <div class="uiSubtitle">
+            Carry resources, tools, food, and building materials.
+          </div>
         </div>
 
         <button
+          class="closeButton"
           id="inventoryClose"
-          class="ui-button"
+          type="button"
         >
-          CLOSE
+          ×
+        </button>
+
+      </div>
+
+
+      <div class="sideStorage">
+
+        <div
+          class="sideSlot"
+          id="leftSideSlot"
+        >
+          <div class="sideSlotLabel">
+            Left Side
+          </div>
+
+          <div class="sideSlotItem">
+            Empty
+          </div>
+        </div>
+
+
+        <div
+          class="sideSlot"
+          id="rightSideSlot"
+        >
+          <div class="sideSlotLabel">
+            Right Side
+          </div>
+
+          <div class="sideSlotItem">
+            Empty
+          </div>
+        </div>
+
+      </div>
+
+
+      <div
+        class="inventoryToolbar"
+        style="
+          display:flex;
+          gap:8px;
+          margin-bottom:12px;
+          flex-wrap:wrap;
+        "
+      >
+
+        <button
+          class="uiButton"
+          data-filter="all"
+          type="button"
+          style="width:auto;"
+        >
+          All
+        </button>
+
+        <button
+          class="uiButton"
+          data-filter="resource"
+          type="button"
+          style="width:auto;"
+        >
+          Resources
+        </button>
+
+        <button
+          class="uiButton"
+          data-filter="food"
+          type="button"
+          style="width:auto;"
+        >
+          Food
+        </button>
+
+        <button
+          class="uiButton"
+          data-filter="tool"
+          type="button"
+          style="width:auto;"
+        >
+          Tools
+        </button>
+
+        <button
+          class="uiButton"
+          data-filter="building"
+          type="button"
+          style="width:auto;"
+        >
+          Building
         </button>
 
       </div>
 
 
       <div
-        id="inventorySideStorage"
-        style="
-          display:grid;
-          grid-template-columns:1fr 1fr;
-          gap:10px;
-          margin-bottom:18px;
-        "
+        id="inventoryGrid"
+        class="inventoryGrid"
       ></div>
 
 
       <div
-        id="inventoryHeldItems"
+        id="inventoryActions"
         style="
-          margin-bottom:18px;
+          display:flex;
+          gap:8px;
+          margin-top:15px;
+          flex-wrap:wrap;
         "
-      ></div>
-
-
-      <div
-        class="inventory-grid"
       ></div>
 
     </div>
@@ -753,778 +402,95 @@ export function createInventoryUI() {
   `;
 
 
-  document.body.appendChild(
-    inventoryElement
-  );
+  document.body.appendChild(ui);
 
 
-  inventoryPanel =
-    inventoryElement.querySelector(
-      ".inventory-panel"
-    );
-
-
-  inventoryGrid =
-    inventoryElement.querySelector(
-      ".inventory-grid"
-    );
-
-
-  sideStorageElement =
-    inventoryElement.querySelector(
-      "#inventorySideStorage"
-    );
-
-
-  heldItemsElement =
-    inventoryElement.querySelector(
-      "#inventoryHeldItems"
-    );
-
-
-  inventoryElement
-    .querySelector(
-      "#inventoryClose"
+  document
+    .getElementById(
+      "inventoryClose"
     )
     .addEventListener(
       "click",
-      () => {
-
-        closeInventory();
-
-      }
+      close
     );
 
 
-  inventoryElement.addEventListener(
-    "click",
-    event => {
+  ui
+    .querySelectorAll(
+      "[data-filter]"
+    )
+    .forEach(
+      button => {
 
-      if (
-        event.target ===
-        inventoryElement
-      ) {
+        button.addEventListener(
+          "click",
+          () => {
 
-        closeInventory();
+            inventoryState.filter =
+              button.dataset.filter;
+
+            refresh();
+
+          }
+        );
 
       }
-
-    }
-  );
+    );
 
 
   inventoryState.initialized =
     true;
-
-
-  refreshInventoryUI();
-
 }
 
 
-// ============================================
-// CREATE INVENTORY SLOT
-// ============================================
+/* =========================================================
+   OPEN
+========================================================= */
 
-function createSlot(
-  item,
-  amount
-) {
+function open() {
 
-  const info =
-    getItemInfo(
-      item
-    );
-
-
-  const slot =
-    document.createElement(
-      "div"
-    );
-
-
-  slot.className =
-    "inventory-slot";
-
-
-  slot.dataset.item =
-    item;
-
-
-  slot.innerHTML = `
-
-    <div
-      class="icon"
-    >
-      ${info.icon}
-    </div>
-
-    <div
-      class="name"
-    >
-      ${info.name}
-    </div>
-
-    <div
-      class="amount"
-    >
-    ×${amount}
-    </div>
-
-  `;
-
-
-  slot.addEventListener(
-    "click",
-    () => {
-
-      inventoryState.selectedSlot =
-        item;
-
-
-      handleItemClick(
-        item
-      );
-
-    }
-  );
-
-
-  slot.addEventListener(
-    "contextmenu",
-    event => {
-
-      event.preventDefault();
-
-      handleItemUse(
-        item
-      );
-
-    }
-  );
-
-
-  return slot;
-
-}
-
-
-// ============================================
-// REFRESH INVENTORY
-// ============================================
-
-export function refreshInventoryUI() {
-
-  if (
-    !inventoryState.initialized
-  ) {
-
-    return;
-
-  }
-
-
-  if (
-    !inventoryGrid
-  ) {
-
-    return;
-
-  }
-
-
-  inventoryGrid.innerHTML =
-    "";
-
-
-  const items =
-    getStoredItems();
-
-
-  if (
-    items.length === 0
-  ) {
-
-    const empty =
-      document.createElement(
-        "div"
-      );
-
-
-    empty.style.gridColumn =
-      "1 / -1";
-
-
-    empty.style.textAlign =
-      "center";
-
-
-    empty.style.padding =
-      "40px 10px";
-
-
-    empty.style.opacity =
-      "0.45";
-
-
-    empty.textContent =
-      "Your inventory is empty.";
-
-
-    inventoryGrid.appendChild(
-      empty
-    );
-
-  } else {
-
-    for (
-      const entry
-      of items
-    ) {
-
-      const slot =
-        createSlot(
-          entry.item,
-          entry.amount
-        );
-
-
-      inventoryGrid.appendChild(
-        slot
-      );
-
-    }
-
-  }
-
-
-  updateSideStorageUI();
-
-  updateHeldVisuals();
-
-}
-
-
-// ============================================
-// SIDE STORAGE UI
-// ============================================
-
-function updateSideStorageUI() {
-
-  if (
-    !sideStorageElement
-  ) {
-
-    return;
-
-  }
-
-
-  const left =
-    GAME.equipment.leftSide;
-
-
-  const right =
-    GAME.equipment.rightSide;
-
-
-  sideStorageElement.innerHTML = `
-
-    ${createSideSlot(
-      "left",
-      left
-    )}
-
-    ${createSideSlot(
-      "right",
-      right
-    )}
-
-  `;
-
-
-  const leftButton =
-    sideStorageElement.querySelector(
-      '[data-side="left"]'
-    );
-
-
-  const rightButton =
-    sideStorageElement.querySelector(
-      '[data-side="right"]'
-    );
-
-
-  if (
-    leftButton
-  ) {
-
-    leftButton.addEventListener(
-      "click",
-      () => {
-
-        retrieveSideItem(
-          "left"
-        );
-
-      }
-    );
-
-  }
-
-
-  if (
-    rightButton
-  ) {
-
-    rightButton.addEventListener(
-      "click",
-      () => {
-
-        retrieveSideItem(
-          "right"
-        );
-
-      }
-    );
-
-  }
-
-}
-
-
-// ============================================
-// CREATE SIDE SLOT
-// ============================================
-
-function createSideSlot(
-  side,
-  item
-) {
-
-  if (
-    item
-  ) {
-
-    const info =
-      getItemInfo(
-        item
-      );
-
-
-    return `
-
-      <button
-        class="inventory-slot"
-        data-side="${side}"
-        style="
-          min-height:70px;
-          cursor:pointer;
-        "
-      >
-
-        <div
-          style="
-            font-size:11px;
-            opacity:.5;
-            text-transform:uppercase;
-          "
-        >
-          ${side} side
-        </div>
-
-        <div
-          style="
-            font-size:25px;
-          "
-        >
-          ${info.icon}
-        </div>
-
-        <div
-          style="
-            font-size:12px;
-          "
-        >
-          ${info.name}
-        </div>
-
-      </button>
-
-    `;
-
-  }
-
-
-  return `
-
-    <button
-      class="inventory-slot"
-      data-side="${side}"
-      style="
-        min-height:70px;
-        cursor:pointer;
-      "
-    >
-
-      <div
-        style="
-          font-size:11px;
-          opacity:.5;
-          text-transform:uppercase;
-        "
-      >
-        ${side} side
-      </div>
-
-      <div
-        style="
-          font-size:22px;
-          opacity:.35;
-        "
-      >
-        +
-      </div>
-
-      <div
-        style="
-          font-size:11px;
-          opacity:.4;
-        "
-      >
-        Empty
-      </div>
-
-    </button>
-
-  `;
-
-}
-
-
-// ============================================
-// HELD ITEMS UI
-// ============================================
-
-function updateHeldVisuals() {
-
-  if (
-    !heldItemsElement
-  ) {
-
-    return;
-
-  }
-
-
-  const left =
-    getHeldItem(
-      "left"
-    );
-
-
-  const right =
-    getHeldItem(
-      "right"
-    );
-
-
-  heldItemsElement.innerHTML = `
-
-    <div
-      style="
-        display:flex;
-        gap:8px;
-      "
-    >
-
-      ${createHeldSlot(
-        "left",
-        left
-      )}
-
-      ${createHeldSlot(
-        "right",
-        right
-      )}
-
-    </div>
-
-  `;
-
-
-  const leftButton =
-    heldItemsElement.querySelector(
-      '[data-held="left"]'
-    );
-
-
-  const rightButton =
-    heldItemsElement.querySelector(
-      '[data-held="right"]'
-    );
-
-
-  if (
-    leftButton
-  ) {
-
-    leftButton.addEventListener(
-      "click",
-      () => {
-
-        unequipItem(
-          "left"
-        );
-
-      }
-    );
-
-  }
-
-
-  if (
-    rightButton
-  ) {
-
-    rightButton.addEventListener(
-      "click",
-      () => {
-
-        unequipItem(
-          "right"
-        );
-
-      }
-    );
-
-  }
-
-}
-
-
-// ============================================
-// HELD SLOT
-// ============================================
-
-function createHeldSlot(
-  hand,
-  item
-) {
-
-  if (
-    item
-  ) {
-
-    const info =
-      getItemInfo(
-        item
-      );
-
-
-    return `
-
-      <button
-        data-held="${hand}"
-        class="inventory-slot"
-        style="
-          flex:1;
-          min-height:64px;
-          cursor:pointer;
-        "
-      >
-
-        <div
-          style="
-            font-size:10px;
-            opacity:.5;
-            text-transform:uppercase;
-          "
-        >
-          ${hand} hand
-        </div>
-
-        <div
-          style="
-            font-size:23px;
-          "
-        >
-          ${info.icon}
-        </div>
-
-        <div
-          style="
-            font-size:11px;
-          "
-        >
-          ${info.name}
-        </div>
-
-      </button>
-
-    `;
-
-  }
-
-
-  return `
-
-    <div
-      class="inventory-slot"
-      style="
-        flex:1;
-        min-height:64px;
-        opacity:.5;
-      "
-    >
-
-      <div
-        style="
-          font-size:10px;
-          text-transform:uppercase;
-        "
-      >
-        ${hand} hand
-      </div>
-
-      <div
-        style="
-          font-size:11px;
-        "
-      >
-        Empty
-      </div>
-
-    </div>
-
-  `;
-
-}
-
-
-// ============================================
-// ITEM CLICK
-// ============================================
-
-function handleItemClick(
-  item
-) {
-
-  const info =
-    getItemInfo(
-      item
-    );
-
-
-  if (
-    info.holdable
-  ) {
-
-    // Prefer empty hand
-
-    if (
-      !getHeldItem(
-        "right"
-      )
-    ) {
-
-      equipItem(
-        item,
-        "right"
-      );
-
-      return;
-
-    }
-
-
-    if (
-      !getHeldItem(
-        "left"
-      )
-    ) {
-
-      equipItem(
-        item,
-        "left"
-      );
-
-      return;
-
-    }
-
-  }
-
-
-  if (
-    info.usable
-  ) {
-
-    useItem(
-      item
-    );
-
-  }
-
-}
-
-
-// ============================================
-// RIGHT CLICK / LONG PRESS
-// ============================================
-
-function handleItemUse(
-  item
-) {
-
-  useItem(
-    item
-  );
-
-}
-
-
-// ============================================
-// OPEN INVENTORY
-// ============================================
-
-export function openInventory() {
-
-  createInventoryUI();
-
+  createUI();
 
   inventoryState.open =
     true;
 
 
-  inventoryElement.classList.add(
-    "active"
+  const ui =
+    document.getElementById(
+      "inventoryUI"
+    );
+
+  ui.classList.remove(
+    "hidden"
   );
 
 
-  refreshInventoryUI();
+  refresh();
 
 
-  window.dispatchEvent(
-    new CustomEvent(
-      "survival-inventory-opened"
-    )
+  gameEvent(
+    "inventory-opened"
   );
-
 }
 
 
-// ============================================
-// CLOSE INVENTORY
-// ============================================
+/* =========================================================
+   CLOSE
+========================================================= */
 
-export function closeInventory() {
+function close() {
 
-  if (
-    !inventoryElement
-  ) {
+  const ui =
+    document.getElementById(
+      "inventoryUI"
+    );
 
-    return;
+
+  if (ui) {
+
+    ui.classList.add(
+      "hidden"
+    );
 
   }
 
@@ -1533,134 +499,822 @@ export function closeInventory() {
     false;
 
 
-  inventoryElement.classList.remove(
-    "active"
+  inventoryState.selectedItem =
+    null;
+
+
+  gameEvent(
+    "inventory-closed"
   );
-
-
-  window.dispatchEvent(
-    new CustomEvent(
-      "survival-inventory-closed"
-    )
-  );
-
 }
 
 
-// ============================================
-// TOGGLE INVENTORY
-// ============================================
+/* =========================================================
+   TOGGLE
+========================================================= */
 
-export function toggleInventory() {
+function toggle() {
 
   if (
     inventoryState.open
   ) {
-
-    closeInventory();
-
+    close();
   } else {
+    open();
+  }
+}
 
-    openInventory();
 
+/* =========================================================
+   REFRESH
+========================================================= */
+
+function refresh() {
+
+  createUI();
+
+
+  refreshGrid();
+
+  refreshSideSlots();
+
+  refreshActions();
+}
+
+
+/* =========================================================
+   INVENTORY GRID
+========================================================= */
+
+function refreshGrid() {
+
+  const grid =
+    document.getElementById(
+      "inventoryGrid"
+    );
+
+
+  if (!grid) {
+    return;
   }
 
-}
+
+  grid.innerHTML = "";
 
 
-// ============================================
-// CHECK OPEN
-// ============================================
-
-export function isInventoryOpen() {
-
-  return inventoryState.open;
-
-}
+  const inventory =
+    GAME.inventory;
 
 
-// ============================================
-// INVENTORY MESSAGE
-// ============================================
+  Object.keys(ITEMS)
+    .forEach(
+      itemId => {
 
-function showInventoryMessage(
-  message
-) {
+        const item =
+          ITEMS[itemId];
 
-  const element =
-    document.getElementById(
-      "message"
+
+        const count =
+          Number(
+            inventory[itemId] || 0
+          );
+
+
+        if (count <= 0) {
+          return;
+        }
+
+
+        if (
+          inventoryState.filter !==
+          "all"
+        ) {
+
+          if (
+            item.category !==
+            inventoryState.filter
+          ) {
+            return;
+          }
+
+        }
+
+
+        const slot =
+          document.createElement(
+            "button"
+          );
+
+
+        slot.type =
+          "button";
+
+        slot.className =
+          "inventoryItem";
+
+
+        if (
+          inventoryState.selectedItem ===
+          itemId
+        ) {
+
+          slot.style.borderColor =
+            "rgba(85,216,121,.8)";
+
+          slot.style.background =
+            "rgba(85,216,121,.12)";
+        }
+
+
+        slot.innerHTML = `
+
+          <div class="inventoryItemIcon">
+            ${item.icon}
+          </div>
+
+          <div class="inventoryItemName">
+            ${item.name}
+          </div>
+
+          <div class="inventoryItemCount">
+            ${count}
+          </div>
+
+        `;
+
+
+        slot.addEventListener(
+          "click",
+          () => {
+
+            selectItem(itemId);
+
+          }
+        );
+
+
+        grid.appendChild(slot);
+
+      }
     );
 
 
   if (
-    !element
+    grid.children.length === 0
   ) {
 
+    grid.innerHTML = `
+
+      <div
+        style="
+          grid-column:1/-1;
+          padding:30px;
+          text-align:center;
+          color:#a9bdb1;
+        "
+      >
+        Nothing here yet.
+      </div>
+
+    `;
+  }
+}
+
+
+/* =========================================================
+   SELECT ITEM
+========================================================= */
+
+function selectItem(
+  itemId
+) {
+
+  if (
+    !ITEMS[itemId]
+  ) {
     return;
+  }
+
+
+  if (
+    getItemCount(itemId) <= 0
+  ) {
+    return;
+  }
+
+
+  inventoryState.selectedItem =
+    itemId;
+
+
+  refresh();
+
+
+  gameEvent(
+    "inventory-item-selected",
+    {
+      itemId
+    }
+  );
+}
+
+
+/* =========================================================
+   ACTION BUTTONS
+========================================================= */
+
+function refreshActions() {
+
+  const actions =
+    document.getElementById(
+      "inventoryActions"
+    );
+
+
+  if (!actions) {
+    return;
+  }
+
+
+  actions.innerHTML = "";
+
+
+  const itemId =
+    inventoryState.selectedItem;
+
+
+  if (!itemId) {
+
+    actions.innerHTML = `
+      <div
+        style="
+          width:100%;
+          color:#a9bdb1;
+          font-size:12px;
+        "
+      >
+        Select an item to see its actions.
+      </div>
+    `;
+
+    return;
+  }
+
+
+  const item =
+    ITEMS[itemId];
+
+
+  if (!item) {
+    return;
+  }
+
+
+  const useButton =
+    createActionButton(
+      "Use",
+      () => useItem(itemId)
+    );
+
+
+  const leftButton =
+    createActionButton(
+      "Put Left",
+      () => storeItem(
+        itemId,
+        "left"
+      )
+    );
+
+
+  const rightButton =
+    createActionButton(
+      "Put Right",
+      () => storeItem(
+        itemId,
+        "right"
+      )
+    );
+
+
+  const equipButton =
+    createActionButton(
+      "Hold",
+      () => equipItem(
+        itemId,
+        "right"
+      )
+    );
+
+
+  actions.appendChild(
+    useButton
+  );
+
+
+  actions.appendChild(
+    leftButton
+  );
+
+
+  actions.appendChild(
+    rightButton
+  );
+
+
+  actions.appendChild(
+    equipButton
+  );
+}
+
+
+function createActionButton(
+  label,
+  callback
+) {
+
+  const button =
+    document.createElement(
+      "button"
+    );
+
+
+  button.className =
+    "uiButton";
+
+
+  button.style.width =
+    "auto";
+
+
+  button.style.flex =
+    "1";
+
+
+  button.textContent =
+    label;
+
+
+  button.addEventListener(
+    "click",
+    callback
+  );
+
+
+  return button;
+}
+
+
+/* =========================================================
+   USE ITEM
+========================================================= */
+
+function useItem(
+  itemId
+) {
+
+  if (
+    getItemCount(itemId) <= 0
+  ) {
+    return false;
+  }
+
+
+  let used = false;
+
+
+  switch (itemId) {
+
+    case "food":
+
+      used =
+        eatFood(
+          15,
+          "food"
+        );
+
+      break;
+
+
+    case "cookedMeat":
+
+      used =
+        eatFood(
+          30,
+          "cookedMeat"
+        );
+
+      break;
+
+
+    case "water":
+
+      used =
+        drinkWater(
+          30
+        );
+
+      break;
+
+
+    default:
+
+      gameEvent(
+        "inventory-item-not-usable",
+        {
+          itemId
+        }
+      );
+
+      return false;
+  }
+
+
+  if (used) {
+
+    refresh();
 
   }
 
 
-  element.textContent =
-    message;
-
-
-  element.classList.add(
-    "show"
-  );
-
-
-  clearTimeout(
-    element._inventoryMessageTimer
-  );
-
-
-  element._inventoryMessageTimer =
-    setTimeout(
-      () => {
-
-        element.classList.remove(
-          "show"
-        );
-
-      },
-      1800
-    );
-
+  return used;
 }
 
 
-// ============================================
-// KEYBOARD INVENTORY
-// ============================================
+/* =========================================================
+   EQUIP / HOLD
+========================================================= */
+
+function equipItem(
+  itemId,
+  side = "right"
+) {
+
+  if (
+    getItemCount(itemId) <= 0
+  ) {
+    return false;
+  }
+
+
+  const current =
+    getHeldItem(side);
+
+
+  if (current) {
+
+    releaseItem(side);
+
+    addItem(
+      current,
+      1
+    );
+  }
+
+
+  const removed =
+    removeItem(
+      itemId,
+      1
+    );
+
+
+  if (!removed) {
+    return false;
+  }
+
+
+  holdItem(
+    side,
+    itemId
+  );
+
+
+  gameEvent(
+    "inventory-item-equipped",
+    {
+      itemId,
+      side
+    }
+  );
+
+
+  refresh();
+
+
+  return true;
+}
+
+
+/* =========================================================
+   STORE ITEM IN SIDE SLOT
+========================================================= */
+
+function storeItem(
+  itemId,
+  side
+) {
+
+  if (
+    side !== "left" &&
+    side !== "right"
+  ) {
+    return false;
+  }
+
+
+  if (
+    getItemCount(itemId) <= 0
+  ) {
+    return false;
+  }
+
+
+  const current =
+    GAME.equipment[
+      side + "Side"
+    ];
+
+
+  if (current === itemId) {
+
+    return true;
+
+  }
+
+
+  if (current) {
+
+    takeFromSide(side);
+
+  }
+
+
+  const removed =
+    removeItem(
+      itemId,
+      1
+    );
+
+
+  if (!removed) {
+
+    if (current) {
+      putOnSide(
+        side,
+        current
+      );
+    }
+
+    return false;
+  }
+
+
+  putOnSide(
+    side,
+    itemId
+  );
+
+
+  gameEvent(
+    "inventory-side-updated",
+    {
+      side,
+      itemId
+    }
+  );
+
+
+  refresh();
+
+
+  return true;
+}
+
+
+/* =========================================================
+   TAKE FROM SIDE
+========================================================= */
+
+function takeSideItem(
+  side
+) {
+
+  if (
+    side !== "left" &&
+    side !== "right"
+  ) {
+    return null;
+  }
+
+
+  const itemId =
+    GAME.equipment[
+      side + "Side"
+    ];
+
+
+  if (!itemId) {
+    return null;
+  }
+
+
+  takeFromSide(
+    side
+  );
+
+
+  addItem(
+    itemId,
+    1
+  );
+
+
+  gameEvent(
+    "inventory-side-item-taken",
+    {
+      side,
+      itemId
+    }
+  );
+
+
+  refresh();
+
+
+  return itemId;
+}
+
+
+/* =========================================================
+   SIDE SLOT UI
+========================================================= */
+
+function refreshSideSlots() {
+
+  const slots = {
+    left:
+      document.getElementById(
+        "leftSideSlot"
+      ),
+
+    right:
+      document.getElementById(
+        "rightSideSlot"
+      )
+  };
+
+
+  Object.entries(slots)
+    .forEach(
+      ([side, element]) => {
+
+        if (!element) {
+          return;
+        }
+
+
+        const itemId =
+          GAME.equipment[
+            side + "Side"
+          ];
+
+
+        const item =
+          itemId
+            ? ITEMS[itemId]
+            : null;
+
+
+        const itemElement =
+          element.querySelector(
+            ".sideSlotItem"
+          );
+
+
+        if (!itemElement) {
+          return;
+        }
+
+
+        if (item) {
+
+          itemElement.innerHTML = `
+
+            <div
+              style="
+                font-size:28px;
+                margin-bottom:4px;
+              "
+            >
+              ${item.icon}
+            </div>
+
+            <div>
+              ${item.name}
+            </div>
+
+            <button
+              type="button"
+              class="uiButton"
+              style="
+                width:auto;
+                margin-top:8px;
+                padding:7px 10px;
+                font-size:11px;
+              "
+              data-take-side="${side}"
+            >
+              Take
+            </button>
+
+          `;
+
+        } else {
+
+          itemElement.innerHTML =
+            "Empty";
+
+        }
+
+      }
+    );
+
+
+  document
+    .querySelectorAll(
+      "[data-take-side]"
+    )
+    .forEach(
+      button => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            takeSideItem(
+              button.dataset.takeSide
+            );
+
+          }
+        );
+
+      }
+    );
+}
+
+
+/* =========================================================
+   INVENTORY CHANGE EVENTS
+========================================================= */
+
+window.addEventListener(
+  "survival-inventory-changed",
+  () => {
+
+    if (
+      inventoryState.initialized
+    ) {
+
+      refresh();
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   KEYBOARD CONTROLS
+========================================================= */
 
 window.addEventListener(
   "keydown",
   event => {
 
     if (
-      event.key.toLowerCase() ===
-      "i"
+      event.repeat
     ) {
-
-      toggleInventory();
-
+      return;
     }
 
 
     if (
-      event.key ===
-      "Escape"
+      event.code === "KeyI"
     ) {
 
-      if (
-        inventoryState.open
-      ) {
+      toggle();
 
-        closeInventory();
+      return;
+    }
 
-      }
+
+    if (
+      event.code === "Escape" &&
+      inventoryState.open
+    ) {
+
+      close();
 
     }
 
@@ -1668,172 +1322,135 @@ window.addEventListener(
 );
 
 
-// ============================================
-// GAME EVENTS
-// ============================================
+/* =========================================================
+   VR MENU BUTTON
+========================================================= */
 
 window.addEventListener(
-  "survival-inventory-changed",
+  "survival-menu-button",
   () => {
 
-    refreshInventoryUI();
+    /*
+      If inventory is already open,
+      close it.
+
+      The future home/settings system
+      can decide what happens after that.
+    */
+
+    if (
+      inventoryState.open
+    ) {
+
+      close();
+
+    }
 
   }
 );
 
 
-window.addEventListener(
-  "survival-item-held",
-  () => {
+/* =========================================================
+   VR GRAB SUPPORT
+========================================================= */
 
-    refreshInventoryUI();
+window.addEventListener(
+  "survival-grab",
+  event => {
+
+    const detail =
+      event.detail || {};
+
+
+    if (
+      !detail.pressed
+    ) {
+      return;
+    }
+
+
+    const side =
+      detail.side;
+
+
+    /*
+      If the player has something in
+      their side slot, grabbing can
+      bring it into the hand.
+    */
+
+    const sideKey =
+      side + "Side";
+
+
+    const sideItem =
+      GAME.equipment[
+        sideKey
+      ];
+
+
+    if (
+      sideItem &&
+      !getHeldItem(side)
+    ) {
+
+      takeFromSide(
+        side
+      );
+
+
+      holdItem(
+        side,
+        sideItem
+      );
+
+
+      gameEvent(
+        "inventory-vr-equipped",
+        {
+          side,
+          itemId: sideItem
+        }
+      );
+
+
+      refresh();
+
+    }
 
   }
 );
 
 
-window.addEventListener(
-  "survival-item-released",
-  () => {
+/* =========================================================
+   INITIALIZATION
+========================================================= */
 
-    refreshInventoryUI();
+createUI();
 
-  }
+
+console.log(
+  "[Inventory] Inventory system loaded."
 );
 
 
-window.addEventListener(
-  "survival-side-storage-changed",
-  () => {
+/* =========================================================
+   EXPORTS
+========================================================= */
 
-    refreshInventoryUI();
-
-  }
-);
-
-
-// ============================================
-// CONNECT TO GLOBAL SURVIVALVR
-// ============================================
-
-function connectToGame() {
-
-  if (
-    !window.SurvivalVR
-  ) {
-
-    setTimeout(
-      connectToGame,
-      100
-    );
-
-    return;
-
-  }
-
-
-  window.SurvivalVR.systems.inventory = {
-
-    version:
-      INVENTORY_VERSION,
-
-    items:
-      ITEMS,
-
-    open:
-      openInventory,
-
-    close:
-      closeInventory,
-
-    toggle:
-      toggleInventory,
-
-    isOpen:
-      isInventoryOpen,
-
-    getInventory,
-
-    getStoredItems,
-
-    countItem,
-
-    giveItem,
-
-    takeItem,
-
-    equipItem,
-
-    unequipItem,
-
-    storeSideItem,
-
-    retrieveSideItem,
-
-    useItem,
-
-    refresh:
-      refreshInventoryUI
-
-  };
-
-
-  createInventoryUI();
-
-
-  console.log(
-    "🎒 Inventory system connected."
-  );
-
-}
-
-
-// ============================================
-// START SYSTEM
-// ============================================
-
-connectToGame();
-
-
-// ============================================
-// PUBLIC EXPORT
-// ============================================
-
-export default {
-
-  version:
-    INVENTORY_VERSION,
-
-  items:
-    ITEMS,
-
-  open:
-    openInventory,
-
-  close:
-    closeInventory,
-
-  toggle:
-    toggleInventory,
-
-  getInventory,
-
-  getStoredItems,
-
-  countItem,
-
-  giveItem,
-
-  takeItem,
-
+export {
+  inventorySystem,
+  open,
+  close,
+  toggle,
+  refresh,
+  selectItem,
+  useItem,
   equipItem,
-
-  unequipItem,
-
-  storeSideItem,
-
-  retrieveSideItem,
-
-  useItem
-
+  storeItem,
+  takeSideItem,
+  getInventory,
+  getSideSlots,
+  getHeldItems,
+  getItemDefinition
 };
