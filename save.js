@@ -1,6 +1,6 @@
 // save.js
 // ============================================================
-// SURVIVAL VR — SAVE / LOAD SYSTEM
+// SURVIVAL VR — SAVE / LOAD SYSTEM v5
 // ============================================================
 
 import {
@@ -13,657 +13,918 @@ import {
 
 const S = window.SurvivalVR;
 
-const SAVE_KEY = "survival_vr_save_v4";
-const BACKUP_KEY = "survival_vr_save_backup_v4";
-const SAVE_VERSION = 4;
+const SAVE_KEY = "survival_vr_save_v5";
+const BACKUP_KEY = "survival_vr_save_backup_v5";
 
+const SAVE_VERSION = 5;
 const AUTOSAVE_INTERVAL = 30000;
 
 let autosaveTimer = null;
 let initialized = false;
-let isSaving = false;
-let isLoading = false;
+let saving = false;
+let loading = false;
 
-// ------------------------------------------------------------
-// Helpers
-// ------------------------------------------------------------
+// ============================================================
+// MESSAGE
+// ============================================================
 
-function showSaveMessage(text, duration = 2500) {
-  if (S?.showMessage) {
-    S.showMessage(text, duration);
+function showSaveMessage(message, duration = 2500) {
+  if (typeof S?.showMessage === "function") {
+    S.showMessage(message, duration);
     return;
   }
 
-  const message = document.querySelector("#message");
+  const element =
+    document.querySelector("#message");
 
-  if (!message) return;
+  if (!element) return;
 
-  message.textContent = text;
-  message.classList.remove("hidden");
+  element.textContent = message;
+  element.classList.remove("hidden");
 
-  clearTimeout(message._saveTimer);
+  clearTimeout(element._saveTimer);
 
-  message._saveTimer = setTimeout(() => {
-    message.classList.add("hidden");
+  element._saveTimer = setTimeout(() => {
+    element.classList.add("hidden");
   }, duration);
+}
+
+// ============================================================
+// STORAGE
+// ============================================================
+
+function storageAvailable() {
+  try {
+    const key =
+      "__survival_vr_storage_test__";
+
+    localStorage.setItem(key, "1");
+    localStorage.removeItem(key);
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function parseSave(key) {
+  if (!storageAvailable()) {
+    return null;
+  }
+
+  const raw =
+    localStorage.getItem(key);
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 function clone(value) {
   try {
     return structuredClone(value);
   } catch {
-    return JSON.parse(JSON.stringify(value));
+    return JSON.parse(
+      JSON.stringify(value)
+    );
   }
 }
 
-function safeJSONParse(value) {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
+// ============================================================
+// PLAYER
+// ============================================================
+
+function capturePlayer() {
+  const group =
+    S?.playerGroup;
+
+  return {
+    x:
+      Number(
+        group?.position?.x ??
+        GAME.position.x ??
+        0
+      ),
+
+    y:
+      Number(
+        group?.position?.y ??
+        GAME.position.y ??
+        1.65
+      ),
+
+    z:
+      Number(
+        group?.position?.z ??
+        GAME.position.z ??
+        0
+      ),
+
+    rotationY:
+      Number(
+        group?.rotation?.y ??
+        GAME.position.rotationY ??
+        0
+      )
+  };
+}
+
+function restorePlayer(data) {
+  if (!data) return;
+
+  const x =
+    Number.isFinite(Number(data.x))
+      ? Number(data.x)
+      : 0;
+
+  const y =
+    Number.isFinite(Number(data.y))
+      ? Number(data.y)
+      : 1.65;
+
+  const z =
+    Number.isFinite(Number(data.z))
+      ? Number(data.z)
+      : 0;
+
+  const rotationY =
+    Number.isFinite(Number(data.rotationY))
+      ? Number(data.rotationY)
+      : 0;
+
+  setPlayerPosition(
+    x,
+    y,
+    z
+  );
+
+  GAME.position.rotationY =
+    rotationY;
+
+  if (S?.playerGroup) {
+    S.playerGroup.position.set(
+      x,
+      y,
+      z
+    );
+
+    S.playerGroup.rotation.y =
+      rotationY;
   }
 }
 
-function storageAvailable() {
-  try {
-    const testKey = "__survival_vr_test__";
-    localStorage.setItem(testKey, "1");
-    localStorage.removeItem(testKey);
-    return true;
-  } catch {
-    return false;
-  }
-}
+// ============================================================
+// RESOURCES
+// ============================================================
 
-// ------------------------------------------------------------
-// Resource state
-// ------------------------------------------------------------
+function captureResources() {
+  const worldSystem =
+    S?.systems?.world;
 
-function getResourceSaveData() {
-  const resources = S?.resources;
-
-  if (!Array.isArray(resources)) {
-    return [];
+  if (
+    worldSystem &&
+    typeof worldSystem.getResourceRecords ===
+      "function"
+  ) {
+    return clone(
+      worldSystem.getResourceRecords()
+    );
   }
 
-  return resources.map((resource) => {
-    const data = resource?.userData || {};
-
-    return {
-      id: data.id ?? resource.uuid ?? null,
-      type: data.type ?? data.resourceType ?? null,
-      x: Number(resource?.position?.x || 0),
-      y: Number(resource?.position?.y || 0),
-      z: Number(resource?.position?.z || 0),
-      active: resource?.visible !== false,
-      gathered: data.gathered === true,
-      depleted: data.depleted === true
-    };
-  });
-}
-
-function restoreResourceSaveData(resourceState) {
-  if (!Array.isArray(resourceState)) return;
-
-  const resources = S?.resources;
-
-  if (!Array.isArray(resources)) return;
-
-  for (const saved of resourceState) {
-    if (!saved) continue;
-
-    let resource = null;
-
-    if (saved.id) {
-      resource = resources.find(
-        item =>
-          item?.uuid === saved.id ||
-          item?.userData?.id === saved.id
-      );
-    }
-
-    if (!resource && saved.type) {
-      resource = resources.find(item => {
-        const data = item?.userData || {};
-
-        return (
-          data.type === saved.type &&
-          Math.abs((item.position?.x || 0) - saved.x) < 0.5 &&
-          Math.abs((item.position?.z || 0) - saved.z) < 0.5
-        );
-      });
-    }
-
-    if (!resource) continue;
-
-    resource.visible = saved.active !== false;
-
-    resource.userData = resource.userData || {};
-
-    resource.userData.gathered = !!saved.gathered;
-    resource.userData.depleted = !!saved.depleted;
-  }
-}
-
-// ------------------------------------------------------------
-// Building state
-// ------------------------------------------------------------
-
-function getBuildingSaveData() {
-  const buildingSystem = S?.systems?.building;
-
-  if (buildingSystem?.getState) {
-    const state = buildingSystem.getState();
-
-    if (Array.isArray(state?.buildings)) {
-      return clone(state.buildings);
-    }
-  }
-
-  if (Array.isArray(S?.buildings)) {
-    return clone(S.buildings);
-  }
-
-  if (Array.isArray(GAME?.buildings?.placed)) {
-    return clone(GAME.buildings.placed);
+  if (
+    Array.isArray(
+      S?.worldResources
+    )
+  ) {
+    return clone(
+      S.worldResources
+    );
   }
 
   return [];
 }
 
-function restoreBuildingSaveData(buildings) {
-  if (!Array.isArray(buildings) || buildings.length === 0) {
+function restoreResources(resources) {
+  if (
+    !Array.isArray(resources)
+  ) {
     return;
   }
 
-  const buildingSystem = S?.systems?.building;
+  const worldSystem =
+    S?.systems?.world;
+
+  if (
+    worldSystem &&
+    typeof worldSystem.restoreResourceState ===
+      "function"
+  ) {
+    worldSystem.restoreResourceState(
+      clone(resources)
+    );
+
+    return;
+  }
+
+  // Compatibility fallback.
+  if (
+    Array.isArray(S?.resources)
+  ) {
+    for (
+      const saved
+      of resources
+    ) {
+      if (!saved?.id) continue;
+
+      const object =
+        S.resources.find(
+          resource =>
+            resource?.userData?.id ===
+            saved.id
+        );
+
+      if (!object) continue;
+
+      object.visible =
+        saved.depleted !== true;
+
+      object.userData =
+        object.userData || {};
+
+      object.userData.depleted =
+        saved.depleted === true;
+
+      object.userData.gathered =
+        saved.gathered === true;
+    }
+  }
+}
+
+// ============================================================
+// BUILDINGS
+// ============================================================
+
+function captureBuildings() {
+  const buildingSystem =
+    S?.systems?.building;
+
+  if (
+    buildingSystem &&
+    typeof buildingSystem.getState ===
+      "function"
+  ) {
+    const state =
+      buildingSystem.getState();
+
+    if (
+      Array.isArray(state?.buildings)
+    ) {
+      return clone(
+        state.buildings
+      );
+    }
+  }
+
+  if (
+    Array.isArray(
+      S?.buildings
+    )
+  ) {
+    return clone(
+      S.buildings
+    );
+  }
+
+  if (
+    Array.isArray(
+      GAME.buildings?.placed
+    )
+  ) {
+    return clone(
+      GAME.buildings.placed
+    );
+  }
+
+  return [];
+}
+
+function restoreBuildings(buildings) {
+  if (
+    !Array.isArray(buildings)
+  ) {
+    return;
+  }
+
+  const buildingSystem =
+    S?.systems?.building;
 
   if (!buildingSystem) {
     return;
   }
 
-  if (typeof buildingSystem.clearBuildings === "function") {
+  if (
+    typeof buildingSystem.clearBuildings ===
+      "function"
+  ) {
     buildingSystem.clearBuildings();
   }
 
-  if (typeof buildingSystem.restoreBuildings === "function") {
-    buildingSystem.restoreBuildings(clone(buildings));
+  if (
+    typeof buildingSystem.restoreBuildings ===
+      "function"
+  ) {
+    buildingSystem.restoreBuildings(
+      clone(buildings)
+    );
   }
 
-  // Keep a persistent record for future saves.
-  S.buildings = clone(buildings);
-
-  if (GAME.buildings) {
-    GAME.buildings.placed = clone(buildings);
-  }
+  S.buildings =
+    clone(buildings);
 }
 
-// ------------------------------------------------------------
-// Player state
-// ------------------------------------------------------------
-
-function getPlayerSaveData() {
-  const position = GAME?.position || {};
-
-  const playerGroup = S?.playerGroup;
-
-  return {
-    x: Number(
-      playerGroup?.position?.x ??
-      position.x ??
-      0
-    ),
-
-    y: Number(
-      playerGroup?.position?.y ??
-      position.y ??
-      1.65
-    ),
-
-    z: Number(
-      playerGroup?.position?.z ??
-      position.z ??
-      0
-    ),
-
-    rotationY: Number(
-      playerGroup?.rotation?.y ??
-      0
-    )
-  };
-}
-
-function restorePlayerSaveData(playerData) {
-  if (!playerData) return;
-
-  const x = Number(playerData.x) || 0;
-  const y = Number(playerData.y) || 1.65;
-  const z = Number(playerData.z) || 0;
-
-  if (typeof setPlayerPosition === "function") {
-    setPlayerPosition(x, y, z);
-  }
-
-  if (S?.playerGroup) {
-    S.playerGroup.position.set(x, y, z);
-
-    if (Number.isFinite(playerData.rotationY)) {
-      S.playerGroup.rotation.y = playerData.rotationY;
-    }
-  }
-
-  if (GAME.position) {
-    GAME.position.x = x;
-    GAME.position.y = y;
-    GAME.position.z = z;
-  }
-}
-
-// ------------------------------------------------------------
-// Create complete save
-// ------------------------------------------------------------
+// ============================================================
+// CREATE SAVE
+// ============================================================
 
 function createSaveData() {
-  const gameData = getGameData();
+  const game =
+    getGameData();
 
-  const saveData = {
-    saveVersion: SAVE_VERSION,
+  return {
+    saveVersion:
+      SAVE_VERSION,
 
-    savedAt: Date.now(),
+    savedAt:
+      Date.now(),
 
-    gameVersion: GAME.version || 3,
+    gameVersion:
+      4,
 
-    game: gameData,
+    game,
 
-    player: getPlayerSaveData(),
+    player:
+      capturePlayer(),
 
     world: {
-      seed: GAME.world?.seed || "",
-      name: GAME.world?.name || "",
-      id: GAME.world?.id || "",
-      day: GAME.world?.day || 1,
-      time: GAME.world?.time || 8
+      id:
+        GAME.world.id,
+
+      name:
+        GAME.world.name,
+
+      seed:
+        GAME.world.seed,
+
+      day:
+        GAME.world.day,
+
+      time:
+        GAME.world.time,
+
+      weather:
+        GAME.world.weather
     },
 
-    resources: getResourceSaveData(),
+    resources:
+      captureResources(),
 
-    buildings: getBuildingSaveData(),
+    buildings:
+      captureBuildings(),
 
-    settings: clone(GAME.settings || {}),
-
-    meta: {
-      treesCut: GAME.statistics?.treesCut || 0,
-      rocksCollected: GAME.statistics?.rocksCollected || 0,
-      logsCollected: GAME.statistics?.logsCollected || 0,
-      itemsCrafted: GAME.statistics?.itemsCrafted || 0,
-      buildingsBuilt: GAME.statistics?.buildingsBuilt || 0
-    }
+    settings:
+      clone(
+        GAME.settings
+      )
   };
-
-  return saveData;
 }
 
-// ------------------------------------------------------------
-// Write save
-// ------------------------------------------------------------
+// ============================================================
+// SAVE
+// ============================================================
 
-export function saveGame(showMessage = true) {
-  if (isSaving || !storageAvailable()) {
+export function saveGame(
+  showMessage = true
+) {
+  if (
+    saving ||
+    !storageAvailable()
+  ) {
     return false;
   }
 
-  isSaving = true;
+  saving = true;
 
   try {
-    const saveData = createSaveData();
+    const saveData =
+      createSaveData();
 
-    const previousSave = localStorage.getItem(SAVE_KEY);
+    const oldSave =
+      localStorage.getItem(
+        SAVE_KEY
+      );
 
-    if (previousSave) {
-      localStorage.setItem(BACKUP_KEY, previousSave);
+    if (oldSave) {
+      localStorage.setItem(
+        BACKUP_KEY,
+        oldSave
+      );
     }
 
     localStorage.setItem(
       SAVE_KEY,
-      JSON.stringify(saveData)
+      JSON.stringify(
+        saveData
+      )
     );
 
-    GAME.save = GAME.save || {};
+    GAME.save =
+      GAME.save || {};
 
-    GAME.save.lastSaved = Date.now();
-    GAME.save.hasSave = true;
+    GAME.save.hasSave =
+      true;
 
-    if (typeof GAME.save.saveCount !== "number") {
-      GAME.save.saveCount = 0;
-    }
+    GAME.save.lastSaved =
+      saveData.savedAt;
 
-    GAME.save.saveCount++;
+    GAME.save.saveCount =
+      Number(
+        GAME.save.saveCount || 0
+      ) + 1;
 
-    if (typeof S.markSaved === "function") {
+    if (
+      typeof S?.markSaved ===
+        "function"
+    ) {
       S.markSaved();
     }
 
-    gameEvent("game-saved", {
-      saveVersion: SAVE_VERSION,
-      savedAt: saveData.savedAt
-    });
+    gameEvent(
+      "game-saved",
+      {
+        savedAt:
+          saveData.savedAt,
+
+        saveVersion:
+          SAVE_VERSION
+      }
+    );
 
     if (showMessage) {
-      showSaveMessage("Game saved.");
+      showSaveMessage(
+        "Game saved."
+      );
     }
 
     return true;
   } catch (error) {
-    console.error("Survival VR save failed:", error);
+    console.error(
+      "Save failed:",
+      error
+    );
 
-    showSaveMessage("Could not save the game.");
+    if (showMessage) {
+      showSaveMessage(
+        "Could not save the game."
+      );
+    }
 
     return false;
   } finally {
-    isSaving = false;
+    saving = false;
   }
 }
 
-// ------------------------------------------------------------
-// Read save
-// ------------------------------------------------------------
+// ============================================================
+// LOAD
+// ============================================================
 
-function readSave(key = SAVE_KEY) {
-  if (!storageAvailable()) {
-    return null;
-  }
-
-  const raw = localStorage.getItem(key);
-
-  if (!raw) {
-    return null;
-  }
-
-  const parsed = safeJSONParse(raw);
-
-  if (!parsed || typeof parsed !== "object") {
-    return null;
-  }
-
-  return parsed;
-}
-
-// ------------------------------------------------------------
-// Load save
-// ------------------------------------------------------------
-
-export async function loadGame(showMessage = true) {
-  if (isLoading) {
+export async function loadGame(
+  showMessage = true
+) {
+  if (
+    loading ||
+    !storageAvailable()
+  ) {
     return false;
   }
 
-  isLoading = true;
+  loading = true;
 
   try {
-    const saveData = readSave(SAVE_KEY);
+    const saveData =
+      parseSave(
+        SAVE_KEY
+      );
 
     if (!saveData) {
       if (showMessage) {
-        showSaveMessage("No saved game found.");
+        showSaveMessage(
+          "No saved game found."
+        );
       }
 
       return false;
     }
 
-    // Load the game data first.
+    // --------------------------------------------------------
+    // Load core game data.
+    // --------------------------------------------------------
+
     if (saveData.game) {
-      loadGameData(clone(saveData.game));
-    }
-
-    // Make absolutely sure the saved seed is restored.
-    if (saveData.world?.seed) {
-      GAME.world = GAME.world || {};
-      GAME.world.seed = saveData.world.seed;
-    }
-
-    // Regenerate the exact procedural world from the saved seed.
-    const worldSystem = S?.systems?.world || S?.world;
-
-    if (worldSystem?.generateWorld) {
-      await worldSystem.generateWorld(
-        saveData.world?.seed || GAME.world?.seed || null
+      loadGameData(
+        clone(
+          saveData.game
+        )
       );
-    } else if (worldSystem?.regenerateWorld) {
-      await worldSystem.regenerateWorld();
     }
 
-    // Restore saved world time.
+    // --------------------------------------------------------
+    // Make sure the exact saved seed is used.
+    // --------------------------------------------------------
+
+    const seed =
+      saveData.world?.seed ||
+      GAME.world.seed;
+
+    GAME.world.seed =
+      seed;
+
+    // --------------------------------------------------------
+    // Generate the exact same procedural world.
+    // --------------------------------------------------------
+
+    const worldSystem =
+      S?.systems?.world;
+
+    if (
+      worldSystem &&
+      typeof worldSystem.generateWorld ===
+        "function"
+    ) {
+      await worldSystem.generateWorld(
+        seed,
+        {
+          preservePlayer: true
+        }
+      );
+    }
+
+    // --------------------------------------------------------
+    // Restore world time.
+    // --------------------------------------------------------
+
     if (saveData.world) {
-      GAME.world.day = Number(saveData.world.day) || 1;
-      GAME.world.time = Number.isFinite(saveData.world.time)
-        ? saveData.world.time
-        : 8;
+      GAME.world.id =
+        saveData.world.id ||
+        GAME.world.id;
+
+      GAME.world.name =
+        saveData.world.name ||
+        GAME.world.name;
+
+      GAME.world.day =
+        Number(
+          saveData.world.day || 1
+        );
+
+      GAME.world.time =
+        Number.isFinite(
+          Number(
+            saveData.world.time
+          )
+        )
+          ? Number(
+              saveData.world.time
+            )
+          : 8;
+
+      GAME.world.weather =
+        saveData.world.weather ||
+        "sunny";
     }
 
-    // Restore player AFTER the procedural world places the spawn point.
-    restorePlayerSaveData(saveData.player);
+    // --------------------------------------------------------
+    // Restore player position AFTER world generation.
+    // --------------------------------------------------------
 
-    // Restore gathered/depleted resources.
-    restoreResourceSaveData(saveData.resources);
+    restorePlayer(
+      saveData.player
+    );
 
-    // Restore buildings.
-    restoreBuildingSaveData(saveData.buildings);
+    // --------------------------------------------------------
+    // Restore gathered trees / rocks / logs.
+    // --------------------------------------------------------
 
+    restoreResources(
+      saveData.resources
+    );
+
+    // --------------------------------------------------------
+    // Restore physical buildings.
+    // --------------------------------------------------------
+
+    restoreBuildings(
+      saveData.buildings
+    );
+
+    // --------------------------------------------------------
     // Restore settings.
-    if (saveData.settings && GAME.settings) {
+    // --------------------------------------------------------
+
+    if (
+      saveData.settings &&
+      GAME.settings
+    ) {
       Object.assign(
         GAME.settings,
-        clone(saveData.settings)
+        clone(
+          saveData.settings
+        )
       );
     }
 
-    GAME.save = GAME.save || {};
-    GAME.save.hasSave = true;
-    GAME.save.lastSaved = saveData.savedAt || Date.now();
+    GAME.save =
+      GAME.save || {};
 
-    gameEvent("game-loaded", {
-      saveVersion: saveData.saveVersion || 1,
-      savedAt: saveData.savedAt || null
-    });
+    GAME.save.hasSave =
+      true;
 
-    if (S?.systems?.settings?.applyAll) {
-      S.systems.settings.applyAll();
-    }
+    GAME.save.lastSaved =
+      saveData.savedAt ||
+      Date.now();
 
-    if (S?.systems?.environment?.update) {
-      S.systems.environment.update(0);
-    }
+    gameEvent(
+      "game-loaded",
+      {
+        saveVersion:
+          saveData.saveVersion ||
+          1
+      }
+    );
 
     if (showMessage) {
-      showSaveMessage("Saved game loaded.");
+      showSaveMessage(
+        "Saved game loaded."
+      );
     }
 
     return true;
   } catch (error) {
-    console.error("Survival VR load failed:", error);
+    console.error(
+      "Load failed:",
+      error
+    );
 
     if (showMessage) {
-      showSaveMessage("Could not load the saved game.");
+      showSaveMessage(
+        "Could not load the saved game."
+      );
     }
 
     return false;
   } finally {
-    isLoading = false;
+    loading = false;
   }
 }
 
-// ------------------------------------------------------------
-// Load backup
-// ------------------------------------------------------------
+// ============================================================
+// BACKUP
+// ============================================================
 
-export async function loadBackup(showMessage = true) {
-  if (isLoading) {
-    return false;
-  }
-
-  const backup = readSave(BACKUP_KEY);
+export async function loadBackup(
+  showMessage = true
+) {
+  const backup =
+    parseSave(
+      BACKUP_KEY
+    );
 
   if (!backup) {
     if (showMessage) {
-      showSaveMessage("No backup save found.");
+      showSaveMessage(
+        "No backup save found."
+      );
     }
 
     return false;
   }
 
   try {
-    // Temporarily use the backup as the main save.
-    const currentSave = localStorage.getItem(SAVE_KEY);
-    const backupSave = localStorage.getItem(BACKUP_KEY);
+    const current =
+      localStorage.getItem(
+        SAVE_KEY
+      );
 
-    if (!backupSave) {
+    const backupRaw =
+      localStorage.getItem(
+        BACKUP_KEY
+      );
+
+    if (!backupRaw) {
       return false;
     }
 
-    localStorage.setItem(SAVE_KEY, backupSave);
+    localStorage.setItem(
+      SAVE_KEY,
+      backupRaw
+    );
 
-    const loaded = await loadGame(false);
+    const loaded =
+      await loadGame(
+        false
+      );
 
-    // Keep the old main save as the backup.
-    if (currentSave) {
-      localStorage.setItem(BACKUP_KEY, currentSave);
+    if (current) {
+      localStorage.setItem(
+        BACKUP_KEY,
+        current
+      );
     }
 
-    if (loaded && showMessage) {
-      showSaveMessage("Backup save loaded.");
+    if (
+      loaded &&
+      showMessage
+    ) {
+      showSaveMessage(
+        "Backup save loaded."
+      );
     }
 
     return loaded;
   } catch (error) {
-    console.error("Backup load failed:", error);
+    console.error(
+      "Backup load failed:",
+      error
+    );
 
-    showSaveMessage("Could not load the backup.");
+    if (showMessage) {
+      showSaveMessage(
+        "Could not load backup."
+      );
+    }
 
     return false;
   }
 }
 
-// ------------------------------------------------------------
-// Delete save
-// ------------------------------------------------------------
+// ============================================================
+// DELETE
+// ============================================================
 
-export function deleteSave(showMessage = true) {
+export function deleteSave(
+  showMessage = true
+) {
   try {
-    localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem(
+      SAVE_KEY
+    );
 
-    GAME.save = GAME.save || {};
-    GAME.save.hasSave = false;
-    GAME.save.lastSaved = 0;
+    GAME.save =
+      GAME.save || {};
 
-    gameEvent("save-deleted");
+    GAME.save.hasSave =
+      false;
+
+    GAME.save.lastSaved =
+      0;
+
+    gameEvent(
+      "save-deleted"
+    );
 
     if (showMessage) {
-      showSaveMessage("Saved game deleted.");
+      showSaveMessage(
+        "Saved game deleted."
+      );
     }
 
     return true;
   } catch (error) {
-    console.error("Could not delete save:", error);
+    console.error(
+      "Delete save failed:",
+      error
+    );
 
     return false;
   }
 }
 
-// ------------------------------------------------------------
-// Check save
-// ------------------------------------------------------------
+// ============================================================
+// SAVE CHECKS
+// ============================================================
 
 export function hasSave() {
-  return !!readSave(SAVE_KEY);
+  return !!parseSave(
+    SAVE_KEY
+  );
 }
 
 export function hasBackup() {
-  return !!readSave(BACKUP_KEY);
+  return !!parseSave(
+    BACKUP_KEY
+  );
 }
 
-// ------------------------------------------------------------
-// Save information
-// ------------------------------------------------------------
+// ============================================================
+// SAVE INFO
+// ============================================================
 
 export function getSaveInfo() {
-  const saveData = readSave(SAVE_KEY);
+  const data =
+    parseSave(
+      SAVE_KEY
+    );
 
-  if (!saveData) {
+  if (!data) {
     return null;
   }
 
   return {
-    saveVersion: saveData.saveVersion || 1,
+    saveVersion:
+      data.saveVersion || 1,
 
-    savedAt: saveData.savedAt || 0,
+    savedAt:
+      data.savedAt || 0,
 
     seed:
-      saveData.world?.seed ||
-      saveData.game?.world?.seed ||
+      data.world?.seed ||
+      data.game?.world?.seed ||
       "",
 
     worldName:
-      saveData.world?.name ||
-      saveData.game?.world?.name ||
+      data.world?.name ||
+      data.game?.world?.name ||
       "Unnamed Island",
 
     day:
-      saveData.world?.day ||
-      saveData.game?.world?.day ||
+      data.world?.day ||
+      data.game?.world?.day ||
       1,
 
     time:
-      saveData.world?.time ??
-      saveData.game?.world?.time ??
+      data.world?.time ??
+      data.game?.world?.time ??
       8,
 
-    buildings:
-      Array.isArray(saveData.buildings)
-        ? saveData.buildings.length
+    buildingCount:
+      Array.isArray(
+        data.buildings
+      )
+        ? data.buildings.length
         : 0,
 
-    resources:
-      Array.isArray(saveData.resources)
-        ? saveData.resources.length
+    resourceCount:
+      Array.isArray(
+        data.resources
+      )
+        ? data.resources.length
         : 0
   };
 }
 
-// ------------------------------------------------------------
-// Autosave
-// ------------------------------------------------------------
+// ============================================================
+// AUTOSAVE
+// ============================================================
 
 function startAutosave() {
   stopAutosave();
 
-  autosaveTimer = setInterval(() => {
-    if (!GAME.state?.started) {
-      return;
-    }
+  autosaveTimer =
+    setInterval(() => {
+      if (
+        !GAME.state.started ||
+        GAME.state.paused ||
+        GAME.state.gameOver
+      ) {
+        return;
+      }
 
-    if (GAME.state?.paused) {
-      return;
-    }
-
-    if (GAME.state?.gameOver) {
-      return;
-    }
-
-    saveGame(false);
-  }, AUTOSAVE_INTERVAL);
+      saveGame(false);
+    }, AUTOSAVE_INTERVAL);
 }
 
 function stopAutosave() {
   if (autosaveTimer) {
-    clearInterval(autosaveTimer);
-    autosaveTimer = null;
+    clearInterval(
+      autosaveTimer
+    );
+
+    autosaveTimer =
+      null;
   }
 }
 
-export function setAutosaveEnabled(enabled) {
-  GAME.settings = GAME.settings || {};
-
-  GAME.settings.autosave = !!enabled;
+export function setAutosaveEnabled(
+  enabled
+) {
+  GAME.settings.autosave =
+    !!enabled;
 
   if (enabled) {
     startAutosave();
@@ -671,39 +932,81 @@ export function setAutosaveEnabled(enabled) {
     stopAutosave();
   }
 
-  gameEvent("autosave-changed", {
-    enabled: !!enabled
-  });
+  gameEvent(
+    "autosave-changed",
+    {
+      enabled:
+        !!enabled
+    }
+  );
 }
 
 export function isAutosaveEnabled() {
-  if (typeof GAME.settings?.autosave === "boolean") {
-    return GAME.settings.autosave;
-  }
-
-  return true;
+  return (
+    GAME.settings.autosave !==
+      false
+  );
 }
 
-// ------------------------------------------------------------
-// Save UI
-// ------------------------------------------------------------
+// ============================================================
+// UI
+// ============================================================
+
+function escapeHTML(value) {
+  return String(value)
+    .replaceAll(
+      "&",
+      "&amp;"
+    )
+    .replaceAll(
+      "<",
+      "&lt;"
+    )
+    .replaceAll(
+      ">",
+      "&gt;"
+    )
+    .replaceAll(
+      '"',
+      "&quot;"
+    )
+    .replaceAll(
+      "'",
+      "&#039;"
+    );
+}
 
 function createSaveUI() {
-  if (document.querySelector("#saveUI")) {
-    return document.querySelector("#saveUI");
+  let ui =
+    document.querySelector(
+      "#saveUI"
+    );
+
+  if (ui) {
+    return ui;
   }
 
-  const ui = document.createElement("div");
+  ui =
+    document.createElement(
+      "div"
+    );
 
-  ui.id = "saveUI";
-  ui.className = "overlay hidden";
+  ui.id =
+    "saveUI";
+
+  ui.className =
+    "overlay hidden";
 
   ui.innerHTML = `
     <div class="panel savePanel">
 
       <div class="panelHeader">
+
         <div>
-          <div class="panelTitle">SAVE GAME</div>
+          <div class="panelTitle">
+            SAVE GAME
+          </div>
+
           <div class="panelSubtitle">
             Save your island and continue later.
           </div>
@@ -716,9 +1019,13 @@ function createSaveUI() {
         >
           ×
         </button>
+
       </div>
 
-      <div id="saveInfo" class="saveInfo"></div>
+      <div
+        id="saveInfo"
+        class="saveInfo"
+      ></div>
 
       <div class="saveActions">
 
@@ -757,155 +1064,245 @@ function createSaveUI() {
       </div>
 
       <label class="toggleRow">
-        <span>Autosave</span>
+
+        <span>
+          Autosave
+        </span>
 
         <input
           id="autosaveToggle"
           type="checkbox"
         >
+
       </label>
 
     </div>
   `;
 
-  document.body.appendChild(ui);
+  document.body.appendChild(
+    ui
+  );
 
-  ui.querySelector("#closeSaveButton")
-    ?.addEventListener("click", closeSaveUI);
+  ui.querySelector(
+    "#closeSaveButton"
+  )?.addEventListener(
+    "click",
+    closeSaveUI
+  );
 
-  ui.querySelector("#saveNowButton")
-    ?.addEventListener("click", () => {
+  ui.querySelector(
+    "#saveNowButton"
+  )?.addEventListener(
+    "click",
+    () => {
       saveGame(true);
       refreshSaveUI();
-    });
+    }
+  );
 
-  ui.querySelector("#loadSaveButton")
-    ?.addEventListener("click", async () => {
+  ui.querySelector(
+    "#loadSaveButton"
+  )?.addEventListener(
+    "click",
+    async () => {
       await loadGame(true);
       refreshSaveUI();
-    });
+    }
+  );
 
-  ui.querySelector("#loadBackupButton")
-    ?.addEventListener("click", async () => {
+  ui.querySelector(
+    "#loadBackupButton"
+  )?.addEventListener(
+    "click",
+    async () => {
       await loadBackup(true);
       refreshSaveUI();
-    });
+    }
+  );
 
-  ui.querySelector("#deleteSaveButton")
-    ?.addEventListener("click", () => {
-      const confirmed = window.confirm(
-        "Delete your saved game? This cannot be undone."
-      );
-
-      if (!confirmed) return;
+  ui.querySelector(
+    "#deleteSaveButton"
+  )?.addEventListener(
+    "click",
+    () => {
+      if (
+        !window.confirm(
+          "Delete your saved game? This cannot be undone."
+        )
+      ) {
+        return;
+      }
 
       deleteSave(true);
       refreshSaveUI();
-    });
+    }
+  );
 
-  ui.querySelector("#autosaveToggle")
-    ?.addEventListener("change", event => {
-      setAutosaveEnabled(event.target.checked);
-    });
+  ui.querySelector(
+    "#autosaveToggle"
+  )?.addEventListener(
+    "change",
+    event => {
+      setAutosaveEnabled(
+        event.target.checked
+      );
+    }
+  );
 
   return ui;
 }
 
+// ============================================================
+// REFRESH UI
+// ============================================================
+
 function refreshSaveUI() {
-  const ui = document.querySelector("#saveUI");
+  const ui =
+    document.querySelector(
+      "#saveUI"
+    );
 
   if (!ui) return;
 
-  const info = ui.querySelector("#saveInfo");
-  const autosave = ui.querySelector("#autosaveToggle");
+  const info =
+    ui.querySelector(
+      "#saveInfo"
+    );
 
-  const saveData = getSaveInfo();
+  const toggle =
+    ui.querySelector(
+      "#autosaveToggle"
+    );
 
-  if (!saveData) {
+  const data =
+    getSaveInfo();
+
+  if (!data) {
     info.innerHTML = `
       <div class="saveCard">
-        <strong>No save found</strong>
-        <span>Start playing and save your island.</span>
+        <strong>
+          No save found
+        </strong>
+
+        <span>
+          Save your island to continue later.
+        </span>
       </div>
     `;
   } else {
-    const date = saveData.savedAt
-      ? new Date(saveData.savedAt).toLocaleString()
-      : "Unknown";
+    const date =
+      data.savedAt
+        ? new Date(
+            data.savedAt
+          ).toLocaleString()
+        : "Unknown";
 
     info.innerHTML = `
       <div class="saveCard">
-        <strong>${escapeHTML(saveData.worldName)}</strong>
+
+        <strong>
+          ${escapeHTML(
+            data.worldName
+          )}
+        </strong>
 
         <span>
           Seed:
-          <b>${escapeHTML(saveData.seed || "Unknown")}</b>
+          <b>
+            ${escapeHTML(
+              data.seed ||
+              "Unknown"
+            )}
+          </b>
         </span>
 
         <span>
-          Day ${saveData.day}
+          Day ${data.day}
         </span>
 
         <span>
           Saved:
-          ${escapeHTML(date)}
+          ${escapeHTML(
+            date
+          )}
         </span>
 
         <span>
-          Buildings:
-          ${saveData.buildings}
+          Saved resources:
+          ${data.resourceCount}
         </span>
+
+        <span>
+          Saved buildings:
+          ${data.buildingCount}
+        </span>
+
       </div>
     `;
   }
 
-  if (autosave) {
-    autosave.checked = isAutosaveEnabled();
+  if (toggle) {
+    toggle.checked =
+      isAutosaveEnabled();
   }
 }
 
-function escapeHTML(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+// ============================================================
+// OPEN / CLOSE
+// ============================================================
 
 export function openSaveUI() {
-  const ui = createSaveUI();
+  const ui =
+    createSaveUI();
 
   refreshSaveUI();
 
-  ui.classList.remove("hidden");
+  ui.classList.remove(
+    "hidden"
+  );
 
-  if (S?.setPaused) {
+  if (
+    typeof S?.setPaused ===
+      "function"
+  ) {
     S.setPaused(true);
   }
 }
 
 export function closeSaveUI() {
-  const ui = document.querySelector("#saveUI");
+  const ui =
+    document.querySelector(
+      "#saveUI"
+    );
 
   if (ui) {
-    ui.classList.add("hidden");
+    ui.classList.add(
+      "hidden"
+    );
   }
 }
 
 export function toggleSaveUI() {
-  const ui = document.querySelector("#saveUI");
+  const ui =
+    document.querySelector(
+      "#saveUI"
+    );
 
-  if (!ui || ui.classList.contains("hidden")) {
+  if (
+    !ui ||
+    ui.classList.contains(
+      "hidden"
+    )
+  ) {
     openSaveUI();
   } else {
     closeSaveUI();
   }
 }
 
-// ------------------------------------------------------------
-// Events
-// ------------------------------------------------------------
+// ============================================================
+// EVENTS
+// ============================================================
 
 window.addEventListener(
   "survival-menu-button",
@@ -917,27 +1314,17 @@ window.addEventListener(
 window.addEventListener(
   "survival-game-started",
   () => {
-    if (!initialized) return;
-
-    if (isAutosaveEnabled()) {
+    if (
+      isAutosaveEnabled()
+    ) {
       startAutosave();
     }
   }
 );
 
 window.addEventListener(
-  "survival-new-world-created",
-  () => {
-    // A new world starts clean.
-    // Do not overwrite an existing save until the player saves.
-    GAME.save = GAME.save || {};
-  }
-);
-
-window.addEventListener(
   "survival-game-over",
   () => {
-    // Preserve the final state.
     saveGame(false);
   }
 );
@@ -945,100 +1332,146 @@ window.addEventListener(
 window.addEventListener(
   "beforeunload",
   () => {
-    if (GAME.state?.started && !GAME.state?.gameOver) {
+    if (
+      GAME.state.started &&
+      !GAME.state.gameOver
+    ) {
       saveGame(false);
     }
   }
 );
 
-// Keyboard shortcut: K
-window.addEventListener("keydown", event => {
-  if (
-    event.key.toLowerCase() === "k" &&
-    !event.repeat
-  ) {
-    const target = event.target;
-
+// K = Save menu
+window.addEventListener(
+  "keydown",
+  event => {
     if (
-      target?.tagName === "INPUT" ||
-      target?.tagName === "TEXTAREA" ||
-      target?.isContentEditable
+      event.key.toLowerCase() ===
+        "k" &&
+      !event.repeat
     ) {
-      return;
+      const target =
+        event.target;
+
+      if (
+        target?.tagName ===
+          "INPUT" ||
+        target?.tagName ===
+          "TEXTAREA" ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+
+      toggleSaveUI();
     }
 
-    toggleSaveUI();
+    if (
+      event.key ===
+        "Escape"
+    ) {
+      closeSaveUI();
+    }
   }
+);
 
-  if (event.key === "Escape") {
-    closeSaveUI();
-  }
-});
-
-// ------------------------------------------------------------
-// Initialize
-// ------------------------------------------------------------
+// ============================================================
+// INITIALIZE
+// ============================================================
 
 function initialize() {
-  if (initialized) return;
+  if (initialized) {
+    return;
+  }
 
   initialized = true;
 
-  GAME.save = GAME.save || {};
+  GAME.save =
+    GAME.save || {};
 
-  GAME.save.hasSave = hasSave();
+  GAME.save.hasSave =
+    hasSave();
 
   GAME.save.lastSaved =
-    getSaveInfo()?.savedAt || 0;
+    getSaveInfo()?.savedAt ||
+    0;
 
-  GAME.settings = GAME.settings || {};
+  GAME.settings =
+    GAME.settings || {};
 
-  if (typeof GAME.settings.autosave !== "boolean") {
-    GAME.settings.autosave = true;
+  if (
+    typeof GAME.settings.autosave !==
+      "boolean"
+  ) {
+    GAME.settings.autosave =
+      true;
   }
 
   createSaveUI();
 
-  if (isAutosaveEnabled()) {
+  if (
+    isAutosaveEnabled()
+  ) {
     startAutosave();
   }
 
-  if (S) {
-    S.saveGame = saveGame;
-    S.loadGame = loadGame;
-    S.loadBackup = loadBackup;
-    S.deleteSave = deleteSave;
-    S.hasSave = hasSave;
-    S.hasBackup = hasBackup;
-    S.getSaveInfo = getSaveInfo;
-    S.openSaveUI = openSaveUI;
-    S.closeSaveUI = closeSaveUI;
-    S.toggleSaveUI = toggleSaveUI;
-    S.setAutosaveEnabled = setAutosaveEnabled;
-  }
+  const saveSystem = {
+    save: saveGame,
+    load: loadGame,
+    loadBackup,
+    deleteSave,
+    hasSave,
+    hasBackup,
+    getSaveInfo,
+    open: openSaveUI,
+    close: closeSaveUI,
+    toggle: toggleSaveUI,
+    setAutosaveEnabled,
+    isAutosaveEnabled
+  };
 
-  if (typeof S?.registerSystem === "function") {
-    S.registerSystem("save", {
-      save: saveGame,
-      load: loadGame,
-      loadBackup,
-      deleteSave,
-      hasSave,
-      getSaveInfo,
-      open: openSaveUI,
-      close: closeSaveUI,
-      toggle: toggleSaveUI
-    });
-  }
+  S.systems =
+    S.systems || {};
 
-  console.log("Survival VR save system ready.");
+  S.systems.save =
+    saveSystem;
+
+  S.saveGame =
+    saveGame;
+
+  S.loadGame =
+    loadGame;
+
+  S.loadBackup =
+    loadBackup;
+
+  S.deleteSave =
+    deleteSave;
+
+  S.hasSave =
+    hasSave;
+
+  S.hasBackup =
+    hasBackup;
+
+  S.getSaveInfo =
+    getSaveInfo;
+
+  S.openSaveUI =
+    openSaveUI;
+
+  S.closeSaveUI =
+    closeSaveUI;
+
+  S.toggleSaveUI =
+    toggleSaveUI;
+
+  console.log(
+    "Survival VR save system v5 loaded."
+  );
 }
 
 initialize();
-
-// ------------------------------------------------------------
-// Exports
-// ------------------------------------------------------------
 
 export const saveSystem = {
   save: saveGame,
@@ -1054,8 +1487,3 @@ export const saveSystem = {
   setAutosaveEnabled,
   isAutosaveEnabled
 };
-
-if (S) {
-  S.systems = S.systems || {};
-  S.systems.save = saveSystem;
-}
