@@ -1,92 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
   <title>VR Convenience Store</title>
 
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      overflow: hidden;
-      font-family: Arial, Helvetica, sans-serif;
-      background: #111;
-    }
-
-    #startScreen {
-      position: fixed;
-      inset: 0;
-      z-index: 10;
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      padding: 20px;
-
-      background:
-        radial-gradient(
-          circle at center,
-          #263a32 0%,
-          #111916 55%,
-          #060807 100%
-        );
-
-      color: white;
-    }
-
-    .panel {
-      width: min(520px, 92vw);
-      padding: 32px;
-
-      text-align: center;
-
-      background: rgba(20, 25, 23, 0.95);
-
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 24px;
-
-      box-shadow: 0 20px 70px rgba(0,0,0,0.5);
-    }
-
-    h1 {
-      margin: 0 0 10px;
-      font-size: 34px;
-    }
-
-    p {
-      color: #c9d2ce;
-      line-height: 1.5;
-    }
-
-    #enterVR {
-      margin-top: 15px;
-
-      padding: 15px 25px;
-
-      border: none;
-      border-radius: 14px;
-
-      background: white;
-      color: #111;
-
-      font-size: 17px;
-      font-weight: bold;
-    }
-
-    #status {
-      margin-top: 15px;
-      color: #9ca9a4;
-      font-size: 14px;
-    }
-  </style>
+  <link
+    rel="stylesheet"
+    href="./style.css"
+  >
 </head>
 
 <body>
+
+  <!-- START SCREEN -->
 
   <div id="startScreen">
 
@@ -95,13 +28,13 @@
       <h1>🏪 VR Convenience Store</h1>
 
       <p>
-        Welcome to your store.
+        Welcome to your store!
         <br><br>
-        Left joystick = move
+        🕹️ Left joystick — Move
         <br>
-        Right joystick = turn
+        🕹️ Right joystick — Turn
         <br>
-        Head movement = look around
+        👀 Move your head — Look around
       </p>
 
       <button id="enterVR">
@@ -109,7 +42,7 @@
       </button>
 
       <div id="status">
-        Open this page on your Meta Quest 3S.
+        Checking VR support...
       </div>
 
     </div>
@@ -117,111 +50,172 @@
   </div>
 
 
+  <!-- DESKTOP CONTROLS -->
+
+  <div id="desktopControls">
+    <strong>PC Test:</strong>
+    W A S D = Move
+    &nbsp; Q / E = Turn
+  </div>
+
+
+  <!-- GAME -->
+
   <script type="module">
+
+    // ========================================================
+    // THREE.JS
+    // ========================================================
 
     import * as THREE from
       "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
+
 
     import { VRButton } from
       "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/webxr/VRButton.js";
 
 
-    // =========================================================
+    // ========================================================
+    // OUR GAME.JS
+    // ========================================================
+
+    import {
+
+      GAME,
+      player,
+      movePlayer,
+      turnPlayer
+
+    } from "./game.js";
+
+
+    // ========================================================
     // SCENE
-    // =========================================================
+    // ========================================================
 
-    const scene = new THREE.Scene();
-
-    scene.background = new THREE.Color(0x171c1a);
-
-    scene.fog = new THREE.Fog(
-      0x171c1a,
-      15,
-      45
-    );
+    const scene =
+      new THREE.Scene();
 
 
-    // =========================================================
+    scene.background =
+      new THREE.Color(
+        0x171c1a
+      );
+
+
+    scene.fog =
+      new THREE.Fog(
+        0x171c1a,
+        12,
+        45
+      );
+
+
+    // ========================================================
     // CAMERA
-    // =========================================================
+    // ========================================================
 
-    const camera = new THREE.PerspectiveCamera(
-      70,
-      window.innerWidth / window.innerHeight,
-      0.05,
-      100
-    );
+    const camera =
+      new THREE.PerspectiveCamera(
+        70,
+        window.innerWidth /
+        window.innerHeight,
+        0.05,
+        100
+      );
+
 
     camera.position.set(
       0,
-      1.6,
-      7
+      GAME.playerHeight,
+      0
     );
 
 
-    // =========================================================
+    // ========================================================
     // PLAYER
-    // =========================================================
+    // ========================================================
 
-    const player = new THREE.Group();
+    const playerGroup =
+      new THREE.Group();
 
-    player.position.set(
-      0,
-      0,
-      7
+
+    playerGroup.position.set(
+      player.position.x,
+      player.position.y,
+      player.position.z
     );
 
-    player.add(camera);
 
-    scene.add(player);
+    playerGroup.add(
+      camera
+    );
 
 
-    // =========================================================
+    scene.add(
+      playerGroup
+    );
+
+
+    // ========================================================
     // RENDERER
-    // =========================================================
+    // ========================================================
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true
-    });
+    const renderer =
+      new THREE.WebGLRenderer({
+        antialias: true
+      });
+
 
     renderer.setPixelRatio(
-      Math.min(window.devicePixelRatio, 2)
+      Math.min(
+        window.devicePixelRatio,
+        2
+      )
     );
+
 
     renderer.setSize(
       window.innerWidth,
       window.innerHeight
     );
 
+
     renderer.xr.enabled = true;
+
 
     renderer.xr.setReferenceSpaceType(
       "local-floor"
     );
+
 
     document.body.appendChild(
       renderer.domElement
     );
 
 
-    // =========================================================
+    // ========================================================
     // VR BUTTON
-    // =========================================================
+    // ========================================================
 
-    const vrButton = VRButton.createButton(
-      renderer
-    );
+    const vrButton =
+      VRButton.createButton(
+        renderer
+      );
 
-    vrButton.style.display = "none";
+
+    vrButton.style.display =
+      "none";
+
 
     document.body.appendChild(
       vrButton
     );
 
 
-    // =========================================================
+    // ========================================================
     // MATERIALS
-    // =========================================================
+    // ========================================================
 
     const floorMaterial =
       new THREE.MeshStandardMaterial({
@@ -229,17 +223,20 @@
         roughness: 0.8
       });
 
+
     const wallMaterial =
       new THREE.MeshStandardMaterial({
         color: 0xd8ddd9,
         roughness: 0.9
       });
 
+
     const shelfMaterial =
       new THREE.MeshStandardMaterial({
         color: 0x553d2c,
         roughness: 0.75
       });
+
 
     const metalMaterial =
       new THREE.MeshStandardMaterial({
@@ -248,6 +245,7 @@
         roughness: 0.3
       });
 
+
     const counterMaterial =
       new THREE.MeshStandardMaterial({
         color: 0x222625,
@@ -255,11 +253,11 @@
       });
 
 
-    // =========================================================
-    // HELPER: BOX
-    // =========================================================
+    // ========================================================
+    // BOX FUNCTION
+    // ========================================================
 
-    function box(
+    function createBox(
       width,
       height,
       depth,
@@ -276,11 +274,13 @@
           depth
         );
 
+
       const mesh =
         new THREE.Mesh(
           geometry,
           material
         );
+
 
       mesh.position.set(
         x,
@@ -288,17 +288,21 @@
         z
       );
 
-      scene.add(mesh);
+
+      scene.add(
+        mesh
+      );
+
 
       return mesh;
     }
 
 
-    // =========================================================
+    // ========================================================
     // FLOOR
-    // =========================================================
+    // ========================================================
 
-    box(
+    createBox(
       20,
       0.2,
       20,
@@ -309,13 +313,11 @@
     );
 
 
-    // =========================================================
+    // ========================================================
     // WALLS
-    // =========================================================
+    // ========================================================
 
-    // Back wall
-
-    box(
+    createBox(
       20,
       5,
       0.3,
@@ -326,9 +328,7 @@
     );
 
 
-    // Left wall
-
-    box(
+    createBox(
       0.3,
       5,
       20,
@@ -339,9 +339,7 @@
     );
 
 
-    // Right wall
-
-    box(
+    createBox(
       0.3,
       5,
       20,
@@ -352,10 +350,9 @@
     );
 
 
-    // Front wall pieces
-    // Leaving an entrance in the middle.
+    // Front wall with entrance
 
-    box(
+    createBox(
       7,
       5,
       0.3,
@@ -365,7 +362,8 @@
       10
     );
 
-    box(
+
+    createBox(
       7,
       5,
       0.3,
@@ -376,11 +374,11 @@
     );
 
 
-    // =========================================================
+    // ========================================================
     // CEILING
-    // =========================================================
+    // ========================================================
 
-    box(
+    createBox(
       20,
       0.2,
       20,
@@ -391,18 +389,16 @@
     );
 
 
-    // =========================================================
-    // SHELF FUNCTION
-    // =========================================================
+    // ========================================================
+    // SHELVES
+    // ========================================================
 
     function createShelf(
       x,
       z
     ) {
 
-      // Back board
-
-      box(
+      createBox(
         4,
         2.8,
         0.25,
@@ -413,9 +409,7 @@
       );
 
 
-      // Bottom
-
-      box(
+      createBox(
         4.2,
         0.2,
         1.2,
@@ -426,9 +420,7 @@
       );
 
 
-      // Middle shelf
-
-      box(
+      createBox(
         4.2,
         0.2,
         1.2,
@@ -439,9 +431,7 @@
       );
 
 
-      // Top shelf
-
-      box(
+      createBox(
         4.2,
         0.2,
         1.2,
@@ -452,9 +442,7 @@
       );
 
 
-      // Side posts
-
-      box(
+      createBox(
         0.2,
         2.8,
         1.2,
@@ -464,7 +452,8 @@
         z + 0.35
       );
 
-      box(
+
+      createBox(
         0.2,
         2.8,
         1.2,
@@ -477,22 +466,6 @@
 
       // Products
 
-      createProducts(
-        x,
-        z
-      );
-    }
-
-
-    // =========================================================
-    // PRODUCT FUNCTION
-    // =========================================================
-
-    function createProducts(
-      x,
-      z
-    ) {
-
       const productColors = [
         0xe74c3c,
         0x3498db,
@@ -502,14 +475,14 @@
       ];
 
 
-      const shelfHeights = [
+      const heights = [
         0.75,
         1.6,
         2.45
       ];
 
 
-      shelfHeights.forEach(
+      heights.forEach(
         (height, row) => {
 
           for (
@@ -522,7 +495,7 @@
               new THREE.MeshStandardMaterial({
                 color:
                   productColors[
-                    (i + row + 3) %
+                    (row + i + 3) %
                     productColors.length
                   ]
               });
@@ -546,155 +519,97 @@
             );
 
 
-            scene.add(product);
-          }
-        }
-      );
-    }
-
-
-    // =========================================================
-    // SHELVES
-    // =========================================================
-
-    createShelf(
-      -6,
-      -4
-    );
-
-    createShelf(
-      0,
-      -4
-    );
-
-    createShelf(
-      6,
-      -4
-    );
-
-
-    createShelf(
-      -6,
-      1
-    );
-
-    createShelf(
-      6,
-      1
-    );
-
-
-    // =========================================================
-    // REFRIGERATOR
-    // =========================================================
-
-    function createFridge(
-      x,
-      z
-    ) {
-
-      // Main fridge
-
-      box(
-        5,
-        3.2,
-        1,
-        metalMaterial,
-        x,
-        1.7,
-        z
-      );
-
-
-      // Glass doors
-
-      const glassMaterial =
-        new THREE.MeshStandardMaterial({
-          color: 0x6e9fa8,
-          transparent: true,
-          opacity: 0.35,
-          metalness: 0.2,
-          roughness: 0.1
-        });
-
-
-      for (
-        let i = -1;
-        i <= 1;
-        i++
-      ) {
-
-        box(
-          1.45,
-          2.6,
-          0.05,
-          glassMaterial,
-          x + i * 1.5,
-          1.7,
-          z - 0.53
-        );
-      }
-
-
-      // Drinks
-
-      for (
-        let row = 0;
-        row < 2;
-        row++
-      ) {
-
-        for (
-          let i = -4;
-          i <= 4;
-          i++
-        ) {
-
-          const drinkMaterial =
-            new THREE.MeshStandardMaterial({
-              color:
-                i % 2 === 0
-                  ? 0xe74c3c
-                  : 0x3498db
-            });
-
-
-          const drink =
-            new THREE.Mesh(
-              new THREE.CylinderGeometry(
-                0.09,
-                0.09,
-                0.55,
-                12
-              ),
-              drinkMaterial
+            scene.add(
+              product
             );
 
+          }
 
-          drink.position.set(
-            x + i * 0.45,
-            1.1 + row * 1,
-            z - 0.65
-          );
-
-
-          scene.add(drink);
         }
-      }
+      );
+
     }
 
 
-    createFridge(
+    createShelf(
+      -6,
+      -4
+    );
+
+
+    createShelf(
       0,
+      -4
+    );
+
+
+    createShelf(
+      6,
+      -4
+    );
+
+
+    createShelf(
+      -6,
+      1
+    );
+
+
+    createShelf(
+      6,
+      1
+    );
+
+
+    // ========================================================
+    // REFRIGERATOR
+    // ========================================================
+
+    createBox(
+      5,
+      3.2,
+      1,
+      metalMaterial,
+      0,
+      1.7,
       -8.7
     );
 
 
-    // =========================================================
-    // CHECKOUT COUNTER
-    // =========================================================
+    const glassMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x6e9fa8,
+        transparent: true,
+        opacity: 0.35,
+        metalness: 0.2,
+        roughness: 0.1
+      });
 
-    box(
+
+    for (
+      let i = -1;
+      i <= 1;
+      i++
+    ) {
+
+      createBox(
+        1.45,
+        2.6,
+        0.05,
+        glassMaterial,
+        i * 1.5,
+        1.7,
+        -9.25
+      );
+
+    }
+
+
+    // ========================================================
+    // CHECKOUT
+    // ========================================================
+
+    createBox(
       5,
       1.2,
       1.6,
@@ -705,9 +620,7 @@
     );
 
 
-    // Counter top
-
-    box(
+    createBox(
       5.3,
       0.15,
       1.8,
@@ -718,9 +631,7 @@
     );
 
 
-    // Register
-
-    box(
+    createBox(
       0.9,
       0.45,
       0.7,
@@ -731,56 +642,16 @@
     );
 
 
-    // Register screen
-
-    box(
-      0.65,
-      0.5,
-      0.1,
-      new THREE.MeshStandardMaterial({
-        color: 0x111111
-      }),
-      0,
-      1.95,
-      4.75
-    );
-
-
-    // =========================================================
-    // ENTRANCE
-    // =========================================================
-
-    const entranceMaterial =
-      new THREE.MeshStandardMaterial({
-        color: 0x202b27,
-        roughness: 0.6
-      });
-
-
-    box(
-      6,
-      0.15,
-      0.4,
-      entranceMaterial,
-      0,
-      3.8,
-      9.8
-    );
-
-
-    // =========================================================
+    // ========================================================
     // LIGHTING
-    // =========================================================
+    // ========================================================
 
-    const ambientLight =
+    scene.add(
       new THREE.HemisphereLight(
         0xffffff,
         0x39433f,
         2
-      );
-
-    scene.add(
-      ambientLight
+      )
     );
 
 
@@ -790,18 +661,18 @@
         2.5
       );
 
+
     mainLight.position.set(
       0,
       5,
       2
     );
 
+
     scene.add(
       mainLight
     );
 
-
-    // Ceiling lights
 
     for (
       let x = -6;
@@ -816,99 +687,42 @@
           12
         );
 
+
       light.position.set(
         x,
         4.5,
         0
       );
 
+
       scene.add(
         light
       );
+
     }
 
 
-    // =========================================================
-    // QUEST CONTROLLERS
-    // =========================================================
+    // ========================================================
+    // CONTROLLERS
+    // ========================================================
 
-    let leftController = null;
-    let rightController = null;
-
-
-    renderer.xr.addEventListener(
-      "sessionstart",
-      () => {
-
-        document
-          .getElementById("startScreen")
-          .style.display = "none";
-
-      }
-    );
+    let leftInput = null;
+    let rightInput = null;
 
 
-    renderer.xr.addEventListener(
-      "sessionend",
-      () => {
-
-        document
-          .getElementById("startScreen")
-          .style.display = "flex";
-
-      }
-    );
-
-
-    leftController =
-      renderer.xr.getController(0);
-
-    rightController =
-      renderer.xr.getController(1);
-
-    scene.add(
-      leftController
-    );
-
-    scene.add(
-      rightController
-    );
-
-
-    // =========================================================
-    // CONTROLLER HANDLERS
-    // =========================================================
-
-    renderer.xr.addEventListener(
-      "sessionstart",
-      () => {
-
-        const session =
-          renderer.xr.getSession();
-
-        session.addEventListener(
-          "inputsourceschange",
-          updateControllers
-        );
-
-        updateControllers();
-      }
-    );
-
-
-    function updateControllers() {
+    function updateInputSources() {
 
       const session =
         renderer.xr.getSession();
 
-      if (!session) return;
+
+      if (!session) {
+        return;
+      }
 
 
-      leftController =
-        null;
-
-      rightController =
-        null;
+      leftInput = null;
+      rightInput = null;
 
 
       for (
@@ -920,7 +734,7 @@
           source.gamepad
         ) {
 
-          leftController =
+          leftInput =
             source;
         }
 
@@ -930,23 +744,57 @@
           source.gamepad
         ) {
 
-          rightController =
+          rightInput =
             source;
         }
+
       }
+
     }
 
 
-    // =========================================================
-    // MOVEMENT
-    // =========================================================
+    renderer.xr.addEventListener(
+      "sessionstart",
+      () => {
 
-    const movementSpeed = 2.5;
+        document
+          .getElementById("startScreen")
+          .classList.add("hidden");
 
-    const turnSpeed = 1.8;
+
+        document
+          .getElementById("desktopControls")
+          .classList.add("hidden");
 
 
-    function getAxis(
+        updateInputSources();
+
+      }
+    );
+
+
+    renderer.xr.addEventListener(
+      "sessionend",
+      () => {
+
+        document
+          .getElementById("startScreen")
+          .classList.remove("hidden");
+
+
+        document
+          .getElementById("desktopControls")
+          .classList.remove("hidden");
+
+      }
+    );
+
+
+    // ========================================================
+    // JOYSTICK
+    // ========================================================
+
+    function axis(
       gamepad,
       index
     ) {
@@ -965,8 +813,6 @@
         gamepad.axes[index];
 
 
-      // Dead zone
-
       if (
         Math.abs(value) < 0.15
       ) {
@@ -979,7 +825,7 @@
     }
 
 
-    function updateMovement(
+    function updateVRMovement(
       delta
     ) {
 
@@ -991,128 +837,85 @@
       }
 
 
-      // =======================================================
+      updateInputSources();
+
+
+      // ------------------------------------------------------
       // LEFT JOYSTICK
-      // =======================================================
+      // ------------------------------------------------------
 
       if (
-        leftController &&
-        leftController.gamepad
+        leftInput &&
+        leftInput.gamepad
       ) {
 
-        const gamepad =
-          leftController.gamepad;
-
-
-        const x =
-          getAxis(
-            gamepad,
+        const stickX =
+          axis(
+            leftInput.gamepad,
             2
           );
 
 
-        const y =
-          getAxis(
-            gamepad,
+        const stickY =
+          axis(
+            leftInput.gamepad,
             3
           );
 
 
-        if (
-          Math.abs(x) > 0.05 ||
-          Math.abs(y) > 0.05
-        ) {
+        movePlayer(
+          stickY,
+          stickX,
+          delta
+        );
 
-          // Movement direction follows
-          // where the player is facing.
-
-          const direction =
-            new THREE.Vector3(
-              x,
-              0,
-              y
-            );
-
-
-          direction.applyQuaternion(
-            player.quaternion
-          );
-
-
-          direction.y = 0;
-
-
-          if (
-            direction.lengthSq() > 0
-          ) {
-
-            direction.normalize();
-
-            player.position.addScaledVector(
-              direction,
-              movementSpeed * delta
-            );
-          }
-        }
       }
 
 
-      // =======================================================
+      // ------------------------------------------------------
       // RIGHT JOYSTICK
-      // =======================================================
+      // ------------------------------------------------------
 
       if (
-        rightController &&
-        rightController.gamepad
+        rightInput &&
+        rightInput.gamepad
       ) {
 
-        const gamepad =
-          rightController.gamepad;
-
-
-        const turn =
-          getAxis(
-            gamepad,
+        const stickX =
+          axis(
+            rightInput.gamepad,
             2
           );
 
 
-        if (
-          Math.abs(turn) > 0.15
-        ) {
+        turnPlayer(
+          stickX,
+          delta
+        );
 
-          player.rotation.y -=
-            turn *
-            turnSpeed *
-            delta;
-        }
       }
 
 
-      // =======================================================
-      // KEEP PLAYER INSIDE STORE
-      // =======================================================
+      // Copy game position to
+      // the actual VR player.
 
-      player.position.x =
-        THREE.MathUtils.clamp(
-          player.position.x,
-          -8.5,
-          8.5
-        );
+      playerGroup.position.x =
+        player.position.x;
 
 
-      player.position.z =
-        THREE.MathUtils.clamp(
-          player.position.z,
-          -8.5,
-          8.5
-        );
+      playerGroup.position.z =
+        player.position.z;
+
+
+      playerGroup.rotation.y =
+        player.rotation;
+
     }
 
 
-    // =========================================================
-    // NON-VR KEYBOARD TESTING
-    // =========================================================
+    // ========================================================
+    // DESKTOP TEST
+    // ========================================================
 
     const keys = {};
 
@@ -1121,8 +924,10 @@
       "keydown",
       (event) => {
 
-        keys[event.key.toLowerCase()] =
-          true;
+        keys[
+          event.key.toLowerCase()
+        ] = true;
+
       }
     );
 
@@ -1131,13 +936,15 @@
       "keyup",
       (event) => {
 
-        keys[event.key.toLowerCase()] =
-          false;
+        keys[
+          event.key.toLowerCase()
+        ] = false;
+
       }
     );
 
 
-    function keyboardMovement(
+    function desktopMovement(
       delta
     ) {
 
@@ -1149,76 +956,193 @@
       }
 
 
-      const speed =
-        4 * delta;
+      let forward = 0;
+      let sideways = 0;
 
 
       if (keys["w"]) {
-
-        player.translateZ(
-          -speed
-        );
+        forward -= 1;
       }
 
 
       if (keys["s"]) {
-
-        player.translateZ(
-          speed
-        );
+        forward += 1;
       }
 
 
       if (keys["a"]) {
-
-        player.translateX(
-          -speed
-        );
+        sideways -= 1;
       }
 
 
       if (keys["d"]) {
+        sideways += 1;
+      }
 
-        player.translateX(
-          speed
+
+      if (
+        forward !== 0 ||
+        sideways !== 0
+      ) {
+
+        movePlayer(
+          forward,
+          sideways,
+          delta
         );
+
       }
 
 
       if (keys["q"]) {
 
-        player.rotation.y +=
-          1.5 * delta;
+        turnPlayer(
+          -1,
+          delta
+        );
+
       }
 
 
       if (keys["e"]) {
 
-        player.rotation.y -=
-          1.5 * delta;
+        turnPlayer(
+          1,
+          delta
+        );
+
       }
 
 
-      player.position.x =
-        THREE.MathUtils.clamp(
-          player.position.x,
-          -8.5,
-          8.5
-        );
+      playerGroup.position.x =
+        player.position.x;
 
 
-      player.position.z =
-        THREE.MathUtils.clamp(
-          player.position.z,
-          -8.5,
-          8.5
-        );
+      playerGroup.position.z =
+        player.position.z;
+
+
+      playerGroup.rotation.y =
+        player.rotation;
+
     }
 
 
-    // =========================================================
+    // ========================================================
+    // ENTER VR
+    // ========================================================
+
+    const enterButton =
+      document.getElementById(
+        "enterVR"
+      );
+
+
+    const status =
+      document.getElementById(
+        "status"
+      );
+
+
+    enterButton.addEventListener(
+      "click",
+      async () => {
+
+        if (
+          !navigator.xr
+        ) {
+
+          status.textContent =
+            "WebXR is not available. Open this page in the Meta Quest browser.";
+
+          return;
+        }
+
+
+        try {
+
+          const supported =
+            await navigator.xr.isSessionSupported(
+              "immersive-vr"
+            );
+
+
+          if (!supported) {
+
+            status.textContent =
+              "Immersive VR is not supported by this browser.";
+
+            return;
+          }
+
+
+          vrButton.click();
+
+        } catch (error) {
+
+          console.error(
+            error
+          );
+
+
+          status.textContent =
+            "Unable to start VR.";
+
+        }
+
+      }
+    );
+
+
+    // ========================================================
+    // VR SUPPORT CHECK
+    // ========================================================
+
+    if (
+      navigator.xr
+    ) {
+
+      navigator.xr
+        .isSessionSupported(
+          "immersive-vr"
+        )
+        .then(
+          (supported) => {
+
+            if (supported) {
+
+              status.textContent =
+                "VR is supported. You're ready to enter the store!";
+
+            } else {
+
+              status.textContent =
+                "Open this page using your Meta Quest browser.";
+
+            }
+
+          }
+        )
+        .catch(
+          () => {
+
+            status.textContent =
+              "Open this page using your Meta Quest browser.";
+
+          }
+        );
+
+    } else {
+
+      status.textContent =
+        "Open this page using your Meta Quest browser.";
+
+    }
+
+
+    // ========================================================
     // RESIZE
-    // =========================================================
+    // ========================================================
 
     window.addEventListener(
       "resize",
@@ -1228,84 +1152,28 @@
           window.innerWidth /
           window.innerHeight;
 
+
         camera.updateProjectionMatrix();
+
 
         renderer.setSize(
           window.innerWidth,
           window.innerHeight
         );
+
       }
     );
 
 
-    // =========================================================
-    // START VR
-    // =========================================================
-
-    document
-      .getElementById("enterVR")
-      .addEventListener(
-        "click",
-        async () => {
-
-          if (
-            !navigator.xr
-          ) {
-
-            document
-              .getElementById("status")
-              .textContent =
-              "WebXR is not available. Open this website in your Meta Quest browser.";
-
-            return;
-          }
-
-
-          try {
-
-            const supported =
-              await navigator.xr.isSessionSupported(
-                "immersive-vr"
-              );
-
-
-            if (!supported) {
-
-              document
-                .getElementById("status")
-                .textContent =
-                "Your browser does not currently support immersive VR.";
-
-              return;
-            }
-
-
-            vrButton.click();
-
-          } catch (error) {
-
-            console.error(
-              error
-            );
-
-            document
-              .getElementById("status")
-              .textContent =
-              "Could not start VR.";
-          }
-        }
-      );
-
-
-    // =========================================================
+    // ========================================================
     // GAME LOOP
-    // =========================================================
+    // ========================================================
 
     const clock =
       new THREE.Clock();
 
 
-    function animate() {
+    function gameLoop() {
 
       const delta =
         Math.min(
@@ -1314,12 +1182,12 @@
         );
 
 
-      updateMovement(
+      updateVRMovement(
         delta
       );
 
 
-      keyboardMovement(
+      desktopMovement(
         delta
       );
 
@@ -1328,11 +1196,12 @@
         scene,
         camera
       );
+
     }
 
 
     renderer.setAnimationLoop(
-      animate
+      gameLoop
     );
 
   </script>
