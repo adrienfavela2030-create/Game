@@ -1,1697 +1,1219 @@
-/*
-==========================================================
-ISLAND SURVIVAL VR
-SURVIVAL GUIDE SYSTEM
-==========================================================
-
-Connects to:
-- game.js
-- crafting.js
-- inventory.js
-- building.js
-- index.html
-- future world.js
-
-==========================================================
-*/
+// guide.js
+// Survival VR — Guide / Recipe Book System
 
 import {
   GAME,
-  unlockRecipe,
-  recipeUnlocked,
-  gameEvent
+  gameEvent,
+  recipeUnlocked
 } from "./game.js";
 
 import {
   RECIPES
 } from "./crafting.js";
 
+const SurvivalVR = window.SurvivalVR;
 
-/* ========================================================
-   VERSION
-======================================================== */
-
-export const GUIDE_VERSION = 1;
-
-
-/* ========================================================
-   GUIDE PAGES
-======================================================== */
-
-export const GUIDE_PAGES = [
-
-  {
-    id: "first_day",
+const GUIDE_PAGES = {
+  first_day: {
     title: "Your First Day",
-    icon: "🌅",
+    icon: "☀️",
+    text: `
+      Welcome to the island.
 
-    text:
-      "Explore the island and collect basic resources. " +
-      "Keep an eye on your hunger, thirst, health and stamina. " +
-      "Your first goal is to gather enough materials to begin crafting."
+      Your first priorities are to gather resources,
+      find water, and create basic tools.
+
+      Explore carefully and keep an eye on your
+      hunger, thirst, health, and stamina.
+    `
   },
 
-
-  {
-    id: "gathering",
+  gathering: {
     title: "Gathering",
     icon: "🌿",
+    text: `
+      Resources are spread throughout the island.
 
-    text:
-      "Trees provide wood and logs. Rocks provide stone. " +
-      "Walk around the island and search for useful resources. " +
-      "Some resources can be processed into more useful materials."
+      Walk near trees, rocks, logs, and other
+      resources and interact with them.
+
+      Gather enough materials before starting
+      larger crafting projects.
+    `
   },
 
-
-  {
-    id: "wood",
-    title: "Working With Wood",
+  wood: {
+    title: "Wood",
     icon: "🪵",
+    text: `
+      Trees are one of your most important resources.
 
-    text:
-      "Logs can be processed into wood. Wood is one of the most " +
-      "important materials on the island and can be used for tools, " +
-      "building pieces and storage."
+      Gathering trees gives you wood.
+      Breaking a tree completely can give you a log.
+
+      Logs can be processed into smaller pieces
+      of usable wood.
+    `
   },
 
-
-  {
-    id: "fiber",
+  fiber: {
     title: "Fiber & String",
     icon: "🧵",
+    text: `
+      Fiber can be turned into string.
 
-    text:
-      "Fiber is a useful plant material. Combine fiber to create " +
-      "string. String is needed for several tools and structures."
+      String is useful for tools, storage,
+      structures, and other crafting recipes.
+
+      Basic recipe:
+
+      3 Fiber → 1 String
+    `
   },
 
-
-  {
-    id: "stone",
+  stone: {
     title: "Stone",
     icon: "🪨",
+    text: `
+      Rocks provide stone.
 
-    text:
-      "Rocks can be processed into stone. Stone can be used for " +
-      "tools, campfires and other survival equipment."
+      Stone is useful for tools, campfires,
+      and other survival equipment.
+
+      Basic recipe:
+
+      1 Rock → 3 Stone
+    `
   },
 
-
-  {
-    id: "tools",
+  tools: {
     title: "Tools",
     icon: "🪓",
+    text: `
+      Tools make survival easier.
 
-    text:
-      "Tools make gathering easier. The stone axe is designed for " +
-      "wood gathering while the stone pickaxe is designed for stone."
+      A stone axe can be used for wood-related
+      activities.
+
+      A stone pickaxe is useful for stone.
+
+      Keep your tools available in your side slots
+      or hands when exploring.
+    `
   },
 
-
-  {
-    id: "campfire",
+  campfire: {
     title: "Campfire",
     icon: "🔥",
+    text: `
+      A campfire gives you a place to stay warm
+      and can become an important part of your base.
 
-    text:
-      "A campfire gives you a place to establish a small survival " +
-      "camp. It can later connect to cooking and other survival systems."
+      Campfires require stone and wood.
+
+      Be careful where you place one.
+    `
   },
 
-
-  {
-    id: "building",
+  building: {
     title: "Building",
     icon: "🏠",
+    text: `
+      Building mode lets you create your shelter.
 
-    text:
-      "Use the building system to place floors, walls, doors and " +
-      "other structures. Start with a floor and build outward from it."
+      Press B to enter building mode.
+
+      Select a structure, move the green preview
+      into position, rotate it if necessary,
+      then place it.
+
+      Green means the location is valid.
+      Red means the location cannot be used.
+    `
   },
 
-
-  {
-    id: "storage",
+  storage: {
     title: "Storage",
     icon: "📦",
+    text: `
+      Storage boxes can be used as part of your base.
 
-    text:
-      "A storage box gives you another place to keep items. " +
-      "The storage system can be expanded later with larger containers."
+      Build a storage box and use it as a dedicated
+      location for resources and equipment.
+
+      The storage system will expand as the rest
+      of the survival systems are added.
+    `
   },
 
-
-  {
-    id: "water",
+  water: {
     title: "Water",
     icon: "💧",
+    text: `
+      Water is essential for survival.
 
-    text:
-      "The island has a lake. Water and thirst will become important " +
-      "parts of long-term survival."
+      The island contains a lake.
+
+      Stay near the water and use the drink action
+      when you need to restore thirst.
+
+      Keep track of your thirst throughout the day.
+    `
   },
 
-
-  {
-    id: "survival",
+  survival: {
     title: "Survival",
     icon: "❤️",
+    text: `
+      Your main survival statistics are:
 
-    text:
-      "Your health, hunger, thirst and stamina affect your survival. " +
-      "Gather supplies early instead of waiting until your resources " +
-      "are almost empty."
+      Health
+      Hunger
+      Thirst
+      Stamina
+
+      Running uses stamina.
+      Hunger and thirst decrease over time.
+
+      Find food and water and create a safe shelter
+      before night arrives.
+    `
+  },
+
+  night: {
+    title: "Night",
+    icon: "🌙",
+    text: `
+      Night changes the island environment.
+
+      Visibility becomes lower and the world becomes
+      more difficult to navigate.
+
+      A campfire can help make your base easier
+      to find after dark.
+
+      Consider preparing your shelter before sunset.
+    `
   }
-
-];
-
-
-/* ========================================================
-   RECIPE GUIDE
-======================================================== */
-
-export const GUIDE_RECIPES = [
-
-  {
-    recipe: "string",
-    page: "fiber",
-    title: "String",
-    icon: "🧵",
-
-    explanation:
-      "Three fiber can be turned into one string."
-  },
-
-
-  {
-    recipe: "stick",
-    page: "wood",
-    title: "Stick",
-    icon: "🪵",
-
-    explanation:
-      "Wood can be processed into two sticks."
-  },
-
-
-  {
-    recipe: "woodPlank",
-    page: "wood",
-    title: "Processed Wood",
-    icon: "🪵",
-
-    explanation:
-      "One log can be processed into four units of wood."
-  },
-
-
-  {
-    recipe: "stone",
-    page: "stone",
-    title: "Stone",
-    icon: "🪨",
-
-    explanation:
-      "One rock can be processed into three units of stone."
-  },
-
-
-  {
-    recipe: "stoneAxe",
-    page: "tools",
-    title: "Stone Axe",
-    icon: "🪓",
-
-    explanation:
-      "A basic gathering tool made from sticks, stone and string."
-  },
-
-
-  {
-    recipe: "stonePickaxe",
-    page: "tools",
-    title: "Stone Pickaxe",
-    icon: "⛏️",
-
-    explanation:
-      "A basic stone-gathering tool."
-  },
-
-
-  {
-    recipe: "campfire",
-    page: "campfire",
-    title: "Campfire",
-    icon: "🔥",
-
-    explanation:
-      "A small survival structure made from stone and wood."
-  },
-
-
-  {
-    recipe: "storageBox",
-    page: "storage",
-    title: "Storage Box",
-    icon: "📦",
-
-    explanation:
-      "A wooden container for storing extra resources."
-  },
-
-
-  {
-    recipe: "woodFloor",
-    page: "building",
-    title: "Wood Floor",
-    icon: "🪵",
-
-    explanation:
-      "A basic foundation piece for your shelter."
-  },
-
-
-  {
-    recipe: "woodWall",
-    page: "building",
-    title: "Wood Wall",
-    icon: "🧱",
-
-    explanation:
-      "A basic wall for creating a shelter."
-  },
-
-
-  {
-    recipe: "woodDoor",
-    page: "building",
-    title: "Wood Door",
-    icon: "🚪",
-
-    explanation:
-      "A door that can be used as an entrance to your shelter."
-  }
-
-];
-
-
-/* ========================================================
-   GUIDE STATE
-======================================================== */
-
-const guideState = {
-
-  open: false,
-
-  currentPage: 0,
-
-  discoveredPages: new Set([
-    "first_day",
-    "gathering",
-    "survival"
-  ]),
-
-  discoveredRecipes: new Set([
-    "string",
-    "stick"
-  ])
-
 };
 
+const GUIDE_RECIPES = {
+  string: {
+    title: "String",
+    icon: "🧵",
+    description: "Turn fiber into string.",
+    ingredients: {
+      fiber: 3
+    },
+    output: {
+      string: 1
+    }
+  },
 
-/* ========================================================
-   REGISTER SYSTEM
-======================================================== */
+  stick: {
+    title: "Sticks",
+    icon: "🌿",
+    description: "Process wood into sticks.",
+    ingredients: {
+      wood: 1
+    },
+    output: {
+      stick: 2
+    }
+  },
 
-if (
-  window.SurvivalVR &&
-  window.SurvivalVR.systems
-) {
+  woodPlank: {
+    title: "Processed Wood",
+    icon: "🪵",
+    description: "Process a log into wood.",
+    ingredients: {
+      log: 1
+    },
+    output: {
+      wood: 4
+    }
+  },
 
-  window.SurvivalVR.systems.guide = {
+  stone: {
+    title: "Stone",
+    icon: "🪨",
+    description: "Break a rock into stone.",
+    ingredients: {
+      rock: 1
+    },
+    output: {
+      stone: 3
+    }
+  },
 
-    version: GUIDE_VERSION,
+  rope: {
+    title: "Rope",
+    icon: "🪢",
+    description: "Combine string into stronger cordage.",
+    ingredients: {
+      string: 3
+    },
+    output: {
+      string: 5
+    }
+  },
 
-    pages: GUIDE_PAGES,
+  stoneAxe: {
+    title: "Stone Axe",
+    icon: "🪓",
+    description: "A basic survival axe.",
+    ingredients: {
+      stick: 2,
+      stone: 2,
+      string: 1
+    },
+    output: {
+      stoneAxe: 1
+    }
+  },
 
-    recipes: GUIDE_RECIPES,
+  stonePickaxe: {
+    title: "Stone Pickaxe",
+    icon: "⛏️",
+    description: "A basic stone-gathering tool.",
+    ingredients: {
+      stick: 2,
+      stone: 3,
+      string: 1
+    },
+    output: {
+      stonePickaxe: 1
+    }
+  },
 
-    state: guideState,
+  campfire: {
+    title: "Campfire",
+    icon: "🔥",
+    description: "A basic survival fire.",
+    ingredients: {
+      stone: 6,
+      wood: 3
+    },
+    output: {
+      campfire: 1
+    }
+  },
 
-    open: openGuide,
+  storageBox: {
+    title: "Storage Box",
+    icon: "📦",
+    description: "A wooden container for your base.",
+    ingredients: {
+      wood: 8,
+      string: 2
+    },
+    output: {
+      storageBox: 1
+    }
+  },
 
-    close: closeGuide,
+  woodFloor: {
+    title: "Wood Floor",
+    icon: "▰",
+    description: "A wooden foundation piece.",
+    ingredients: {
+      wood: 5
+    },
+    output: {
+      woodFloor: 1
+    }
+  },
 
-    toggle: toggleGuide,
+  woodWall: {
+    title: "Wood Wall",
+    icon: "▥",
+    description: "A basic wooden shelter wall.",
+    ingredients: {
+      wood: 6
+    },
+    output: {
+      woodWall: 1
+    }
+  },
 
-    nextPage: nextPage,
+  woodDoor: {
+    title: "Wood Door",
+    icon: "🚪",
+    description: "An entrance for your shelter.",
+    ingredients: {
+      wood: 8,
+      string: 2
+    },
+    output: {
+      woodDoor: 1
+    }
+  }
+};
 
-    previousPage: previousPage,
+const guideState = {
+  open: false,
+  currentPage: "first_day",
+  currentSection: "pages",
 
-    showPage: showPage,
+  discoveredPages: [],
+  discoveredRecipes: [],
 
-    unlockPage: unlockPage,
+  initialized: false,
 
-    unlockRecipe: unlockGuideRecipe,
+  ui: null,
+  pageList: null,
+  content: null
+};
 
-    discoverRecipe: discoverRecipe,
+SurvivalVR.systems.guide = guideState;
 
-    isPageUnlocked: isPageUnlocked,
+// --------------------------------------------------
+// HELPERS
+// --------------------------------------------------
 
-    isRecipeDiscovered: isRecipeDiscovered
-
-  };
-
+function formatName(value) {
+  return String(value)
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, char => char.toUpperCase());
 }
 
-
-/* ========================================================
-   OPEN GUIDE
-======================================================== */
-
-export function openGuide() {
-
-  guideState.open = true;
-
-  createGuideUI();
-
-  renderGuide();
-
+function getPage(id) {
+  return GUIDE_PAGES[id] || null;
 }
 
+function getRecipe(id) {
+  return GUIDE_RECIPES[id] || RECIPES[id] || null;
+}
 
-/* ========================================================
-   CLOSE GUIDE
-======================================================== */
+function showMessage(text, duration = 2200) {
+  const message =
+    document.getElementById("message");
 
-export function closeGuide() {
-
-  guideState.open = false;
-
-  const guide =
-    document.getElementById(
-      "survivalGuide"
-    );
-
-  if (guide) {
-
-    guide.classList.remove(
-      "visible"
-    );
-
+  if (!message) {
+    return;
   }
 
+  message.textContent = text;
+  message.classList.remove("hidden");
+
+  clearTimeout(showMessage.timer);
+
+  showMessage.timer = setTimeout(() => {
+    message.classList.add("hidden");
+  }, duration);
 }
 
+// --------------------------------------------------
+// DISCOVERY
+// --------------------------------------------------
 
-/* ========================================================
-   TOGGLE GUIDE
-======================================================== */
-
-export function toggleGuide() {
-
-  if (guideState.open) {
-
-    closeGuide();
-
-  } else {
-
-    openGuide();
-
+function discoverPage(id) {
+  if (!GUIDE_PAGES[id]) {
+    return;
   }
 
+  if (!guideState.discoveredPages.includes(id)) {
+    guideState.discoveredPages.push(id);
+
+    if (
+      !GAME.guide.discoveredPages.includes(id)
+    ) {
+      GAME.guide.discoveredPages.push(id);
+    }
+
+    gameEvent(
+      "guide-page-discovered",
+      { id }
+    );
+  }
 }
 
+function discoverRecipe(id) {
+  if (!GUIDE_RECIPES[id]) {
+    return;
+  }
 
-/* ========================================================
-   CREATE GUIDE UI
-======================================================== */
+  if (!guideState.discoveredRecipes.includes(id)) {
+    guideState.discoveredRecipes.push(id);
+
+    if (
+      !GAME.guide.discoveredRecipes.includes(id)
+    ) {
+      GAME.guide.discoveredRecipes.push(id);
+    }
+
+    gameEvent(
+      "guide-recipe-discovered",
+      { id }
+    );
+  }
+}
+
+function discoverDefaults() {
+  discoverPage("first_day");
+  discoverPage("gathering");
+  discoverPage("survival");
+
+  discoverRecipe("string");
+  discoverRecipe("stick");
+  discoverRecipe("woodPlank");
+  discoverRecipe("stone");
+}
+
+// --------------------------------------------------
+// UI
+// --------------------------------------------------
 
 function createGuideUI() {
-
-  if (
-    document.getElementById(
-      "survivalGuide"
-    )
-  ) {
-
+  if (document.getElementById("guideUI")) {
     return;
-
   }
 
+  const panel =
+    document.createElement("div");
 
-  const guide =
-    document.createElement(
-      "div"
-    );
+  panel.id = "guideUI";
+  panel.className =
+    "overlayPanel guideUI hidden";
 
-  guide.id =
-    "survivalGuide";
-
-
-  guide.innerHTML = `
-
-    <div class="guide-window">
-
-      <div class="guide-header">
-
-        <div>
-
-          <div class="guide-title">
-            SURVIVAL GUIDE
-          </div>
-
-          <div class="guide-subtitle">
-            Island survival handbook
-          </div>
-
+  panel.innerHTML = `
+    <div class="panelHeader">
+      <div>
+        <div class="panelTitle">
+          SURVIVAL GUIDE
         </div>
 
-        <button
-          id="closeGuide"
-          class="guide-close"
-        >
-          ×
-        </button>
-
-      </div>
-
-
-      <div class="guide-body">
-
-        <div
-          id="guidePages"
-          class="guide-pages"
-        ></div>
-
-
-        <div class="guide-content">
-
-          <div
-            id="guidePageContent"
-            class="guide-page-content"
-          ></div>
-
-
-          <div
-            id="guideRecipeList"
-            class="guide-recipe-list"
-          ></div>
-
+        <div class="panelSubtitle">
+          Island knowledge & recipes
         </div>
-
       </div>
 
-
-      <div class="guide-footer">
-
-        <button
-          id="guidePrevious"
-          class="guide-navigation"
-        >
-          ← PREVIOUS
-        </button>
-
-        <div
-          id="guidePageNumber"
-          class="guide-page-number"
-        ></div>
-
-        <button
-          id="guideNext"
-          class="guide-navigation"
-        >
-          NEXT →
-        </button>
-
-      </div>
-
+      <button
+        id="guideClose"
+        class="closeButton"
+        type="button"
+      >
+        ×
+      </button>
     </div>
 
+    <div
+      class="guideTabs"
+      style="
+        display:flex;
+        gap:8px;
+        margin-bottom:12px;
+      "
+    >
+      <button
+        id="guidePagesTab"
+        class="secondaryButton"
+        type="button"
+      >
+        Guide
+      </button>
+
+      <button
+        id="guideRecipesTab"
+        class="secondaryButton"
+        type="button"
+      >
+        Recipes
+      </button>
+    </div>
+
+    <div
+      class="guideLayout"
+      style="
+        display:grid;
+        grid-template-columns:
+          minmax(150px, 0.7fr)
+          minmax(0, 1.5fr);
+        gap:14px;
+      "
+    >
+      <div
+        id="guidePageList"
+        class="guidePageList"
+      ></div>
+
+      <div
+        id="guideContent"
+        class="guideContent"
+      ></div>
+    </div>
   `;
 
+  document.body.appendChild(panel);
 
-  document.body.appendChild(
-    guide
-  );
+  guideState.ui = panel;
 
+  guideState.pageList =
+    document.getElementById(
+      "guidePageList"
+    );
+
+  guideState.content =
+    document.getElementById(
+      "guideContent"
+    );
 
   document
-    .getElementById(
-      "closeGuide"
-    )
-    .addEventListener(
+    .getElementById("guideClose")
+    ?.addEventListener(
       "click",
       closeGuide
     );
 
+  document
+    .getElementById("guidePagesTab")
+    ?.addEventListener(
+      "click",
+      () => {
+        guideState.currentSection = "pages";
+        renderGuide();
+      }
+    );
 
   document
-    .getElementById(
-      "guidePrevious"
-    )
-    .addEventListener(
+    .getElementById("guideRecipesTab")
+    ?.addEventListener(
       "click",
-      previousPage
-    );
-
-
-  document
-    .getElementById(
-      "guideNext"
-    )
-    .addEventListener(
-      "click",
-      nextPage
-    );
-
-
-  guide.addEventListener(
-    "click",
-    event => {
-
-      if (
-        event.target === guide
-      ) {
-
-        closeGuide();
-
+      () => {
+        guideState.currentSection = "recipes";
+        renderGuide();
       }
-
-    }
-  );
-
+    );
 }
 
+// --------------------------------------------------
+// PAGE LIST
+// --------------------------------------------------
 
-/* ========================================================
-   RENDER GUIDE
-======================================================== */
-
-function renderGuide() {
-
-  const guide =
-    document.getElementById(
-      "survivalGuide"
+function getAvailablePages() {
+  const discovered =
+    new Set(
+      guideState.discoveredPages
     );
 
-  if (!guide) {
-
-    return;
-
-  }
-
-
-  guide.classList.add(
-    "visible"
-  );
-
-
-  renderPageList();
-
-  renderCurrentPage();
-
-  renderRecipes();
-
-  updateNavigation();
-
+  return Object.keys(GUIDE_PAGES)
+    .filter(id => discovered.has(id));
 }
 
-
-/* ========================================================
-   PAGE LIST
-======================================================== */
-
-function renderPageList() {
-
-  const container =
-    document.getElementById(
-      "guidePages"
+function getAvailableRecipes() {
+  const discovered =
+    new Set(
+      guideState.discoveredRecipes
     );
 
-  if (!container) {
-
-    return;
-
-  }
-
-
-  container.innerHTML = "";
-
-
-  GUIDE_PAGES.forEach(
-    (page, index) => {
-
-      const unlocked =
-        isPageUnlocked(
-          page.id
-        );
-
-
-      const button =
-        document.createElement(
-          "button"
-        );
-
-
-      button.className =
-        "guide-page-button";
-
-
-      if (
-        guideState.currentPage ===
-        index
-      ) {
-
-        button.classList.add(
-          "active"
-        );
-
-      }
-
-
-      if (!unlocked) {
-
-        button.classList.add(
-          "locked"
-        );
-
-      }
-
-
-      button.innerHTML = `
-
-        <span class="guide-page-icon">
-          ${
-            unlocked
-              ? page.icon
-              : "🔒"
-          }
-        </span>
-
-        <span>
-          ${
-            unlocked
-              ? page.title
-              : "Undiscovered"
-          }
-        </span>
-
-      `;
-
-
-      button.addEventListener(
-        "click",
-        () => {
-
-          if (!unlocked) {
-
-            showGuideMessage(
-              "This page has not been discovered yet."
-            );
-
-            return;
-
-          }
-
-
-          showPage(
-            index
-          );
-
-        }
-      );
-
-
-      container.appendChild(
-        button
-      );
-
-    }
-  );
-
+  return Object.keys(GUIDE_RECIPES)
+    .filter(id => discovered.has(id));
 }
 
-
-/* ========================================================
-   CURRENT PAGE
-======================================================== */
-
-function renderCurrentPage() {
-
-  const container =
-    document.getElementById(
-      "guidePageContent"
-    );
-
-  if (!container) {
-
+function renderList() {
+  if (!guideState.pageList) {
     return;
-
   }
 
+  guideState.pageList.innerHTML = "";
 
-  const page =
-    GUIDE_PAGES[
-      guideState.currentPage
-    ];
+  const ids =
+    guideState.currentSection === "pages"
+      ? getAvailablePages()
+      : getAvailableRecipes();
 
-
-  if (!page) {
-
-    return;
-
-  }
-
-
-  if (
-    !isPageUnlocked(
-      page.id
-    )
-  ) {
-
-    container.innerHTML = `
-
-      <div class="guide-locked">
-
-        🔒
-
-        <h2>
-          Page Locked
-        </h2>
-
-        <p>
-          Explore the island to discover
-          more survival knowledge.
-        </p>
-
+  if (ids.length === 0) {
+    guideState.pageList.innerHTML = `
+      <div class="emptyState">
+        Discover more information
+        while exploring the island.
       </div>
-
     `;
 
     return;
-
   }
 
-
-  container.innerHTML = `
-
-    <div class="guide-big-icon">
-      ${page.icon}
-    </div>
-
-    <h1>
-      ${page.title}
-    </h1>
-
-    <p>
-      ${page.text}
-    </p>
-
-  `;
-
-}
-
-
-/* ========================================================
-   RECIPE SECTION
-======================================================== */
-
-function renderRecipes() {
-
-  const container =
-    document.getElementById(
-      "guideRecipeList"
-    );
-
-  if (!container) {
-
-    return;
-
-  }
-
-
-  const page =
-    GUIDE_PAGES[
-      guideState.currentPage
-    ];
-
-
-  if (!page) {
-
-    return;
-
-  }
-
-
-  const recipes =
-    GUIDE_RECIPES.filter(
-      recipe =>
-        recipe.page ===
-        page.id
-    );
-
-
-  if (
-    recipes.length === 0
-  ) {
-
-    container.innerHTML = "";
-
-    return;
-
-  }
-
-
-  container.innerHTML = `
-
-    <div class="guide-recipe-heading">
-      RECIPES
-    </div>
-
-  `;
-
-
-  recipes.forEach(
-    recipeInfo => {
-
-      const unlocked =
-        isRecipeDiscovered(
-          recipeInfo.recipe
-        );
-
-
-      const recipe =
-        RECIPES[
-          recipeInfo.recipe
-        ];
-
-
-      const card =
-        document.createElement(
-          "div"
-        );
-
-
-      card.className =
-        "guide-recipe-card";
-
-
-      if (!unlocked) {
-
-        card.classList.add(
-          "locked"
-        );
-
-      }
-
-
-      if (
-        unlocked &&
-        recipe
-      ) {
-
-        const ingredients =
-          Object.entries(
-            recipe.ingredients
-          )
-          .map(
-            ([item, amount]) =>
-              `${getItemIcon(item)} ${getItemName(item)} ×${amount}`
-          )
-          .join(" • ");
-
-
-        const output =
-          Object.entries(
-            recipe.output
-          )
-          .map(
-            ([item, amount]) =>
-              `${getItemIcon(item)} ${getItemName(item)} ×${amount}`
-          )
-          .join(" • ");
-
-
-        card.innerHTML = `
-
-          <div class="guide-recipe-card-title">
-
-            <span>
-              ${recipeInfo.icon}
-            </span>
-
-            <span>
-              ${recipeInfo.title}
-            </span>
-
-          </div>
-
-          <div class="guide-recipe-description">
-            ${recipeInfo.explanation}
-          </div>
-
-          <div class="guide-recipe-materials">
-
-            <strong>
-              Materials:
-            </strong>
-
-            ${ingredients}
-
-          </div>
-
-          <div class="guide-recipe-output">
-
-            <strong>
-              Creates:
-            </strong>
-
-            ${output}
-
-          </div>
-
-        `;
-
-      } else {
-
-        card.innerHTML = `
-
-          <div class="guide-recipe-card-title">
-            🔒 Unknown Recipe
-          </div>
-
-          <div class="guide-recipe-description">
-            Discover this recipe as you explore
-            the island.
-          </div>
-
-        `;
-
-      }
-
-
-      container.appendChild(
-        card
+  for (const id of ids) {
+    const isRecipe =
+      guideState.currentSection === "recipes";
+
+    const data = isRecipe
+      ? GUIDE_RECIPES[id]
+      : GUIDE_PAGES[id];
+
+    const button =
+      document.createElement("button");
+
+    button.type = "button";
+
+    button.className =
+      "guidePageButton";
+
+    if (
+      id === guideState.currentPage
+    ) {
+      button.classList.add(
+        "selected"
       );
-
     }
-  );
 
-}
+    button.innerHTML = `
+      <span
+        class="guideIcon"
+        style="margin-right:7px;"
+      >
+        ${data.icon || "📖"}
+      </span>
 
+      <span>
+        ${data.title}
+      </span>
+    `;
 
-/* ========================================================
-   NAVIGATION
-======================================================== */
-
-export function nextPage() {
-
-  let next =
-    guideState.currentPage + 1;
-
-
-  while (
-    next < GUIDE_PAGES.length &&
-    !isPageUnlocked(
-      GUIDE_PAGES[next].id
-    )
-  ) {
-
-    next++;
-
-  }
-
-
-  if (
-    next >= GUIDE_PAGES.length
-  ) {
-
-    showGuideMessage(
-      "You have reached the end of the discovered guide."
+    button.addEventListener(
+      "click",
+      () => {
+        guideState.currentPage = id;
+        renderGuide();
+      }
     );
 
-    return;
-
-  }
-
-
-  guideState.currentPage =
-    next;
-
-
-  renderGuide();
-
-}
-
-
-export function previousPage() {
-
-  let previous =
-    guideState.currentPage - 1;
-
-
-  while (
-    previous >= 0 &&
-    !isPageUnlocked(
-      GUIDE_PAGES[previous].id
-    )
-  ) {
-
-    previous--;
-
-  }
-
-
-  if (
-    previous < 0
-  ) {
-
-    return;
-
-  }
-
-
-  guideState.currentPage =
-    previous;
-
-
-  renderGuide();
-
-}
-
-
-export function showPage(
-  pageIndex
-) {
-
-  if (
-    pageIndex < 0 ||
-    pageIndex >= GUIDE_PAGES.length
-  ) {
-
-    return false;
-
-  }
-
-
-  const page =
-    GUIDE_PAGES[
-      pageIndex
-    ];
-
-
-  if (
-    !isPageUnlocked(
-      page.id
-    )
-  ) {
-
-    return false;
-
-  }
-
-
-  guideState.currentPage =
-    pageIndex;
-
-
-  renderGuide();
-
-  return true;
-
-}
-
-
-/* ========================================================
-   UNLOCK PAGE
-======================================================== */
-
-export function unlockPage(
-  pageId
-) {
-
-  const page =
-    GUIDE_PAGES.find(
-      item =>
-        item.id ===
-        pageId
+    guideState.pageList.appendChild(
+      button
     );
+  }
+}
 
+// --------------------------------------------------
+// CONTENT
+// --------------------------------------------------
+
+function renderPageContent() {
+  const page =
+    getPage(
+      guideState.currentPage
+    );
 
   if (!page) {
+    guideState.content.innerHTML = `
+      <div class="emptyState">
+        Select a guide page.
+      </div>
+    `;
 
-    return false;
-
+    return;
   }
 
+  guideState.content.innerHTML = `
+    <div class="guideArticle">
+      <div
+        class="guideArticleIcon"
+        style="
+          font-size:42px;
+          margin-bottom:8px;
+        "
+      >
+        ${page.icon}
+      </div>
 
-  if (
-    guideState.discoveredPages.has(
-      pageId
-    )
-  ) {
+      <h2>
+        ${page.title}
+      </h2>
 
-    return false;
-
-  }
-
-
-  guideState.discoveredPages.add(
-    pageId
-  );
-
-
-  gameEvent(
-    "guide-page-unlocked",
-    {
-      page: pageId
-    }
-  );
-
-
-  window.dispatchEvent(
-    new CustomEvent(
-      "survival-guide-page-unlocked",
-      {
-        detail: {
-          page: pageId
-        }
-      }
-    )
-  );
-
-
-  showGuideMessage(
-    `Guide discovered: ${page.title}`
-  );
-
-
-  if (
-    guideState.open
-  ) {
-
-    renderGuide();
-
-  }
-
-
-  return true;
-
+      <div
+        class="guideArticleText"
+      >
+        ${formatGuideText(page.text)}
+      </div>
+    </div>
+  `;
 }
 
+function formatGuideText(text) {
+  return String(text)
+    .trim()
+    .split(/\n\s*\n/)
+    .map(paragraph => {
+      return `
+        <p>
+          ${paragraph
+            .trim()
+            .replace(/\n/g, "<br>")}
+        </p>
+      `;
+    })
+    .join("");
+}
 
-/* ========================================================
-   UNLOCK RECIPE
-======================================================== */
-
-export function unlockGuideRecipe(
-  recipeId
-) {
-
+function renderRecipeContent() {
   const recipe =
-    RECIPES[
-      recipeId
-    ];
-
+    getRecipe(
+      guideState.currentPage
+    );
 
   if (!recipe) {
-
-    return false;
-
-  }
-
-
-  unlockRecipe(
-    recipeId
-  );
-
-
-  discoverRecipe(
-    recipeId
-  );
-
-
-  return true;
-
-}
-
-
-/* ========================================================
-   DISCOVER RECIPE
-======================================================== */
-
-export function discoverRecipe(
-  recipeId
-) {
-
-  if (
-    !RECIPES[
-      recipeId
-    ]
-  ) {
-
-    return false;
-
-  }
-
-
-  if (
-    guideState.discoveredRecipes.has(
-      recipeId
-    )
-  ) {
-
-    return false;
-
-  }
-
-
-  guideState.discoveredRecipes.add(
-    recipeId
-  );
-
-
-  unlockRecipe(
-    recipeId
-  );
-
-
-  const guideRecipe =
-    GUIDE_RECIPES.find(
-      recipe =>
-        recipe.recipe ===
-        recipeId
-    );
-
-
-  gameEvent(
-    "recipe-discovered",
-    {
-      recipe: recipeId
-    }
-  );
-
-
-  window.dispatchEvent(
-    new CustomEvent(
-      "survival-recipe-discovered",
-      {
-        detail: {
-          recipe: recipeId
-        }
-      }
-    )
-  );
-
-
-  if (guideRecipe) {
-
-    showGuideMessage(
-      `New recipe discovered: ${guideRecipe.title}`
-    );
-
-  }
-
-
-  if (
-    guideState.open
-  ) {
-
-    renderGuide();
-
-  }
-
-
-  return true;
-
-}
-
-
-/* ========================================================
-   CHECK PAGE
-======================================================== */
-
-export function isPageUnlocked(
-  pageId
-) {
-
-  return guideState.discoveredPages.has(
-    pageId
-  );
-
-}
-
-
-/* ========================================================
-   CHECK RECIPE
-======================================================== */
-
-export function isRecipeDiscovered(
-  recipeId
-) {
-
-  return guideState.discoveredRecipes.has(
-    recipeId
-  );
-
-}
-
-
-/* ========================================================
-   AUTOMATIC DISCOVERY
-======================================================== */
-
-/*
-When the player gathers a resource,
-the guide can automatically reveal
-the appropriate information.
-*/
-
-window.addEventListener(
-  "survival-resource-gathered",
-  event => {
-
-    const resource =
-      event.detail?.resource;
-
-
-    if (
-      resource === "wood" ||
-      resource === "log"
-    ) {
-
-      unlockPage(
-        "wood"
-      );
-
-    }
-
-
-    if (
-      resource === "rock" ||
-      resource === "stone"
-    ) {
-
-      unlockPage(
-        "stone"
-      );
-
-    }
-
-
-    if (
-      resource === "fiber"
-    ) {
-
-      unlockPage(
-        "fiber"
-      );
-
-    }
-
-  }
-);
-
-
-/* ========================================================
-   CRAFTING DISCOVERY
-======================================================== */
-
-window.addEventListener(
-  "survival-tool-crafted",
-  event => {
-
-    const recipe =
-      event.detail?.recipe;
-
-
-    if (
-      recipe === "stoneAxe" ||
-      recipe === "stonePickaxe"
-    ) {
-
-      unlockPage(
-        "tools"
-      );
-
-    }
-
-  }
-);
-
-
-/* ========================================================
-   BUILDING DISCOVERY
-======================================================== */
-
-window.addEventListener(
-  "survival-building-placed",
-  event => {
-
-    const building =
-      event.detail?.building;
-
-
-    if (
-      building === "campfire"
-    ) {
-
-      unlockPage(
-        "campfire"
-      );
-
-    }
-
-
-    if (
-      building === "storageBox"
-    ) {
-
-      unlockPage(
-        "storage"
-      );
-
-    }
-
-
-    if (
-      building === "woodFloor" ||
-      building === "woodWall" ||
-      building === "woodDoor"
-    ) {
-
-      unlockPage(
-        "building"
-      );
-
-    }
-
-  }
-);
-
-
-/* ========================================================
-   KEYBOARD
-======================================================== */
-
-window.addEventListener(
-  "keydown",
-  event => {
-
-    if (
-      event.key.toLowerCase() ===
-      "g"
-    ) {
-
-      if (
-        !isTyping()
-      ) {
-
-        toggleGuide();
-
-      }
-
-    }
-
-
-    if (
-      event.key === "Escape"
-    ) {
-
-      closeGuide();
-
-    }
-
-  }
-);
-
-
-/* ========================================================
-   GUIDE MESSAGE
-======================================================== */
-
-function showGuideMessage(
-  message
-) {
-
-  const element =
-    document.getElementById(
-      "message"
-    );
-
-
-  if (!element) {
+    guideState.content.innerHTML = `
+      <div class="emptyState">
+        Select a recipe.
+      </div>
+    `;
 
     return;
-
   }
 
-
-  element.textContent =
-    message;
-
-
-  element.classList.add(
-    "show"
-  );
-
-
-  clearTimeout(
-    showGuideMessage.timeout
-  );
-
-
-  showGuideMessage.timeout =
-    setTimeout(
-      () => {
-
-        element.classList.remove(
-          "show"
-        );
-
-      },
-      2200
+  const ingredients =
+    Object.entries(
+      recipe.ingredients || {}
     );
 
+  const output =
+    Object.entries(
+      recipe.output || {}
+    );
+
+  guideState.content.innerHTML = `
+    <div class="guideArticle">
+      <div
+        style="
+          font-size:42px;
+          margin-bottom:8px;
+        "
+      >
+        ${recipe.icon || "📖"}
+      </div>
+
+      <h2>
+        ${recipe.title}
+      </h2>
+
+      <p>
+        ${recipe.description || ""}
+      </p>
+
+      <div
+        class="recipeSection"
+        style="margin-top:18px;"
+      >
+        <strong>
+          Materials
+        </strong>
+
+        <div
+          class="recipeMaterials"
+          style="
+            display:flex;
+            flex-direction:column;
+            gap:6px;
+            margin-top:8px;
+          "
+        >
+          ${
+            ingredients
+              .map(
+                ([item, amount]) => `
+                  <div>
+                    ${formatName(item)}
+                    ×${amount}
+                  </div>
+                `
+              )
+              .join("")
+          }
+        </div>
+      </div>
+
+      <div
+        class="recipeSection"
+        style="margin-top:18px;"
+      >
+        <strong>
+          Creates
+        </strong>
+
+        <div
+          style="
+            display:flex;
+            flex-direction:column;
+            gap:6px;
+            margin-top:8px;
+          "
+        >
+          ${
+            output
+              .map(
+                ([item, amount]) => `
+                  <div>
+                    ${formatName(item)}
+                    ×${amount}
+                  </div>
+                `
+              )
+              .join("")
+          }
+        </div>
+      </div>
+    </div>
+  `;
 }
 
+// --------------------------------------------------
+// RENDER
+// --------------------------------------------------
 
-/* ========================================================
-   ITEM HELPERS
-======================================================== */
-
-function getItemName(
-  item
-) {
-
-  const names = {
-
-    rock: "Rock",
-    stone: "Stone",
-    log: "Log",
-    wood: "Wood",
-    stick: "Stick",
-    fiber: "Fiber",
-    string: "String",
-    leaf: "Leaf",
-    food: "Food",
-    water: "Water",
-    rawMeat: "Raw Meat",
-    cookedMeat: "Cooked Meat"
-
-  };
-
-
-  return (
-    names[item] ||
-    capitalize(item)
-  );
-
-}
-
-
-function getItemIcon(
-  item
-) {
-
-  const icons = {
-
-    rock: "🪨",
-    stone: "🪨",
-    log: "🪵",
-    wood: "🪵",
-    stick: "🪵",
-    fiber: "🌿",
-    string: "🧵",
-    leaf: "🍃",
-    food: "🍎",
-    water: "💧",
-    rawMeat: "🥩",
-    cookedMeat: "🍖"
-
-  };
-
-
-  return icons[item] || "📦";
-
-}
-
-
-function capitalize(
-  value
-) {
-
-  if (!value) {
-    return "";
+function renderGuide() {
+  if (!guideState.ui) {
+    createGuideUI();
   }
 
+  renderList();
 
-  return (
-    value.charAt(0).toUpperCase() +
-    value.slice(1)
-  );
-
-}
-
-
-function isTyping() {
-
-  const active =
-    document.activeElement;
-
-
-  if (!active) {
-    return false;
+  if (guideState.currentSection === "pages") {
+    renderPageContent();
+  } else {
+    renderRecipeContent();
   }
 
+  const pagesTab =
+    document.getElementById(
+      "guidePagesTab"
+    );
 
-  const tag =
-    active.tagName.toLowerCase();
+  const recipesTab =
+    document.getElementById(
+      "guideRecipesTab"
+    );
 
-
-  return (
-    tag === "input" ||
-    tag === "textarea" ||
-    tag === "select"
+  pagesTab?.classList.toggle(
+    "selected",
+    guideState.currentSection === "pages"
   );
 
+  recipesTab?.classList.toggle(
+    "selected",
+    guideState.currentSection === "recipes"
+  );
 }
 
+// --------------------------------------------------
+// OPEN / CLOSE
+// --------------------------------------------------
 
-/* ========================================================
-   STARTUP
-======================================================== */
+function openGuide() {
+  if (!guideState.ui) {
+    createGuideUI();
+  }
 
-console.log(
-  "📖 Survival guide loaded."
-);
+  guideState.open = true;
 
-console.log(
-  `📚 ${GUIDE_PAGES.length} guide pages registered.`
-);
+  guideState.ui.classList.remove(
+    "hidden"
+  );
 
-console.log(
-  `🧾 ${GUIDE_RECIPES.length} recipe guides registered.`
-);
+  renderGuide();
+}
+
+function closeGuide() {
+  guideState.open = false;
+
+  guideState.ui?.classList.add(
+    "hidden"
+  );
+}
+
+function toggleGuide() {
+  if (guideState.open) {
+    closeGuide();
+  } else {
+    openGuide();
+  }
+}
+
+// --------------------------------------------------
+// AUTO DISCOVERY
+// --------------------------------------------------
+
+function setupDiscoveryEvents() {
+  window.addEventListener(
+    "survival-resource-gathered",
+    event => {
+      discoverPage("gathering");
+
+      const detail =
+        event.detail || {};
+
+      if (
+        detail.resource === "tree" ||
+        detail.type === "tree"
+      ) {
+        discoverPage("wood");
+      }
+
+      if (
+        detail.resource === "rock" ||
+        detail.type === "rock"
+      ) {
+        discoverPage("stone");
+      }
+
+      if (
+        detail.resource === "fiber" ||
+        detail.type === "fiber"
+      ) {
+        discoverPage("fiber");
+      }
+
+      renderGuide();
+    }
+  );
+
+  window.addEventListener(
+    "survival-tool-crafted",
+    event => {
+      discoverPage("tools");
+
+      const id =
+        event.detail?.recipe ||
+        event.detail?.id;
+
+      if (id) {
+        discoverRecipe(id);
+      }
+
+      renderGuide();
+    }
+  );
+
+  window.addEventListener(
+    "survival-crafting-complete",
+    event => {
+      const id =
+        event.detail?.recipe ||
+        event.detail?.id;
+
+      if (id) {
+        discoverRecipe(id);
+      }
+
+      if (
+        id === "stoneAxe" ||
+        id === "stonePickaxe"
+      ) {
+        discoverPage("tools");
+      }
+
+      renderGuide();
+    }
+  );
+
+  window.addEventListener(
+    "survival-building-placed",
+    event => {
+      discoverPage("building");
+
+      const id =
+        event.detail?.id ||
+        event.detail?.buildingId;
+
+      if (id) {
+        discoverRecipe(id);
+      }
+
+      if (id === "campfire") {
+        discoverPage("campfire");
+      }
+
+      if (id === "storageBox") {
+        discoverPage("storage");
+      }
+
+      renderGuide();
+    }
+  );
+
+  window.addEventListener(
+    "survival-water-drink",
+    () => {
+      discoverPage("water");
+      renderGuide();
+    }
+  );
+
+  window.addEventListener(
+    "survival-night-started",
+    () => {
+      discoverPage("night");
+      renderGuide();
+    }
+  );
+
+  window.addEventListener(
+    "survival-menu-button",
+    () => {
+      if (guideState.open) {
+        closeGuide();
+      }
+    }
+  );
+}
+
+// --------------------------------------------------
+// KEYBOARD
+// --------------------------------------------------
+
+function setupKeyboard() {
+  window.addEventListener(
+    "keydown",
+    event => {
+      const key =
+        event.key.toLowerCase();
+
+      if (key === "g") {
+        toggleGuide();
+        return;
+      }
+
+      if (
+        key === "escape" &&
+        guideState.open
+      ) {
+        closeGuide();
+      }
+    }
+  );
+}
+
+// --------------------------------------------------
+// SYNC GAME DATA
+// --------------------------------------------------
+
+function syncFromGame() {
+  if (
+    Array.isArray(
+      GAME.guide?.discoveredPages
+    )
+  ) {
+    for (
+      const page
+      of GAME.guide.discoveredPages
+    ) {
+      if (
+        GUIDE_PAGES[page] &&
+        !guideState.discoveredPages.includes(page)
+      ) {
+        guideState.discoveredPages.push(page);
+      }
+    }
+  }
+
+  if (
+    Array.isArray(
+      GAME.guide?.discoveredRecipes
+    )
+  ) {
+    for (
+      const recipe
+      of GAME.guide.discoveredRecipes
+    ) {
+      if (
+        GUIDE_RECIPES[recipe] &&
+        !guideState.discoveredRecipes.includes(recipe)
+      ) {
+        guideState.discoveredRecipes.push(recipe);
+      }
+    }
+  }
+
+  discoverDefaults();
+}
+
+// --------------------------------------------------
+// SYSTEM API
+// --------------------------------------------------
+
+function initialize() {
+  if (guideState.initialized) {
+    return;
+  }
+
+  guideState.initialized = true;
+
+  createGuideUI();
+  setupDiscoveryEvents();
+  setupKeyboard();
+  syncFromGame();
+
+  renderGuide();
+}
+
+function update() {
+  // Guide is UI-driven, so no heavy
+  // per-frame work is required.
+}
+
+function getState() {
+  return {
+    open: guideState.open,
+    currentPage: guideState.currentPage,
+    currentSection: guideState.currentSection,
+    discoveredPages: [
+      ...guideState.discoveredPages
+    ],
+    discoveredRecipes: [
+      ...guideState.discoveredRecipes
+    ]
+  };
+}
+
+function destroy() {
+  closeGuide();
+
+  if (guideState.ui?.parentNode) {
+    guideState.ui.parentNode.removeChild(
+      guideState.ui
+    );
+  }
+
+  guideState.ui = null;
+  guideState.pageList = null;
+  guideState.content = null;
+  guideState.initialized = false;
+}
+
+// --------------------------------------------------
+// REGISTER
+// --------------------------------------------------
+
+SurvivalVR.systems.guide = {
+  state: guideState,
+
+  GUIDE_PAGES,
+  GUIDE_RECIPES,
+
+  initialize,
+  update,
+
+  open: openGuide,
+  close: closeGuide,
+  toggle: toggleGuide,
+
+  discoverPage,
+  discoverRecipe,
+
+  getState,
+  destroy
+};
+
+initialize();
+
+export {
+  GUIDE_PAGES,
+  GUIDE_RECIPES,
+  guideState,
+  initialize,
+  update,
+  openGuide,
+  closeGuide,
+  toggleGuide,
+  discoverPage,
+  discoverRecipe
+};
