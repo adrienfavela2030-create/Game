@@ -1,448 +1,75 @@
-// ============================================================
-// VR CONVENIENCE STORE
-// game.js
-// ============================================================
-
-import * as THREE from
-  "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
-
-
-// ============================================================
-// GAME SETTINGS
-// ============================================================
+// ========================================
+// ISLAND SURVIVAL GAME
+// ========================================
 
 export const GAME = {
 
-  movementSpeed: 2.5,
+  health: 100,
 
-  turnSpeed: 1.8,
+  hunger: 100,
 
-  playerHeight: 1.6,
+  thirst: 100,
 
-  storeLimitX: 8.5,
+  stamina: 100,
 
-  storeLimitZ: 8.5,
+  day: 1,
 
-  money: 100,
+  time: 8,
 
-  day: 1
+  inventory: {
+
+    rock: 1,
+
+    wood: 0,
+
+    log: 0,
+
+    stone: 0,
+
+    fiber: 0,
+
+    string: 0,
+
+    stick: 0,
+
+    food: 0,
+    water: 0
+
+  },
+
+  equipment: {
+
+    leftSide: null,
+
+    rightSide: null
+
+  }
 
 };
 
 
-// ============================================================
+// ========================================
 // PLAYER
-// ============================================================
+// ========================================
 
 export const player = {
 
-  position: new THREE.Vector3(
-    0,
-    0,
-    7
-  ),
+  x: 0,
 
-  rotation: 0
+  y: 0,
 
-};
+  z: 7,
 
+  rotation: 0,
 
-// ============================================================
-// INVENTORY
-// ============================================================
-
-export const inventory = {
-
-  drinks: 20,
-
-  chips: 20,
-
-  candy: 20,
-
-  food: 10
+  height: 1.6
 
 };
 
 
-// ============================================================
-// STORE
-// ============================================================
-
-export const store = {
-
-  name: "Adrien's Convenience Store",
-
-  level: 1,
-
-  customers: 0,
-
-  sales: 0,
-
-  productsSold: 0
-
-};
-
-
-// ============================================================
-// PRODUCT DATA
-// ============================================================
-
-export const products = {
-
-  soda: {
-
-    name: "Soda",
-
-    price: 2,
-
-    stock: 20,
-
-    category: "drinks"
-
-  },
-
-  chips: {
-
-    name: "Chips",
-
-    price: 2.50,
-
-    stock: 20,
-
-    category: "chips"
-
-  },
-
-  candy: {
-
-    name: "Candy",
-
-    price: 1.50,
-
-    stock: 20,
-
-    category: "candy"
-
-  },
-
-  pizza: {
-
-    name: "Pizza",
-
-    price: 4,
-
-    stock: 10,
-
-    category: "food"
-
-  }
-
-};
-
-
-// ============================================================
-// ADD MONEY
-// ============================================================
-
-export function addMoney(amount) {
-
-  if (
-    typeof amount !== "number" ||
-    !Number.isFinite(amount)
-  ) {
-
-    return;
-  }
-
-  GAME.money += amount;
-
-  GAME.money =
-    Math.round(
-      GAME.money * 100
-    ) / 100;
-
-}
-
-
-// ============================================================
-// REMOVE MONEY
-// ============================================================
-
-export function removeMoney(amount) {
-
-  if (
-    typeof amount !== "number" ||
-    !Number.isFinite(amount) ||
-    amount <= 0
-  ) {
-
-    return false;
-  }
-
-
-  if (
-    GAME.money < amount
-  ) {
-
-    return false;
-  }
-
-
-  GAME.money -= amount;
-
-  GAME.money =
-    Math.round(
-      GAME.money * 100
-    ) / 100;
-
-
-  return true;
-}
-
-
-// ============================================================
-// SELL PRODUCT
-// ============================================================
-
-export function sellProduct(
-  productId
-) {
-
-  const product =
-    products[productId];
-
-
-  if (!product) {
-
-    return {
-
-      success: false,
-
-      message: "Product not found."
-
-    };
-  }
-
-
-  if (
-    product.stock <= 0
-  ) {
-
-    return {
-
-      success: false,
-
-      message: "This product is out of stock."
-
-    };
-  }
-
-
-  product.stock--;
-
-  addMoney(
-    product.price
-  );
-
-
-  store.sales++;
-
-  store.productsSold++;
-
-
-  return {
-
-    success: true,
-
-    message:
-      `${product.name} sold for $${product.price.toFixed(2)}.`
-
-  };
-}
-
-
-// ============================================================
-// RESTOCK PRODUCT
-// ============================================================
-
-export function restockProduct(
-  productId,
-  amount = 10
-) {
-
-  const product =
-    products[productId];
-
-
-  if (!product) {
-
-    return {
-
-      success: false,
-
-      message: "Product not found."
-
-    };
-  }
-
-
-  amount =
-    Math.max(
-      1,
-      Math.floor(amount)
-    );
-
-
-  const cost =
-    amount * 0.75;
-
-
-  if (
-    !removeMoney(cost)
-  ) {
-
-    return {
-
-      success: false,
-
-      message:
-        `You need $${cost.toFixed(2)} to restock.`
-
-    };
-  }
-
-
-  product.stock += amount;
-
-
-  return {
-
-    success: true,
-
-    message:
-      `${amount} ${product.name} added to stock.`
-
-  };
-}
-
-
-// ============================================================
-// STORE LEVEL
-// ============================================================
-
-export function upgradeStore() {
-
-  const upgradeCost =
-    store.level * 250;
-
-
-  if (
-    !removeMoney(upgradeCost)
-  ) {
-
-    return {
-
-      success: false,
-
-      message:
-        `You need $${upgradeCost.toFixed(2)} to upgrade.`
-
-    };
-  }
-
-
-  store.level++;
-
-
-  return {
-
-    success: true,
-
-    message:
-      `Store upgraded to level ${store.level}.`
-
-  };
-}
-
-
-// ============================================================
-// CUSTOMER
-// ============================================================
-
-export function createCustomer() {
-
-  store.customers++;
-
-
-  return {
-
-    id: store.customers,
-
-    name:
-      `Customer ${store.customers}`,
-
-    shopping: false,
-
-    item: null,
-
-    paid: false
-
-  };
-}
-
-
-// ============================================================
-// CUSTOMER PURCHASE
-// ============================================================
-
-export function customerPurchase(
-  customer,
-  productId
-) {
-
-  const product =
-    products[productId];
-
-
-  if (!product) {
-
-    return false;
-  }
-
-
-  if (
-    product.stock <= 0
-  ) {
-
-    return false;
-  }
-
-
-  product.stock--;
-
-  addMoney(
-    product.price
-  );
-
-
-  customer.item =
-    productId;
-
-  customer.paid =
-    true;
-
-  store.sales++;
-
-  store.productsSold++;
-
-
-  return true;
-}
-
-
-// ============================================================
-// PLAYER MOVEMENT
-// ============================================================
+// ========================================
+// MOVEMENT
+// ========================================
 
 export function movePlayer(
   forward,
@@ -450,211 +77,480 @@ export function movePlayer(
   delta
 ) {
 
-  if (
-    !Number.isFinite(forward) ||
-    !Number.isFinite(sideways)
-  ) {
+  const speed = 3.0;
 
-    return;
+  const amount =
+    speed * delta;
+
+  const directionX =
+    Math.sin(player.rotation);
+
+  const directionZ =
+    Math.cos(player.rotation);
+
+  player.x +=
+    directionX *
+    forward *
+    amount;
+
+  player.z +=
+    directionZ *
+    forward *
+    amount;
+
+  player.x +=
+    Math.cos(player.rotation) *
+    sideways *
+    amount;
+
+  player.z -=
+    Math.sin(player.rotation) *
+    sideways *
+    amount;
+
+
+  // Island boundaries
+
+  const distance =
+    Math.sqrt(
+      player.x * player.x +
+      player.z * player.z
+    );
+
+  const maxDistance = 25;
+
+  if (distance > maxDistance) {
+
+    const scale =
+      maxDistance / distance;
+
+    player.x *= scale;
+
+    player.z *= scale;
+
   }
 
-
-  const direction =
-    new THREE.Vector3(
-      sideways,
-      0,
-      forward
-    );
-
-
-  const rotation =
-    player.rotation;
-
-
-  direction.applyAxisAngle(
-    new THREE.Vector3(0, 1, 0),
-    rotation
-  );
-
-
-  if (
-    direction.lengthSq() > 0
-  ) {
-
-    direction.normalize();
-
-    player.position.addScaledVector(
-      direction,
-      GAME.movementSpeed * delta
-    );
-  }
-
-
-  // Keep player inside store.
-
-  player.position.x =
-    THREE.MathUtils.clamp(
-      player.position.x,
-      -GAME.storeLimitX,
-      GAME.storeLimitX
-    );
-
-
-  player.position.z =
-    THREE.MathUtils.clamp(
-      player.position.z,
-      -GAME.storeLimitZ,
-      GAME.storeLimitZ
-    );
 }
 
 
-// ============================================================
-// PLAYER TURNING
-// ============================================================
+// ========================================
+// TURNING
+// ========================================
 
 export function turnPlayer(
   amount,
   delta
 ) {
 
+  player.rotation +=
+    amount *
+    2.2 *
+    delta;
+
+}
+
+
+// ========================================
+// SURVIVAL
+// ========================================
+
+export function updateSurvival(
+  delta
+) {
+
+  // Hunger slowly decreases
+
+  GAME.hunger -=
+    delta * 0.8;
+
+  // Thirst decreases faster
+
+  GAME.thirst -=
+    delta * 1.2;
+
+
+  // Prevent values going below zero
+
+  GAME.hunger =
+    Math.max(
+      0,
+      GAME.hunger
+    );
+
+  GAME.thirst =
+    Math.max(
+      0,
+      GAME.thirst
+    );
+
+
+  // Damage when starving/dehydrated
+
   if (
-    !Number.isFinite(amount)
+    GAME.hunger <= 0 ||
+    GAME.thirst <= 0
   ) {
 
-    return;
+    GAME.health -=
+      delta * 2;
+
   }
 
 
-  player.rotation -=
-    amount *
-    GAME.turnSpeed *
-    delta;
+  GAME.health =
+    Math.max(
+      0,
+      GAME.health
+    );
+
+
+  // Stamina slowly recovers
+
+  GAME.stamina =
+    Math.min(
+      100,
+      GAME.stamina +
+      delta * 5
+    );
+
 }
 
 
-// ============================================================
-// SAVE DATA
-// ============================================================
+// ========================================
+// INVENTORY
+// ========================================
 
-export function getGameData() {
+export function addItem(
+  item,
+  amount = 1
+) {
 
-  return {
+  if (
+    !GAME.inventory[item]
+  ) {
 
-    money: GAME.money,
+    GAME.inventory[item] = 0;
 
-    day: GAME.day,
+  }
 
-    storeLevel: store.level,
+  GAME.inventory[item] +=
+    amount;
 
-    sales: store.sales,
+}
 
-    productsSold:
-      store.productsSold,
 
-    inventory: {
+// ========================================
+// REMOVE ITEM
+// ========================================
 
-      soda:
-        products.soda.stock,
+export function removeItem(
+  item,
+  amount = 1
+) {
 
-      chips:
-        products.chips.stock,
+  if (
+    !GAME.inventory[item]
+  ) {
 
-      candy:
-        products.candy.stock,
+    return false;
 
-      pizza:
-        products.pizza.stock
+  }
+
+  if (
+    GAME.inventory[item] < amount
+  ) {
+
+    return false;
+
+  }
+
+  GAME.inventory[item] -=
+    amount;
+
+  return true;
+
+}
+
+
+// ========================================
+// GATHER RESOURCE
+// ========================================
+
+export function gatherResource(
+  type
+) {
+
+  if (type === "rock") {
+
+    addItem(
+      "rock",
+      1
+    );
+
+    return true;
+
+  }
+
+
+  if (type === "tree") {
+
+    addItem(
+      "log",
+      1
+    );
+
+    return true;
+
+  }
+
+
+  if (type === "fiber") {
+
+    addItem(
+      "fiber",
+      1
+    );
+
+    return true;
+
+  }
+
+
+  return false;
+
+}
+
+
+// ========================================
+// CRAFT STRING
+// ========================================
+
+export function craftString() {
+
+  if (
+    GAME.inventory.fiber >= 3
+  ) {
+
+    removeItem(
+      "fiber",
+      3
+    );
+
+    addItem(
+      "string",
+      1
+    );
+
+    return true;
+
+  }
+
+  return false;
+
+}
+
+
+// ========================================
+// CRAFT STICK
+// ========================================
+
+export function craftStick() {
+
+  if (
+    GAME.inventory.log >= 1
+  ) {
+
+    removeItem(
+      "log",
+      1
+    );
+
+    addItem(
+      "stick",
+      3
+    );
+
+    return true;
+
+  }
+
+  return false;
+
+}
+
+
+// ========================================
+// SIDE STORAGE
+// ========================================
+
+export function putOnSide(
+  side,
+  item
+) {
+
+  if (
+    side !== "left" &&
+    side !== "right"
+  ) {
+
+    return false;
+
+  }
+
+  if (
+    GAME.inventory[item] <= 0
+  ) {
+
+    return false;
+
+  }
+
+  if (
+    side === "left"
+  ) {
+
+    if (
+      GAME.equipment.leftSide
+    ) {
+
+      return false;
 
     }
 
-  };
+    GAME.equipment.leftSide =
+      item;
+
+  }
+
+
+  if (
+    side === "right"
+  ) {
+
+    if (
+      GAME.equipment.rightSide
+    ) {
+
+      return false;
+
+    }
+
+    GAME.equipment.rightSide =
+      item;
+
+  }
+
+
+  removeItem(
+    item,
+    1
+  );
+
+  return true;
+
 }
 
 
-// ============================================================
+// ========================================
+// REMOVE FROM SIDE
+// ========================================
+
+export function takeFromSide(
+  side
+) {
+
+  let item = null;
+
+  if (
+    side === "left"
+  ) {
+
+    item =
+      GAME.equipment.leftSide;
+
+    GAME.equipment.leftSide =
+      null;
+
+  }
+
+  if (
+    side === "right"
+  ) {
+
+    item =
+      GAME.equipment.rightSide;
+
+    GAME.equipment.rightSide =
+      null;
+
+  }
+
+  if (item) {
+
+    addItem(
+      item,
+      1
+    );
+
+  }
+
+  return item;
+
+}
+
+
+// ========================================
 // RESET GAME
-// ============================================================
+// ========================================
 
 export function resetGame() {
 
-  GAME.money = 100;
+  GAME.health = 100;
+
+  GAME.hunger = 100;
+
+  GAME.thirst = 100;
+
+  GAME.stamina = 100;
 
   GAME.day = 1;
 
-  store.level = 1;
+  GAME.time = 8;
 
-  store.customers = 0;
+  GAME.inventory = {
 
-  store.sales = 0;
+    rock: 1,
 
-  store.productsSold = 0;
+    wood: 0,
 
+    log: 0,
 
-  products.soda.stock = 20;
+    stone: 0,
 
-  products.chips.stock = 20;
+    fiber: 0,
 
-  products.candy.stock = 20;
+    string: 0,
 
-  products.pizza.stock = 10;
+    stick: 0,
 
+    food: 0,
 
-  player.position.set(
-    0,
-    0,
-    7
-  );
-
-
-  player.rotation = 0;
-}
-
-
-// ============================================================
-// DEBUG INFO
-// ============================================================
-
-export function getStoreInfo() {
-
-  return {
-
-    storeName:
-      store.name,
-
-    level:
-      store.level,
-
-    money:
-      GAME.money,
-
-    day:
-      GAME.day,
-
-    customers:
-      store.customers,
-
-    sales:
-      store.sales,
-
-    productsSold:
-      store.productsSold,
-
-    products: {
-
-      soda:
-        products.soda.stock,
-
-      chips:
-        products.chips.stock,
-
-      candy:
-        products.candy.stock,
-
-      pizza:
-        products.pizza.stock
-
-    }
+    water: 0
 
   };
+
+  GAME.equipment = {
+
+    leftSide: null,
+
+    rightSide: null
+
+  };
+
+  player.x = 0;
+
+  player.z = 7;
+
+  player.rotation = 0;
+
 }
