@@ -1,76 +1,245 @@
-// ============================================
-// ISLAND SURVIVAL VR
-// CORE GAME SYSTEM
-// ============================================
-//
-// This file controls the shared game state.
-//
-// Future systems connect to this file:
-//   inventory.js
-//   crafting.js
-//   building.js
-//   guide.js
-//   world.js
-//
-// ============================================
+/*
+==========================================================
+ISLAND SURVIVAL VR
+GAME CORE
+==========================================================
+
+This file is the central state system for the game.
+
+Other systems connect to this:
+
+- index.js / index.html
+- hands.js
+- inventory.js
+- crafting.js
+- building.js
+- guide.js
+- world.js
+- save.js
+- home.js
+- settings.js
+- audio.js
+- environment.js
+- animals.js
+
+==========================================================
+*/
 
 
-// ============================================
-// GAME VERSION
-// ============================================
+/* ========================================================
+   VERSION
+======================================================== */
 
-export const GAME_VERSION = 1;
+export const GAME_VERSION = 3;
 
 
-// ============================================
-// MAIN GAME STATE
-// ============================================
+/* ========================================================
+   CONSTANTS
+======================================================== */
+
+export const CONSTANTS = {
+
+  MAX_HEALTH: 100,
+
+  MAX_HUNGER: 100,
+
+  MAX_THIRST: 100,
+
+  MAX_STAMINA: 100,
+
+  HUNGER_DRAIN:
+    0.035,
+
+  THIRST_DRAIN:
+    0.055,
+
+  SPRINT_STAMINA_DRAIN:
+    8,
+
+  STAMINA_REGEN:
+    10,
+
+  WALK_SPEED:
+    2.5,
+
+  SPRINT_SPEED:
+    4.5,
+
+  TURN_SPEED:
+    1.7,
+
+  SAVE_VERSION:
+    1
+
+};
+
+
+/* ========================================================
+   MAIN GAME STATE
+======================================================== */
 
 export const GAME = {
 
   version: GAME_VERSION,
 
-  // -------------------------
-  // SURVIVAL
-  // -------------------------
+
+  /* ------------------------------------------------------
+     WORLD
+  ------------------------------------------------------ */
+
+  world: {
+
+    id: null,
+
+    name: "Island World",
+
+    seed: null,
+
+    createdAt: null,
+
+    lastSavedAt: null,
+
+    day: 1,
+
+    time: 8,
+
+    weather: "sunny"
+
+  },
+
+
+  /* ------------------------------------------------------
+     PLAYER
+  ------------------------------------------------------ */
+
+  player: {
+
+    health: 100,
+
+    hunger: 100,
+
+    thirst: 100,
+
+    stamina: 100,
+
+    alive: true,
+
+    sleeping: false,
+
+    sprinting: false
+
+  },
+
+
+  /*
+  These properties are also kept directly on GAME
+  for compatibility with older systems.
+  */
 
   health: 100,
-  maxHealth: 100,
 
   hunger: 100,
-  maxHunger: 100,
 
   thirst: 100,
-  maxThirst: 100,
 
   stamina: 100,
-  maxStamina: 100,
 
-  // -------------------------
-  // WORLD TIME
-  // -------------------------
 
-  day: 1,
+  /* ------------------------------------------------------
+     PLAYER POSITION
+  ------------------------------------------------------ */
 
-  time: 8,
+  position: {
 
-  timeSpeed: 0.025,
+    x: 0,
 
-  // -------------------------
-  // PLAYER STATE
-  // -------------------------
+    y: 0,
 
-  alive: true,
+    z: 8,
 
-  sleeping: false,
+    rotationY: 0
 
-  swimming: false,
+  },
 
-  // -------------------------
-  // INVENTORY
-  // -------------------------
+
+  /* ------------------------------------------------------
+     INVENTORY
+  ------------------------------------------------------ */
 
   inventory: {
+
+    rock: 1,
+
+    stone: 0,
+
+    wood: 0,
+
+    log: 0,
+
+    stick: 0,
+
+    fiber: 0,
+
+    string: 0,
+
+    leaf: 0,
+
+    food: 0,
+
+    water: 0,
+
+    rawMeat: 0,
+
+    cookedMeat: 0,
+
+    stoneAxe: 0,
+
+    stonePickaxe: 0,
+
+    campfire: 0,
+
+    storageBox: 0,
+
+    woodWall: 0,
+
+    woodFloor: 0,
+
+    woodDoor: 0
+
+  },
+
+
+  /* ------------------------------------------------------
+     SIDE STORAGE
+  ------------------------------------------------------ */
+
+  equipment: {
+
+    leftSide: null,
+
+    rightSide: null
+
+  },
+
+
+  /* ------------------------------------------------------
+     HANDS
+  ------------------------------------------------------ */
+
+  hands: {
+
+    left: null,
+
+    right: null
+
+  },
+
+
+  /* ------------------------------------------------------
+     RESOURCE COUNTERS
+  ------------------------------------------------------ */
+
+  resources: {
 
     rock: 1,
 
@@ -98,221 +267,324 @@ export const GAME = {
 
   },
 
-  // -------------------------
-  // SIDE STORAGE
-  // -------------------------
 
-  equipment: {
+  /* ------------------------------------------------------
+     BUILDINGS
+  ------------------------------------------------------ */
 
-    leftSide: null,
+  buildings: {
 
-    rightSide: null
+    total: 0,
 
-  },
+    woodFloor: 0,
 
-  // -------------------------
-  // CURRENT HANDS
-  // -------------------------
+    woodWall: 0,
 
-  hands: {
+    woodDoor: 0,
 
-    left: null,
+    campfire: 0,
 
-    right: null
+    storageBox: 0
 
   },
 
-  // -------------------------
-  // RESOURCES
-  // -------------------------
 
-  resources: {
-
-    treesBroken: 0,
-
-    rocksBroken: 0,
-
-    logsCollected: 0,
-
-    stoneCollected: 0,
-
-    fiberCollected: 0
-
-  },
-
-  // -------------------------
-  // BUILDING
-  // -------------------------
-
-  building: {
-
-    woodWalls: 0,
-
-    stoneWalls: 0,
-
-    floors: 0,
-
-    roofs: 0,
-
-    doors: 0,
-
-    placedObjects: 0
-
-  },
-
-  // -------------------------
-  // CRAFTING
-  // -------------------------
+  /* ------------------------------------------------------
+     CRAFTING
+  ------------------------------------------------------ */
 
   crafting: {
-
-    itemsCrafted: 0,
 
     unlockedRecipes: [
 
       "string",
 
-      "stick"
+      "stick",
 
-    ]
+      "woodPlank",
+
+      "stone"
+
+    ],
+
+    crafted: {},
+
+    lastCrafted: null
 
   },
 
-  // -------------------------
-  // GUIDE
-  // -------------------------
+
+  /* ------------------------------------------------------
+     GUIDE
+  ------------------------------------------------------ */
 
   guide: {
 
-    opened: false,
+    discoveredPages: [
 
-    page: 1
+      "first_day",
+
+      "gathering",
+
+      "survival"
+
+    ],
+
+    discoveredRecipes: [
+
+      "string",
+
+      "stick"
+
+    ],
+
+    currentPage: 0
 
   },
 
-  // -------------------------
-  // SETTINGS
-  // -------------------------
+
+  /* ------------------------------------------------------
+     ANIMALS
+  ------------------------------------------------------ */
+
+  animals: {
+
+    rabbits: [],
+
+    deer: [],
+
+    birds: [],
+
+    total: 0
+
+  },
+
+
+  /* ------------------------------------------------------
+     ENVIRONMENT
+  ------------------------------------------------------ */
+
+  environment: {
+
+    wind: {
+
+      direction: 0,
+
+      strength: 0.35
+
+    },
+
+    waterLevel: 0,
+
+    grassDensity: 1,
+
+    treeDensity: 1
+
+  },
+
+
+  /* ------------------------------------------------------
+     SETTINGS
+  ------------------------------------------------------ */
 
   settings: {
 
+    masterVolume: 1,
+
+    musicVolume: 0.7,
+
+    effectsVolume: 1,
+
+    environmentVolume: 0.8,
+
+    animalVolume: 0.8,
+
+    graphicsQuality: "high",
+
+    shadows: true,
+
+    waterQuality: "high",
+
+    grassQuality: "high",
+
+    viewDistance: "high",
+
     vibration: true,
 
-    sound: true,
+    snapTurning: true,
 
-    graphics: "high"
+    snapTurnAmount: 45
+
+  },
+
+
+  /* ------------------------------------------------------
+     GAME STATE
+  ------------------------------------------------------ */
+
+  state: {
+
+    started: false,
+
+    paused: false,
+
+    gameOver: false,
+
+    loading: false,
+
+    inVR: false
+
+  },
+
+
+  /* ------------------------------------------------------
+     STATISTICS
+  ------------------------------------------------------ */
+
+  statistics: {
+
+    treesCut: 0,
+
+    rocksBroken: 0,
+
+    logsCollected: 0,
+
+    itemsCrafted: 0,
+
+    buildingsBuilt: 0,
+
+    animalsSeen: 0,
+
+    daysSurvived: 0,
+
+    distanceWalked: 0
 
   }
 
 };
 
 
-// ============================================
-// PLAYER
-// ============================================
+/* ========================================================
+   PLAYER COMPATIBILITY OBJECT
+======================================================== */
 
 export const player = {
 
-  // World position
+  get x() {
 
-  x: 0,
+    return GAME.position.x;
 
-  y: 0,
+  },
 
-  z: 7,
 
-  // Direction
+  set x(value) {
 
-  rotation: 0,
+    GAME.position.x =
+      Number(value) || 0;
 
-  // Height
+  },
 
-  height: 1.6,
 
-  // Movement
+  get y() {
 
-  speed: 3,
+    return GAME.position.y;
 
-  sprintSpeed: 5,
+  },
 
-  // Current movement state
 
-  moving: false,
+  set y(value) {
 
-  sprinting: false
+    GAME.position.y =
+      Number(value) || 0;
+
+  },
+
+
+  get z() {
+
+    return GAME.position.z;
+
+  },
+
+
+  set z(value) {
+
+    GAME.position.z =
+      Number(value) || 0;
+
+  },
+
+
+  get rotationY() {
+
+    return GAME.position.rotationY;
+
+  },
+
+
+  set rotationY(value) {
+
+    GAME.position.rotationY =
+      Number(value) || 0;
+
+  }
 
 };
 
 
-// ============================================
-// GAME CONSTANTS
-// ============================================
+/* ========================================================
+   INTERNAL STATE
+======================================================== */
 
-export const CONSTANTS = {
-
-  islandRadius: 25,
-
-  movementSpeed: 3,
-
-  sprintSpeed: 5,
-
-  turnSpeed: 2.2,
-
-  hungerDrain: 0.8,
-
-  thirstDrain: 1.2,
-
-  starvationDamage: 2,
-
-  staminaDrain: 12,
-
-  staminaRecovery: 8,
-
-  waterRestore: 35,
-
-  foodRestore: 25
-
-};
+let sprinting =
+  false;
 
 
-// ============================================
-// EVENT SYSTEM
-// ============================================
-//
-// Other files can listen for events without
-// modifying this file.
-//
-// Example:
-//
-// window.addEventListener(
-//   "survival-inventory-changed",
-//   () => {}
-// );
-//
-// ============================================
+/* ========================================================
+   EVENT HELPER
+======================================================== */
 
 export function gameEvent(
-  eventName,
-  data = {}
+  name,
+  detail = {}
 ) {
 
   window.dispatchEvent(
-
     new CustomEvent(
-      eventName,
+      `survival-${name}`,
       {
-        detail: data
+        detail
       }
     )
-
   );
 
 }
 
 
-// ============================================
-// CLAMP HELPER
-// ============================================
+/* ========================================================
+   SYNC PLAYER STATS
+======================================================== */
+
+function syncPlayerStats() {
+
+  GAME.player.health =
+    GAME.health;
+
+  GAME.player.hunger =
+    GAME.hunger;
+
+  GAME.player.thirst =
+    GAME.thirst;
+
+  GAME.player.stamina =
+    GAME.stamina;
+
+}
+
+
+/* ========================================================
+   CLAMP
+======================================================== */
 
 function clamp(
   value,
@@ -331,19 +603,17 @@ function clamp(
 }
 
 
-// ============================================
-// MOVEMENT
-// ============================================
+/* ========================================================
+   MOVE PLAYER
+======================================================== */
 
 export function movePlayer(
-  forward,
-  sideways,
-  delta
+  x,
+  z
 ) {
 
   if (
-    !GAME.alive ||
-    GAME.sleeping
+    GAME.state.gameOver
   ) {
 
     return;
@@ -351,147 +621,49 @@ export function movePlayer(
   }
 
 
-  // Normalize diagonal movement
-
-  const length =
-    Math.sqrt(
-      forward * forward +
-      sideways * sideways
-    );
+  GAME.position.x +=
+    x;
 
 
-  if (
-    length > 1
-  ) {
+  GAME.position.z +=
+    z;
 
-    forward /= length;
-
-    sideways /= length;
-
-  }
-
-
-  // Determine speed
-
-  let speed =
-    CONSTANTS.movementSpeed;
-
-
-  if (
-    player.sprinting &&
-    GAME.stamina > 0
-  ) {
-
-    speed =
-      CONSTANTS.sprintSpeed;
-
-  }
-
-
-  const amount =
-    speed *
-    delta;
-
-
-  // Forward direction
-
-  const directionX =
-    Math.sin(
-      player.rotation
-    );
-
-  const directionZ =
-    Math.cos(
-      player.rotation
-    );
-
-
-  // Move forward/backward
-
-  player.x +=
-    directionX *
-    forward *
-    amount;
-
-  player.z +=
-    directionZ *
-    forward *
-    amount;
-
-
-  // Move sideways
-
-  player.x +=
-    Math.cos(
-      player.rotation
-    ) *
-    sideways *
-    amount;
-
-  player.z -=
-    Math.sin(
-      player.rotation
-    ) *
-    sideways *
-    amount;
-
-
-  // Island boundary
 
   const distance =
     Math.sqrt(
-      player.x * player.x +
-      player.z * player.z
+      x * x +
+      z * z
     );
 
 
-  if (
-    distance >
-    CONSTANTS.islandRadius
-  ) {
-
-    const scale =
-      CONSTANTS.islandRadius /
-      distance;
-
-    player.x *=
-      scale;
-
-    player.z *=
-      scale;
-
-  }
-
-
-  player.moving =
-    Math.abs(forward) > 0 ||
-    Math.abs(sideways) > 0;
+  GAME.statistics.distanceWalked +=
+    distance;
 
 
   gameEvent(
-    "survival-player-moved",
+    "player-moved",
     {
-      x: player.x,
-      y: player.y,
-      z: player.z
+      x: GAME.position.x,
+
+      y: GAME.position.y,
+
+      z: GAME.position.z
     }
   );
 
 }
 
 
-// ============================================
-// TURN PLAYER
-// ============================================
+/* ========================================================
+   TURN PLAYER
+======================================================== */
 
 export function turnPlayer(
-  amount,
-  delta
+  amount
 ) {
 
   if (
-    !GAME.alive ||
-    GAME.sleeping
+    GAME.state.gameOver
   ) {
 
     return;
@@ -499,74 +671,60 @@ export function turnPlayer(
   }
 
 
-  player.rotation +=
-    amount *
-    CONSTANTS.turnSpeed *
-    delta;
+  GAME.position.rotationY +=
+    amount;
 
 
-  // Keep rotation manageable
-
-  if (
-    player.rotation >
-    Math.PI * 2
-  ) {
-
-    player.rotation -=
-      Math.PI * 2;
-
-  }
-
-
-  if (
-    player.rotation <
-    -Math.PI * 2
-  ) {
-
-    player.rotation +=
-      Math.PI * 2;
-
-  }
+  gameEvent(
+    "player-turned",
+    {
+      rotation:
+        GAME.position.rotationY
+    }
+  );
 
 }
 
 
-// ============================================
-// SPRINT
-// ============================================
+/* ========================================================
+   SET SPRINTING
+======================================================== */
 
 export function setSprinting(
-  active
+  value
 ) {
 
-  player.sprinting =
-    !!active;
+  sprinting =
+    Boolean(value);
 
 
-  if (
-    player.sprinting &&
-    GAME.stamina <= 0
-  ) {
-
-    player.sprinting =
-      false;
-
-  }
+  GAME.player.sprinting =
+    sprinting;
 
 }
 
 
-// ============================================
-// SURVIVAL UPDATE
-// ============================================
+/* ========================================================
+   IS SPRINTING
+======================================================== */
+
+export function isSprinting() {
+
+  return sprinting;
+
+}
+
+
+/* ========================================================
+   UPDATE SURVIVAL
+======================================================== */
 
 export function updateSurvival(
   delta
 ) {
 
   if (
-    !GAME.alive ||
-    GAME.sleeping
+    GAME.state.gameOver
   ) {
 
     return;
@@ -574,146 +732,149 @@ export function updateSurvival(
   }
 
 
-  // -------------------------
-  // HUNGER
-  // -------------------------
-
-  GAME.hunger -=
-    CONSTANTS.hungerDrain *
-    delta;
-
-
-  // -------------------------
-  // THIRST
-  // -------------------------
-
-  GAME.thirst -=
-    CONSTANTS.thirstDrain *
-    delta;
-
-
-  // -------------------------
-  // STAMINA
-  // -------------------------
-
   if (
-    player.sprinting &&
-    player.moving
+    GAME.state.paused
   ) {
 
-    GAME.stamina -=
-      CONSTANTS.staminaDrain *
-      delta;
-
-  } else {
-
-    GAME.stamina +=
-      CONSTANTS.staminaRecovery *
-      delta;
+    return;
 
   }
 
 
-  // -------------------------
-  // CLAMP VALUES
-  // -------------------------
+  if (
+    !GAME.player.alive
+  ) {
+
+    return;
+
+  }
+
+
+  /*
+  Hunger.
+  */
+
+  GAME.hunger -=
+    CONSTANTS.HUNGER_DRAIN *
+    delta;
+
+
+  /*
+  Thirst drains slightly faster.
+  */
+
+  GAME.thirst -=
+    CONSTANTS.THIRST_DRAIN *
+    delta;
+
+
+  /*
+  Sprinting uses stamina.
+  */
+
+  if (
+    sprinting
+  ) {
+
+    GAME.stamina -=
+      CONSTANTS.SPRINT_STAMINA_DRAIN *
+      delta;
+
+  }
+
+  else {
+
+    GAME.stamina +=
+      CONSTANTS.STAMINA_REGEN *
+      delta;
+
+  }
+
 
   GAME.hunger =
     clamp(
       GAME.hunger,
       0,
-      GAME.maxHunger
+      CONSTANTS.MAX_HUNGER
     );
+
 
   GAME.thirst =
     clamp(
       GAME.thirst,
       0,
-      GAME.maxThirst
+      CONSTANTS.MAX_THIRST
     );
+
 
   GAME.stamina =
     clamp(
       GAME.stamina,
       0,
-      GAME.maxStamina
+      CONSTANTS.MAX_STAMINA
     );
 
 
-  // -------------------------
-  // STOP SPRINTING
-  // -------------------------
+  /*
+  Low hunger/thirst slowly damages
+  the player.
+  */
 
   if (
-    GAME.stamina <= 0
+    GAME.hunger <= 0
   ) {
 
-    player.sprinting =
-      false;
+    damagePlayer(
+      0.5 * delta
+    );
 
   }
 
 
-  // -------------------------
-  // STARVATION
-  // -------------------------
-
   if (
-    GAME.hunger <= 0 ||
     GAME.thirst <= 0
   ) {
 
     damagePlayer(
-      CONSTANTS.starvationDamage *
-      delta
+      0.8 * delta
     );
 
   }
 
 
-  // -------------------------
-  // DAY/NIGHT TIME
-  // -------------------------
-
-  GAME.time +=
-    CONSTANTS.timeSpeed *
-    delta;
+  syncPlayerStats();
 
 
-  if (
-    GAME.time >= 24
-  ) {
+  gameEvent(
+    "survival-updated",
+    {
+      health:
+        GAME.health,
 
-    GAME.time = 0;
+      hunger:
+        GAME.hunger,
 
-    GAME.day++;
+      thirst:
+        GAME.thirst,
 
-    gameEvent(
-      "survival-new-day",
-      {
-        day: GAME.day
-      }
-    );
-
-  }
-
-
-  player.moving =
-    false;
+      stamina:
+        GAME.stamina
+    }
+  );
 
 }
 
 
-// ============================================
-// DAMAGE PLAYER
-// ============================================
+/* ========================================================
+   DAMAGE PLAYER
+======================================================== */
 
 export function damagePlayer(
   amount
 ) {
 
   if (
-    !GAME.alive
+    !GAME.player.alive
   ) {
 
     return;
@@ -724,7 +885,7 @@ export function damagePlayer(
   GAME.health -=
     Math.max(
       0,
-      amount
+      Number(amount) || 0
     );
 
 
@@ -732,15 +893,20 @@ export function damagePlayer(
     clamp(
       GAME.health,
       0,
-      GAME.maxHealth
+      CONSTANTS.MAX_HEALTH
     );
 
 
+  syncPlayerStats();
+
+
   gameEvent(
-    "survival-player-damaged",
+    "player-damaged",
     {
       amount,
-      health: GAME.health
+
+      health:
+        GAME.health
     }
   );
 
@@ -756,59 +922,55 @@ export function damagePlayer(
 }
 
 
-// ============================================
-// HEAL PLAYER
-// ============================================
+/* ========================================================
+   HEAL PLAYER
+======================================================== */
 
 export function healPlayer(
   amount
 ) {
 
-  if (
-    !GAME.alive
-  ) {
-
-    return;
-
-  }
+  GAME.health +=
+    Math.max(
+      0,
+      Number(amount) || 0
+    );
 
 
   GAME.health =
     clamp(
-      GAME.health +
-      Math.max(
-        0,
-        amount
-      ),
+      GAME.health,
       0,
-      GAME.maxHealth
+      CONSTANTS.MAX_HEALTH
     );
 
 
+  syncPlayerStats();
+
+
   gameEvent(
-    "survival-player-healed",
+    "player-healed",
     {
       amount,
-      health: GAME.health
+
+      health:
+        GAME.health
     }
   );
 
 }
 
 
-// ============================================
-// EAT FOOD
-// ============================================
+/* ========================================================
+   EAT FOOD
+======================================================== */
 
 export function eatFood(
   item = "food"
 ) {
 
   if (
-    !hasItem(
-      item,
-      1
-    )
+    getItemCount(item) <= 0
   ) {
 
     return false;
@@ -824,15 +986,17 @@ export function eatFood(
 
   GAME.hunger =
     clamp(
-      GAME.hunger +
-      CONSTANTS.foodRestore,
+      GAME.hunger + 25,
       0,
-      GAME.maxHunger
+      CONSTANTS.MAX_HUNGER
     );
 
 
+  syncPlayerStats();
+
+
   gameEvent(
-    "survival-food-eaten",
+    "ate-food",
     {
       item
     }
@@ -844,17 +1008,14 @@ export function eatFood(
 }
 
 
-// ============================================
-// DRINK WATER
-// ============================================
+/* ========================================================
+   DRINK WATER
+======================================================== */
 
 export function drinkWater() {
 
   if (
-    !hasItem(
-      "water",
-      1
-    )
+    getItemCount("water") <= 0
   ) {
 
     return false;
@@ -870,15 +1031,20 @@ export function drinkWater() {
 
   GAME.thirst =
     clamp(
-      GAME.thirst +
-      CONSTANTS.waterRestore,
+      GAME.thirst + 35,
       0,
-      GAME.maxThirst
+      CONSTANTS.MAX_THIRST
     );
 
 
+  syncPlayerStats();
+
+
   gameEvent(
-    "survival-water-drunk"
+    "drank-water",
+    {
+      source: "inventory"
+    }
   );
 
 
@@ -887,31 +1053,49 @@ export function drinkWater() {
 }
 
 
-// ============================================
-// KILL PLAYER
-// ============================================
+/* ========================================================
+   KILL PLAYER
+======================================================== */
 
 export function killPlayer() {
-
-  GAME.alive =
-    false;
 
   GAME.health =
     0;
 
-  player.sprinting =
+
+  GAME.player.alive =
     false;
 
+
+  GAME.state.gameOver =
+    true;
+
+
+  sprinting =
+    false;
+
+
+  GAME.player.sprinting =
+    false;
+
+
+  syncPlayerStats();
+
+
   gameEvent(
-    "survival-player-died"
+    "player-died",
+    {
+      day:
+        GAME.world.day
+    }
   );
 
 }
 
 
-// ============================================
-// ADD ITEM
-// ============================================
+/* ========================================================
+   ADD ITEM
+======================================================== */
 
 export function addItem(
   item,
@@ -919,8 +1103,7 @@ export function addItem(
 ) {
 
   if (
-    typeof item !==
-    "string"
+    !item
   ) {
 
     return false;
@@ -928,7 +1111,7 @@ export function addItem(
   }
 
 
-  amount =
+  const value =
     Math.max(
       0,
       Number(amount) || 0
@@ -936,7 +1119,7 @@ export function addItem(
 
 
   if (
-    amount <= 0
+    value <= 0
   ) {
 
     return false;
@@ -945,10 +1128,8 @@ export function addItem(
 
 
   if (
-    !Object.prototype.hasOwnProperty.call(
-      GAME.inventory,
-      item
-    )
+    GAME.inventory[item] ===
+    undefined
   ) {
 
     GAME.inventory[item] =
@@ -958,15 +1139,29 @@ export function addItem(
 
 
   GAME.inventory[item] +=
-    amount;
+    value;
+
+
+  if (
+    GAME.resources[item] !==
+    undefined
+  ) {
+
+    GAME.resources[item] +=
+      value;
+
+  }
 
 
   gameEvent(
-    "survival-inventory-changed",
+    "inventory-changed",
     {
-      action: "add",
       item,
-      amount
+
+      amount: value,
+
+      total:
+        GAME.inventory[item]
     }
   );
 
@@ -976,24 +1171,19 @@ export function addItem(
 }
 
 
-// ============================================
-// REMOVE ITEM
-// ============================================
+/* ========================================================
+   REMOVE ITEM
+======================================================== */
 
 export function removeItem(
   item,
   amount = 1
 ) {
 
-  amount =
-    Math.max(
-      0,
-      Number(amount) || 0
-    );
-
-
   if (
-    amount <= 0
+    !item ||
+    GAME.inventory[item] ===
+    undefined
   ) {
 
     return false;
@@ -1001,11 +1191,16 @@ export function removeItem(
   }
 
 
+  const value =
+    Math.max(
+      0,
+      Number(amount) || 0
+    );
+
+
   if (
-    !hasItem(
-      item,
-      amount
-    )
+    GAME.inventory[item] <
+    value
   ) {
 
     return false;
@@ -1014,15 +1209,33 @@ export function removeItem(
 
 
   GAME.inventory[item] -=
-    amount;
+    value;
+
+
+  if (
+    GAME.resources[item] !==
+    undefined
+  ) {
+
+    GAME.resources[item] =
+      Math.max(
+        0,
+        GAME.resources[item] -
+        value
+      );
+
+  }
 
 
   gameEvent(
-    "survival-inventory-changed",
+    "inventory-changed",
     {
-      action: "remove",
       item,
-      amount
+
+      amount: -value,
+
+      total:
+        GAME.inventory[item]
     }
   );
 
@@ -1032,9 +1245,9 @@ export function removeItem(
 }
 
 
-// ============================================
-// CHECK ITEM
-// ============================================
+/* ========================================================
+   HAS ITEM
+======================================================== */
 
 export function hasItem(
   item,
@@ -1042,33 +1255,31 @@ export function hasItem(
 ) {
 
   return (
-    typeof GAME.inventory[item] ===
-      "number" &&
-    GAME.inventory[item] >=
-      amount
+    getItemCount(item) >=
+    amount
   );
 
 }
 
 
-// ============================================
-// GET ITEM COUNT
-// ============================================
+/* ========================================================
+   GET ITEM COUNT
+======================================================== */
 
 export function getItemCount(
   item
 ) {
 
-  return (
+  return Number(
     GAME.inventory[item] || 0
   );
 
 }
 
 
-// ============================================
-// CLEAR INVENTORY
-// ============================================
+/* ========================================================
+   CLEAR INVENTORY
+======================================================== */
 
 export function clearInventory() {
 
@@ -1085,151 +1296,66 @@ export function clearInventory() {
   }
 
 
+  /*
+  Starting rock.
+  */
+
+  GAME.inventory.rock =
+    1;
+
+
+  GAME.resources.rock =
+    1;
+
+
   gameEvent(
-    "survival-inventory-cleared"
+    "inventory-cleared"
   );
 
 }
 
 
-// ============================================
-// RESOURCE GATHERING
-// ============================================
+/* ========================================================
+   GATHER RESOURCE
+======================================================== */
 
 export function gatherResource(
-  type,
+  resource,
   amount = 1
 ) {
 
-  amount =
-    Math.max(
-      1,
-      Math.floor(
-        Number(amount) || 1
-      )
-    );
-
-
-  // ROCK
-
-  if (
-    type === "rock"
-  ) {
-
+  const added =
     addItem(
-      "rock",
+      resource,
       amount
     );
 
-    GAME.resources.rocksBroken +=
-      amount;
 
-    gameEvent(
-      "survival-resource-gathered",
-      {
-        type: "rock",
-        amount
-      }
-    );
+  if (!added) {
 
-    return true;
+    return false;
 
   }
 
 
-  // STONE
+  gameEvent(
+    "resource-gathered",
+    {
+      resource,
 
-  if (
-    type === "stone"
-  ) {
-
-    addItem(
-      "stone",
       amount
-    );
-
-    GAME.resources.stoneCollected +=
-      amount;
-
-    gameEvent(
-      "survival-resource-gathered",
-      {
-        type: "stone",
-        amount
-      }
-    );
-
-    return true;
-
-  }
+    }
+  );
 
 
-  // TREE / LOG
-
-  if (
-    type === "tree" ||
-    type === "wood"
-  ) {
-
-    addItem(
-      "log",
-      amount
-    );
-
-    GAME.resources.treesBroken +=
-      amount;
-
-    GAME.resources.logsCollected +=
-      amount;
-
-    gameEvent(
-      "survival-resource-gathered",
-      {
-        type: "wood",
-        amount
-      }
-    );
-
-    return true;
-
-  }
-
-
-  // FIBER
-
-  if (
-    type === "fiber"
-  ) {
-
-    addItem(
-      "fiber",
-      amount
-    );
-
-    GAME.resources.fiberCollected +=
-      amount;
-
-    gameEvent(
-      "survival-resource-gathered",
-      {
-        type: "fiber",
-        amount
-      }
-    );
-
-    return true;
-
-  }
-
-
-  return false;
+  return true;
 
 }
 
 
-// ============================================
-// CRAFT STRING
-// ============================================
+/* ========================================================
+   CRAFT STRING
+======================================================== */
 
 export function craftString() {
 
@@ -1257,14 +1383,8 @@ export function craftString() {
   );
 
 
-  GAME.crafting.itemsCrafted++;
-
-
-  gameEvent(
-    "survival-item-crafted",
-    {
-      item: "string"
-    }
+  registerCraft(
+    "string"
   );
 
 
@@ -1273,15 +1393,15 @@ export function craftString() {
 }
 
 
-// ============================================
-// CRAFT STICKS
-// ============================================
+/* ========================================================
+   CRAFT STICK
+======================================================== */
 
 export function craftStick() {
 
   if (
     !hasItem(
-      "log",
+      "wood",
       1
     )
   ) {
@@ -1292,25 +1412,19 @@ export function craftStick() {
 
 
   removeItem(
-    "log",
+    "wood",
     1
   );
 
 
   addItem(
     "stick",
-    3
+    2
   );
 
 
-  GAME.crafting.itemsCrafted++;
-
-
-  gameEvent(
-    "survival-item-crafted",
-    {
-      item: "stick"
-    }
+  registerCraft(
+    "stick"
   );
 
 
@@ -1319,9 +1433,45 @@ export function craftStick() {
 }
 
 
-// ============================================
-// SIDE STORAGE
-// ============================================
+/* ========================================================
+   REGISTER CRAFT
+======================================================== */
+
+export function registerCraft(
+  recipe
+) {
+
+  GAME.crafting.crafted[recipe] =
+    (
+      GAME.crafting.crafted[recipe] ||
+      0
+    ) + 1;
+
+
+  GAME.crafting.lastCrafted =
+    recipe;
+
+
+  GAME.statistics.itemsCrafted +=
+    1;
+
+
+  gameEvent(
+    "crafted",
+    {
+      recipe,
+
+      total:
+        GAME.crafting.crafted[recipe]
+    }
+  );
+
+}
+
+
+/* ========================================================
+   PUT ITEM IN SIDE STORAGE
+======================================================== */
 
 export function putOnSide(
   side,
@@ -1329,21 +1479,8 @@ export function putOnSide(
 ) {
 
   if (
-    side !== "left" &&
-    side !== "right"
-  ) {
-
-    return false;
-
-  }
-
-
-  if (
-    GAME.equipment[
-      side === "left"
-        ? "leftSide"
-        : "rightSide"
-    ]
+    side !== "leftSide" &&
+    side !== "rightSide"
   ) {
 
     return false;
@@ -1363,26 +1500,30 @@ export function putOnSide(
   }
 
 
+  if (
+    GAME.equipment[side]
+  ) {
+
+    return false;
+
+  }
+
+
   removeItem(
     item,
     1
   );
 
 
-  const key =
-    side === "left"
-      ? "leftSide"
-      : "rightSide";
-
-
-  GAME.equipment[key] =
+  GAME.equipment[side] =
     item;
 
 
   gameEvent(
-    "survival-side-storage-changed",
+    "side-storage-changed",
     {
       side,
+
       item
     }
   );
@@ -1393,24 +1534,17 @@ export function putOnSide(
 }
 
 
-// ============================================
-// TAKE FROM SIDE
-// ============================================
+/* ========================================================
+   TAKE ITEM FROM SIDE STORAGE
+======================================================== */
 
 export function takeFromSide(
   side
 ) {
 
-  const key =
-    side === "left"
-      ? "leftSide"
-      : side === "right"
-        ? "rightSide"
-        : null;
-
-
   if (
-    !key
+    side !== "leftSide" &&
+    side !== "rightSide"
   ) {
 
     return null;
@@ -1419,20 +1553,14 @@ export function takeFromSide(
 
 
   const item =
-    GAME.equipment[key];
+    GAME.equipment[side];
 
 
-  if (
-    !item
-  ) {
+  if (!item) {
 
     return null;
 
   }
-
-
-  GAME.equipment[key] =
-    null;
 
 
   addItem(
@@ -1441,10 +1569,15 @@ export function takeFromSide(
   );
 
 
+  GAME.equipment[side] =
+    null;
+
+
   gameEvent(
-    "survival-side-storage-changed",
+    "side-storage-changed",
     {
       side,
+
       item: null
     }
   );
@@ -1455,9 +1588,9 @@ export function takeFromSide(
 }
 
 
-// ============================================
-// HOLD ITEM IN HAND
-// ============================================
+/* ========================================================
+   HOLD ITEM
+======================================================== */
 
 export function holdItem(
   hand,
@@ -1474,41 +1607,15 @@ export function holdItem(
   }
 
 
-  if (
-    GAME.hands[hand]
-  ) {
-
-    return false;
-
-  }
-
-
-  if (
-    !hasItem(
-      item,
-      1
-    )
-  ) {
-
-    return false;
-
-  }
-
-
-  removeItem(
-    item,
-    1
-  );
-
-
   GAME.hands[hand] =
     item;
 
 
   gameEvent(
-    "survival-item-held",
+    "hand-item-changed",
     {
       hand,
+
       item
     }
   );
@@ -1519,9 +1626,9 @@ export function holdItem(
 }
 
 
-// ============================================
-// RELEASE ITEM
-// ============================================
+/* ========================================================
+   RELEASE ITEM
+======================================================== */
 
 export function releaseItem(
   hand
@@ -1541,30 +1648,16 @@ export function releaseItem(
     GAME.hands[hand];
 
 
-  if (
-    !item
-  ) {
-
-    return null;
-
-  }
-
-
   GAME.hands[hand] =
     null;
 
 
-  addItem(
-    item,
-    1
-  );
-
-
   gameEvent(
-    "survival-item-released",
+    "hand-item-changed",
     {
       hand,
-      item
+
+      item: null
     }
   );
 
@@ -1574,72 +1667,69 @@ export function releaseItem(
 }
 
 
-// ============================================
-// CHECK WHAT IS IN HAND
-// ============================================
+/* ========================================================
+   GET HELD ITEM
+======================================================== */
 
 export function getHeldItem(
   hand
 ) {
 
-  if (
-    hand !== "left" &&
-    hand !== "right"
-  ) {
-
-    return null;
-
-  }
-
-
-  return GAME.hands[hand];
+  return (
+    GAME.hands[hand] ||
+    null
+  );
 
 }
 
 
-// ============================================
-// BUILDING MATERIALS
-// ============================================
+/* ========================================================
+   BUILDING
+======================================================== */
 
 export function addBuildingPiece(
   type
 ) {
 
   if (
-    !GAME.building[
-      type
-    ] &&
-    GAME.building[type] !== 0
+    GAME.buildings[type] ===
+    undefined
   ) {
 
-    GAME.building[type] =
+    GAME.buildings[type] =
       0;
 
   }
 
 
-  GAME.building[type]++;
+  GAME.buildings[type] +=
+    1;
 
 
-  GAME.building.placedObjects++;
+  GAME.buildings.total +=
+    1;
+
+
+  GAME.statistics.buildingsBuilt +=
+    1;
 
 
   gameEvent(
-    "survival-building-placed",
+    "building-added",
     {
-      type
+      type,
+
+      total:
+        GAME.buildings[type]
     }
   );
-
-
-  return true;
 
 }
 
 
-// ============================================
-// UNLOCK RECIPE
-// ============================================
+/* ========================================================
+   UNLOCK RECIPE
+======================================================== */
 
 export function unlockRecipe(
   recipe
@@ -1655,26 +1745,22 @@ export function unlockRecipe(
       recipe
     );
 
+
     gameEvent(
-      "survival-recipe-unlocked",
+      "recipe-unlocked",
       {
         recipe
       }
     );
 
-    return true;
-
   }
-
-
-  return false;
 
 }
 
 
-// ============================================
-// RECIPE CHECK
-// ============================================
+/* ========================================================
+   RECIPE UNLOCK CHECK
+======================================================== */
 
 export function recipeUnlocked(
   recipe
@@ -1687,25 +1773,393 @@ export function recipeUnlocked(
 }
 
 
-// ============================================
-// SAVE DATA
-// ============================================
+/* ========================================================
+   WORLD POSITION
+======================================================== */
+
+export function setPlayerPosition(
+  x,
+  y = 0,
+  z = 0,
+  rotationY = 0
+) {
+
+  GAME.position.x =
+    Number(x) || 0;
+
+  GAME.position.y =
+    Number(y) || 0;
+
+  GAME.position.z =
+    Number(z) || 0;
+
+  GAME.position.rotationY =
+    Number(rotationY) || 0;
+
+
+  gameEvent(
+    "player-position-changed",
+    {
+      ...GAME.position
+    }
+  );
+
+}
+
+
+/* ========================================================
+   WORLD TIME
+======================================================== */
+
+export function setWorldTime(
+  time
+) {
+
+  let value =
+    Number(time);
+
+
+  if (
+    !Number.isFinite(value)
+  ) {
+
+    value =
+      8;
+
+  }
+
+
+  while (
+    value < 0
+  ) {
+
+    value +=
+      24;
+
+  }
+
+
+  while (
+    value >= 24
+  ) {
+
+    value -=
+      24;
+
+  }
+
+
+  GAME.world.time =
+    value;
+
+
+  gameEvent(
+    "world-time-changed",
+    {
+      time:
+        value
+    }
+  );
+
+}
+
+
+/* ========================================================
+   WORLD DAY
+======================================================== */
+
+export function setWorldDay(
+  day
+) {
+
+  GAME.world.day =
+    Math.max(
+      1,
+      Math.floor(
+        Number(day) || 1
+      )
+    );
+
+
+  gameEvent(
+    "world-day-changed",
+    {
+      day:
+        GAME.world.day
+    }
+  );
+
+}
+
+
+/* ========================================================
+   WORLD NAME
+======================================================== */
+
+export function setWorldName(
+  name
+) {
+
+  const cleaned =
+    String(
+      name ??
+      "Island World"
+    )
+    .trim()
+    .slice(
+      0,
+      40
+    );
+
+
+  GAME.world.name =
+    cleaned ||
+    "Island World";
+
+
+  gameEvent(
+    "world-name-changed",
+    {
+      name:
+        GAME.world.name
+    }
+  );
+
+}
+
+
+/* ========================================================
+   WORLD SEED
+======================================================== */
+
+export function setWorldSeed(
+  seed
+) {
+
+  GAME.world.seed =
+    String(
+      seed
+    );
+
+
+  gameEvent(
+    "world-seed-changed",
+    {
+      seed:
+        GAME.world.seed
+    }
+  );
+
+}
+
+
+/* ========================================================
+   CREATE WORLD ID
+======================================================== */
+
+export function createWorldId() {
+
+  return (
+    "world-" +
+    Date.now() +
+    "-" +
+    Math.random()
+      .toString(36)
+      .slice(2, 9)
+  );
+
+}
+
+
+/* ========================================================
+   CREATE NEW WORLD STATE
+======================================================== */
+
+export function createNewWorld(
+  name = "Island World",
+  seed = null
+) {
+
+  resetGame();
+
+
+  GAME.world.id =
+    createWorldId();
+
+
+  GAME.world.name =
+    String(
+      name
+    )
+    .trim()
+    .slice(
+      0,
+      40
+    ) ||
+    "Island World";
+
+
+  GAME.world.seed =
+    seed ??
+    Math.floor(
+      Math.random() *
+      2147483647
+    );
+
+
+  GAME.world.createdAt =
+    Date.now();
+
+
+  GAME.world.lastSavedAt =
+    null;
+
+
+  GAME.world.day =
+    1;
+
+
+  GAME.world.time =
+    8;
+
+
+  GAME.state.started =
+    true;
+
+
+  GAME.state.paused =
+    false;
+
+
+  GAME.state.gameOver =
+    false;
+
+
+  gameEvent(
+    "new-world",
+    {
+      id:
+        GAME.world.id,
+
+      name:
+        GAME.world.name,
+
+      seed:
+        GAME.world.seed
+    }
+  );
+
+
+  return GAME.world.id;
+
+}
+
+
+/* ========================================================
+   SAVE DATA
+======================================================== */
 
 export function getGameData() {
 
+  syncPlayerStats();
+
+
   return {
 
-    version:
-      GAME.version,
+    saveVersion:
+      CONSTANTS.SAVE_VERSION,
 
-    GAME:
+    gameVersion:
+      GAME_VERSION,
+
+
+    world:
       structuredClone(
-        GAME
+        GAME.world
       ),
+
 
     player:
       structuredClone(
-        player
+        GAME.player
+      ),
+
+
+    position:
+      structuredClone(
+        GAME.position
+      ),
+
+
+    inventory:
+      structuredClone(
+        GAME.inventory
+      ),
+
+
+    equipment:
+      structuredClone(
+        GAME.equipment
+      ),
+
+
+    hands:
+      structuredClone(
+        GAME.hands
+      ),
+
+
+    resources:
+      structuredClone(
+        GAME.resources
+      ),
+
+
+    buildings:
+      structuredClone(
+        GAME.buildings
+      ),
+
+
+    crafting:
+      structuredClone(
+        GAME.crafting
+      ),
+
+
+    guide:
+      structuredClone(
+        GAME.guide
+      ),
+
+
+    animals:
+      structuredClone(
+        GAME.animals
+      ),
+
+
+    environment:
+      structuredClone(
+        GAME.environment
+      ),
+
+
+    settings:
+      structuredClone(
+        GAME.settings
+      ),
+
+
+    state:
+      structuredClone(
+        GAME.state
+      ),
+
+
+    statistics:
+      structuredClone(
+        GAME.statistics
       )
 
   };
@@ -1713,45 +2167,534 @@ export function getGameData() {
 }
 
 
-// ============================================
-// RESET GAME
-// ============================================
+/* ========================================================
+   LOAD SAVE DATA
+======================================================== */
+
+export function loadGameData(
+  data
+) {
+
+  if (
+    !data ||
+    typeof data !==
+    "object"
+  ) {
+
+    return false;
+
+  }
+
+
+  try {
+
+    /*
+    World
+    */
+
+    if (
+      data.world
+    ) {
+
+      GAME.world =
+        mergeObject(
+          GAME.world,
+          data.world
+        );
+
+    }
+
+
+    /*
+    Player
+    */
+
+    if (
+      data.player
+    ) {
+
+      GAME.player =
+        mergeObject(
+          GAME.player,
+          data.player
+        );
+
+    }
+
+
+    /*
+    Position
+    */
+
+    if (
+      data.position
+    ) {
+
+      GAME.position =
+        mergeObject(
+          GAME.position,
+          data.position
+        );
+
+    }
+
+
+    /*
+    Inventory
+    */
+
+    if (
+      data.inventory
+    ) {
+
+      GAME.inventory =
+        mergeObject(
+          GAME.inventory,
+          data.inventory
+        );
+
+    }
+
+
+    /*
+    Equipment
+    */
+
+    if (
+      data.equipment
+    ) {
+
+      GAME.equipment =
+        mergeObject(
+          GAME.equipment,
+          data.equipment
+        );
+
+    }
+
+
+    /*
+    Hands
+    */
+
+    if (
+      data.hands
+    ) {
+
+      GAME.hands =
+        mergeObject(
+          GAME.hands,
+          data.hands
+        );
+
+    }
+
+
+    /*
+    Resources
+    */
+
+    if (
+      data.resources
+    ) {
+
+      GAME.resources =
+        mergeObject(
+          GAME.resources,
+          data.resources
+        );
+
+    }
+
+
+    /*
+    Buildings
+    */
+
+    if (
+      data.buildings
+    ) {
+
+      GAME.buildings =
+        mergeObject(
+          GAME.buildings,
+          data.buildings
+        );
+
+    }
+
+
+    /*
+    Crafting
+    */
+
+    if (
+      data.crafting
+    ) {
+
+      GAME.crafting =
+        mergeObject(
+          GAME.crafting,
+          data.crafting
+        );
+
+    }
+
+
+    /*
+    Guide
+    */
+
+    if (
+      data.guide
+    ) {
+
+      GAME.guide =
+        mergeObject(
+          GAME.guide,
+          data.guide
+        );
+
+    }
+
+
+    /*
+    Animals
+    */
+
+    if (
+      data.animals
+    ) {
+
+      GAME.animals =
+        mergeObject(
+          GAME.animals,
+          data.animals
+        );
+
+    }
+
+
+    /*
+    Environment
+    */
+
+    if (
+      data.environment
+    ) {
+
+      GAME.environment =
+        mergeObject(
+          GAME.environment,
+          data.environment
+        );
+
+    }
+
+
+    /*
+    Settings
+    */
+
+    if (
+      data.settings
+    ) {
+
+      GAME.settings =
+        mergeObject(
+          GAME.settings,
+          data.settings
+        );
+
+    }
+
+
+    /*
+    State
+    */
+
+    if (
+      data.state
+    ) {
+
+      GAME.state =
+        mergeObject(
+          GAME.state,
+          data.state
+        );
+
+    }
+
+
+    /*
+    Statistics
+    */
+
+    if (
+      data.statistics
+    ) {
+
+      GAME.statistics =
+        mergeObject(
+          GAME.statistics,
+          data.statistics
+        );
+
+    }
+
+
+    /*
+    Compatibility:
+    keep old direct stats synchronized.
+    */
+
+    GAME.health =
+      GAME.player.health;
+
+    GAME.hunger =
+      GAME.player.hunger;
+
+    GAME.thirst =
+      GAME.player.thirst;
+
+    GAME.stamina =
+      GAME.player.stamina;
+
+
+    gameEvent(
+      "game-loaded",
+      {
+        world:
+          GAME.world.name
+      }
+    );
+
+
+    return true;
+
+  }
+
+  catch (
+    error
+  ) {
+
+    console.error(
+      "Failed to load game data:",
+      error
+    );
+
+
+    return false;
+
+  }
+
+}
+
+
+/* ========================================================
+   MERGE OBJECT
+======================================================== */
+
+function mergeObject(
+  original,
+  incoming
+) {
+
+  const result =
+    {
+      ...original
+    };
+
+
+  for (
+    const key
+    of Object.keys(
+      incoming
+    )
+  ) {
+
+    const incomingValue =
+      incoming[key];
+
+
+    const originalValue =
+      original[key];
+
+
+    if (
+      incomingValue &&
+      typeof incomingValue ===
+      "object" &&
+      !Array.isArray(
+        incomingValue
+      ) &&
+      originalValue &&
+      typeof originalValue ===
+      "object" &&
+      !Array.isArray(
+        originalValue
+      )
+    ) {
+
+      result[key] =
+        mergeObject(
+          originalValue,
+          incomingValue
+        );
+
+    }
+
+    else {
+
+      result[key] =
+        structuredClone(
+          incomingValue
+        );
+
+    }
+
+  }
+
+
+  return result;
+
+}
+
+
+/* ========================================================
+   RESET GAME
+======================================================== */
 
 export function resetGame() {
 
+  GAME.world = {
+
+    id: null,
+
+    name: "Island World",
+
+    seed: null,
+
+    createdAt: null,
+
+    lastSavedAt: null,
+
+    day: 1,
+
+    time: 8,
+
+    weather: "sunny"
+
+  };
+
+
+  GAME.player = {
+
+    health: 100,
+
+    hunger: 100,
+
+    thirst: 100,
+
+    stamina: 100,
+
+    alive: true,
+
+    sleeping: false,
+
+    sprinting: false
+
+  };
+
+
   GAME.health =
-    GAME.maxHealth;
+    100;
 
   GAME.hunger =
-    GAME.maxHunger;
+    100;
 
   GAME.thirst =
-    GAME.maxThirst;
+    100;
 
   GAME.stamina =
-    GAME.maxStamina;
+    100;
 
 
-  GAME.day =
-    1;
+  GAME.position = {
 
-  GAME.time =
-    8;
+    x: 0,
 
+    y: 0,
 
-  GAME.alive =
-    true;
+    z: 8,
 
+    rotationY: 0
 
-  GAME.sleeping =
-    false;
-
-
-  GAME.swimming =
-    false;
+  };
 
 
   GAME.inventory = {
+
+    rock: 1,
+
+    stone: 0,
+
+    wood: 0,
+
+    log: 0,
+
+    stick: 0,
+
+    fiber: 0,
+
+    string: 0,
+
+    leaf: 0,
+
+    food: 0,
+
+    water: 0,
+
+    rawMeat: 0,
+
+    cookedMeat: 0,
+
+    stoneAxe: 0,
+
+    stonePickaxe: 0,
+
+    campfire: 0,
+
+    storageBox: 0,
+
+    woodWall: 0,
+
+    woodFloor: 0,
+
+    woodDoor: 0
+
+  };
+
+
+  GAME.equipment = {
+
+    leftSide: null,
+
+    rightSide: null
+
+  };
+
+
+  GAME.hands = {
+
+    left: null,
+
+    right: null
+
+  };
+
+
+  GAME.resources = {
 
     rock: 1,
 
@@ -1780,131 +2723,251 @@ export function resetGame() {
   };
 
 
-  GAME.equipment = {
+  GAME.buildings = {
 
-    leftSide: null,
+    total: 0,
 
-    rightSide: null
+    woodFloor: 0,
 
-  };
+    woodWall: 0,
 
+    woodDoor: 0,
 
-  GAME.hands = {
+    campfire: 0,
 
-    left: null,
-
-    right: null
-
-  };
-
-
-  GAME.resources = {
-
-    treesBroken: 0,
-
-    rocksBroken: 0,
-
-    logsCollected: 0,
-
-    stoneCollected: 0,
-
-    fiberCollected: 0
-
-  };
-
-
-  GAME.building = {
-
-    woodWalls: 0,
-
-    stoneWalls: 0,
-
-    floors: 0,
-
-    roofs: 0,
-
-    doors: 0,
-
-    placedObjects: 0
+    storageBox: 0
 
   };
 
 
   GAME.crafting = {
 
-    itemsCrafted: 0,
-
     unlockedRecipes: [
 
       "string",
 
-      "stick"
+      "stick",
 
-    ]
+      "woodPlank",
+
+      "stone"
+
+    ],
+
+    crafted: {},
+
+    lastCrafted: null
 
   };
 
 
   GAME.guide = {
 
-    opened: false,
+    discoveredPages: [
 
-    page: 1
+      "first_day",
+
+      "gathering",
+
+      "survival"
+
+    ],
+
+    discoveredRecipes: [
+
+      "string",
+
+      "stick"
+
+    ],
+
+    currentPage: 0
 
   };
 
 
-  GAME.hands = {
+  GAME.animals = {
 
-    left: null,
+    rabbits: [],
 
-    right: null
+    deer: [],
+
+    birds: [],
+
+    total: 0
 
   };
 
 
-  player.x =
-    0;
+  GAME.environment = {
 
-  player.y =
-    0;
+    wind: {
 
-  player.z =
-    7;
+      direction: 0,
 
-  player.rotation =
-    0;
+      strength: 0.35
 
-  player.moving =
-    false;
+    },
 
-  player.sprinting =
+    waterLevel: 0,
+
+    grassDensity: 1,
+
+    treeDensity: 1
+
+  };
+
+
+  GAME.state = {
+
+    started: false,
+
+    paused: false,
+
+    gameOver: false,
+
+    loading: false,
+
+    inVR: false
+
+  };
+
+
+  GAME.statistics = {
+
+    treesCut: 0,
+
+    rocksBroken: 0,
+
+    logsCollected: 0,
+
+    itemsCrafted: 0,
+
+    buildingsBuilt: 0,
+
+    animalsSeen: 0,
+
+    daysSurvived: 0,
+
+    distanceWalked: 0
+
+  };
+
+
+  sprinting =
     false;
 
 
   gameEvent(
-    "survival-game-reset"
+    "game-reset"
   );
 
 }
 
 
-// ============================================
-// GAME INFORMATION
-// ============================================
+/* ========================================================
+   PAUSE
+======================================================== */
+
+export function setPaused(
+  paused
+) {
+
+  GAME.state.paused =
+    Boolean(
+      paused
+    );
+
+
+  if (
+    GAME.state.paused
+  ) {
+
+    sprinting =
+      false;
+
+    GAME.player.sprinting =
+      false;
+
+  }
+
+
+  gameEvent(
+    "pause-changed",
+    {
+      paused:
+        GAME.state.paused
+    }
+  );
+
+}
+
+
+/* ========================================================
+   SET VR STATE
+======================================================== */
+
+export function setVRState(
+  inVR
+) {
+
+  GAME.state.inVR =
+    Boolean(
+      inVR
+    );
+
+
+  gameEvent(
+    "vr-state-changed",
+    {
+      inVR:
+        GAME.state.inVR
+    }
+  );
+
+}
+
+
+/* ========================================================
+   SAVE TIMESTAMP
+======================================================== */
+
+export function markSaved() {
+
+  GAME.world.lastSavedAt =
+    Date.now();
+
+
+  gameEvent(
+    "save-marked",
+    {
+      time:
+        GAME.world.lastSavedAt
+    }
+  );
+
+}
+
+
+/* ========================================================
+   GET GAME INFO
+======================================================== */
 
 export function getGameInfo() {
 
   return {
 
     version:
-      GAME.version,
+      GAME_VERSION,
+
+    world:
+      GAME.world.name,
 
     day:
-      GAME.day,
+      GAME.world.day,
 
     time:
-      GAME.time,
+      GAME.world.time,
 
     health:
       GAME.health,
@@ -1919,52 +2982,26 @@ export function getGameInfo() {
       GAME.stamina,
 
     alive:
-      GAME.alive,
+      GAME.player.alive,
 
-    inventory:
-      {
-        ...GAME.inventory
-      },
+    paused:
+      GAME.state.paused,
 
-    equipment:
-      {
-        ...GAME.equipment
-      },
-
-    hands:
-      {
-        ...GAME.hands
-      },
-
-    resources:
-      {
-        ...GAME.resources
-      },
-
-    building:
-      {
-        ...GAME.building
-      },
-
-    crafting:
-      {
-        ...GAME.crafting
-      }
+    inVR:
+      GAME.state.inVR
 
   };
 
 }
 
 
-// ============================================
-// STARTUP MESSAGE
-// ============================================
+/* ========================================================
+   INITIAL SYNC
+======================================================== */
+
+syncPlayerStats();
+
 
 console.log(
-  "🏝️ Island Survival VR core loaded."
-);
-
-console.log(
-  "Game version:",
-  GAME_VERSION
+  `🏝️ Island Survival VR Game Core v${GAME_VERSION} loaded.`
 );
