@@ -1,19 +1,7 @@
-/*
-==========================================================
-ISLAND SURVIVAL VR
-BUILDING SYSTEM
-==========================================================
-
-Connects to:
-- game.js
-- crafting.js
-- index.html
-- inventory.js
-- future guide.js
-- future world.js
-
-==========================================================
-*/
+// building.js
+// Survival VR — Building System
+// Handles building selection, ghost placement, snapping,
+// material checking, placement validation, and VR/keyboard controls.
 
 import {
   GAME,
@@ -28,1764 +16,1378 @@ import {
   RECIPES
 } from "./crafting.js";
 
+const SurvivalVR = window.SurvivalVR;
+const THREE = SurvivalVR.THREE;
 
-/* ========================================================
-   VERSION
-======================================================== */
-
-export const BUILDING_VERSION = 1;
-
-
-/* ========================================================
-   BUILDABLE OBJECTS
-======================================================== */
-
-export const BUILDINGS = {
-
+const BUILDINGS = {
   woodFloor: {
     id: "woodFloor",
     name: "Wood Floor",
-    category: "foundation",
+    icon: "▰",
+    size: [2.8, 0.18, 2.8],
+    yOffset: 0.09,
+    color: 0x8b5a2b,
     recipe: "woodFloor",
-    size: {
-      x: 3,
-      y: 0.2,
-      z: 3
-    },
-    color: 0x80502d
+    type: "floor"
   },
 
   woodWall: {
     id: "woodWall",
     name: "Wood Wall",
-    category: "wall",
+    icon: "▥",
+    size: [2.8, 2.6, 0.18],
+    yOffset: 1.3,
+    color: 0x74451f,
     recipe: "woodWall",
-    size: {
-      x: 3,
-      y: 2.8,
-      z: 0.2
-    },
-    color: 0x70452a
+    type: "wall"
   },
 
   woodDoor: {
     id: "woodDoor",
     name: "Wood Door",
-    category: "door",
+    icon: "▣",
+    size: [2.8, 2.6, 0.18],
+    yOffset: 1.3,
+    color: 0x5b351a,
     recipe: "woodDoor",
-    size: {
-      x: 1.4,
-      y: 2.7,
-      z: 0.2
-    },
-    color: 0x70452a
+    type: "door"
   },
 
   campfire: {
     id: "campfire",
     name: "Campfire",
-    category: "survival",
+    icon: "🔥",
+    size: [1.4, 0.8, 1.4],
+    yOffset: 0.4,
+    color: 0x555555,
     recipe: "campfire",
-    size: {
-      x: 1.5,
-      y: 0.6,
-      z: 1.5
-    },
-    color: 0x555555
+    type: "campfire"
   },
 
   storageBox: {
     id: "storageBox",
     name: "Storage Box",
-    category: "storage",
+    icon: "▣",
+    size: [1.5, 1.1, 1.1],
+    yOffset: 0.55,
+    color: 0x6e421e,
     recipe: "storageBox",
-    size: {
-      x: 1.5,
-      y: 1,
-      z: 1
-    },
-    color: 0x70452a
+    type: "storage"
   }
-
 };
 
-
-/* ========================================================
-   BUILDING STATE
-======================================================== */
+const BUILDING_ORDER = [
+  "woodFloor",
+  "woodWall",
+  "woodDoor",
+  "campfire",
+  "storageBox"
+];
 
 const buildingState = {
-
   active: false,
-
+  initialized: false,
   selectedBuilding: "woodFloor",
 
   rotation: 0,
-
   gridSize: 0.5,
-
-  distance: 3,
+  placementDistance: 3.2,
 
   ghost: null,
-
   validPlacement: false,
 
-  builtCount: {},
+  lastPlacement: 0,
+  placementCooldown: 250,
 
-  mode: "place"
+  ui: null,
+  buttons: new Map(),
 
+  campfires: [],
+  storageBoxes: []
 };
 
+SurvivalVR.systems.building = buildingState;
 
-/* ========================================================
-   REGISTER SYSTEM
-======================================================== */
+// --------------------------------------------------
+// UTILITIES
+// --------------------------------------------------
 
-if (
-  window.SurvivalVR &&
-  window.SurvivalVR.systems
-) {
-
-  window.SurvivalVR.systems.building = {
-
-    version: BUILDING_VERSION,
-
-    buildings: BUILDINGS,
-
-    state: buildingState,
-
-    open: openBuilding,
-
-    close: closeBuilding,
-
-    toggle: toggleBuilding,
-
-    select: selectBuilding,
-
-    rotate: rotateBuilding,
-
-    place: placeBuilding,
-
-    canPlace: canPlaceBuilding,
-
-    getBuilding: getBuilding
-
-  };
-
+function getBuilding(id) {
+  return BUILDINGS[id] || null;
 }
 
-
-/* ========================================================
-   GET BUILDING
-======================================================== */
-
-export function getBuilding(
-  buildingId
-) {
-
-  return (
-    BUILDINGS[buildingId] ||
-    null
-  );
-
+function getRecipe(id) {
+  return RECIPES[id] || null;
 }
 
-
-/* ========================================================
-   OPEN BUILD MODE
-======================================================== */
-
-export function openBuilding(
-  buildingId = buildingState.selectedBuilding
-) {
-
-  if (!getBuilding(buildingId)) {
-
-    buildingId = "woodFloor";
-
+function getRecipeText(recipe) {
+  if (!recipe || !recipe.ingredients) {
+    return "No materials";
   }
 
-
-  buildingState.active = true;
-
-  buildingState.selectedBuilding =
-    buildingId;
-
-
-  createGhost();
-
-  updateGhost();
-
-  showBuildingMessage(
-    `Building: ${getBuilding(buildingId).name}`
-  );
-
+  return Object.entries(recipe.ingredients)
+    .map(([item, amount]) => {
+      return `${formatItemName(item)} ×${amount}`;
+    })
+    .join("  •  ");
 }
 
-
-/* ========================================================
-   CLOSE BUILD MODE
-======================================================== */
-
-export function closeBuilding() {
-
-  buildingState.active = false;
-
-  removeGhost();
-
+function formatItemName(item) {
+  return String(item)
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, char => char.toUpperCase());
 }
 
+function showMessage(text, duration = 2200) {
+  const message = document.getElementById("message");
 
-/* ========================================================
-   TOGGLE BUILD MODE
-======================================================== */
-
-export function toggleBuilding() {
-
-  if (buildingState.active) {
-
-    closeBuilding();
-
-  } else {
-
-    openBuilding();
-
+  if (!message) {
+    return;
   }
 
+  message.textContent = text;
+  message.classList.remove("hidden");
+
+  clearTimeout(showMessage.timer);
+
+  showMessage.timer = setTimeout(() => {
+    message.classList.add("hidden");
+  }, duration);
 }
 
+function hasMaterials(buildingId) {
+  const building = getBuilding(buildingId);
 
-/* ========================================================
-   SELECT BUILDING
-======================================================== */
-
-export function selectBuilding(
-  buildingId
-) {
-
-  if (!getBuilding(buildingId)) {
-
+  if (!building) {
     return false;
-
   }
 
-
-  buildingState.selectedBuilding =
-    buildingId;
-
-
-  if (buildingState.active) {
-
-    createGhost();
-
-    updateGhost();
-
-  }
-
-
-  return true;
-
-}
-
-
-/* ========================================================
-   ROTATE BUILDING
-======================================================== */
-
-export function rotateBuilding(
-  amount = 1
-) {
-
-  buildingState.rotation +=
-    Math.PI / 2 * amount;
-
-
-  if (
-    buildingState.rotation >
-    Math.PI * 2
-  ) {
-
-    buildingState.rotation -=
-      Math.PI * 2;
-
-  }
-
-
-  if (
-    buildingState.rotation <
-    0
-  ) {
-
-    buildingState.rotation +=
-      Math.PI * 2;
-
-  }
-
-
-  updateGhost();
-
-}
-
-
-/* ========================================================
-   CREATE GHOST
-======================================================== */
-
-function createGhost() {
-
-  removeGhost();
-
-
-  const THREE =
-    window.SurvivalVR?.THREE;
-
-
-  const scene =
-    window.SurvivalVR?.scene;
-
-
-  if (!THREE || !scene) {
-
-    return;
-
-  }
-
-
-  const building =
-    getBuilding(
-      buildingState.selectedBuilding
-    );
-
-
-  if (!building) {
-
-    return;
-
-  }
-
-
-  const geometry =
-    new THREE.BoxGeometry(
-      building.size.x,
-      building.size.y,
-      building.size.z
-    );
-
-
-  const material =
-    new THREE.MeshStandardMaterial({
-
-      color: building.color,
-
-      transparent: true,
-
-      opacity: 0.45,
-
-      depthWrite: false
-
-    });
-
-
-  const ghost =
-    new THREE.Mesh(
-      geometry,
-      material
-    );
-
-
-  ghost.userData.type =
-    "buildingGhost";
-
-
-  ghost.userData.building =
-    building.id;
-
-
-  scene.add(
-    ghost
-  );
-
-
-  buildingState.ghost =
-    ghost;
-
-}
-
-
-/* ========================================================
-   REMOVE GHOST
-======================================================== */
-
-function removeGhost() {
-
-  if (
-    buildingState.ghost
-  ) {
-
-    buildingState.ghost.parent?.remove(
-      buildingState.ghost
-    );
-
-    buildingState.ghost.geometry?.dispose();
-
-    buildingState.ghost.material?.dispose();
-
-    buildingState.ghost = null;
-
-  }
-
-}
-
-
-/* ========================================================
-   UPDATE GHOST
-======================================================== */
-
-function updateGhost() {
-
-  const THREE =
-    window.SurvivalVR?.THREE;
-
-
-  const camera =
-    window.SurvivalVR?.camera;
-
-
-  const ghost =
-    buildingState.ghost;
-
-
-  if (
-    !THREE ||
-    !camera ||
-    !ghost
-  ) {
-
-    return;
-
-  }
-
-
-  const direction =
-    new THREE.Vector3(
-      0,
-      0,
-      -1
-    );
-
-
-  direction.applyQuaternion(
-    camera.quaternion
-  );
-
-
-  direction.y = 0;
-
-
-  if (
-    direction.lengthSq() === 0
-  ) {
-
-    direction.set(
-      0,
-      0,
-      -1
-    );
-
-  }
-
-
-  direction.normalize();
-
-
-  const position =
-    camera.getWorldPosition(
-      new THREE.Vector3()
-    );
-
-
-  position.add(
-    direction.multiplyScalar(
-      buildingState.distance
-    )
-  );
-
-
-  /*
-  Snap to building grid.
-  */
-
-  position.x =
-    Math.round(
-      position.x /
-      buildingState.gridSize
-    ) *
-    buildingState.gridSize;
-
-
-  position.z =
-    Math.round(
-      position.z /
-      buildingState.gridSize
-    ) *
-    buildingState.gridSize;
-
-
-  const building =
-    getBuilding(
-      buildingState.selectedBuilding
-    );
-
-
-  if (!building) {
-
-    return;
-
-  }
-
-
-  position.y =
-    building.size.y / 2;
-
-
-  ghost.position.copy(
-    position
-  );
-
-
-  ghost.rotation.y =
-    buildingState.rotation;
-
-
-  buildingState.validPlacement =
-    canPlaceBuilding(
-      buildingState.selectedBuilding,
-      position
-    );
-
-
-  if (
-    ghost.material
-  ) {
-
-    ghost.material.opacity =
-      buildingState.validPlacement
-        ? 0.45
-        : 0.2;
-
-  }
-
-}
-
-
-/* ========================================================
-   CHECK MATERIALS
-======================================================== */
-
-function hasBuildingMaterials(
-  buildingId
-) {
-
-  const building =
-    getBuilding(
-      buildingId
-    );
-
-
-  if (!building) {
-
-    return false;
-
-  }
-
-
-  const recipe =
-    RECIPES[
-      building.recipe
-    ];
-
+  const recipe = getRecipe(building.recipe);
 
   if (!recipe) {
-
     return false;
-
   }
 
-
-  for (
-    const [item, amount]
-    of Object.entries(
-      recipe.ingredients
-    )
-  ) {
-
-    if (
-      getItemCount(item) <
-      amount
-    ) {
-
+  for (const [item, amount] of Object.entries(recipe.ingredients || {})) {
+    if (getItemCount(item) < amount) {
       return false;
-
     }
-
   }
-
 
   return true;
-
 }
 
+function consumeMaterials(buildingId) {
+  const building = getBuilding(buildingId);
 
-/* ========================================================
-   CHECK PLACEMENT
-======================================================== */
-
-export function canPlaceBuilding(
-  buildingId,
-  position
-) {
-
-  if (
-    !hasBuildingMaterials(
-      buildingId
-    )
-  ) {
-
+  if (!building) {
     return false;
-
   }
 
+  const recipe = getRecipe(building.recipe);
 
-  const scene =
-    window.SurvivalVR?.scene;
-
-
-  if (!scene) {
-
+  if (!recipe || !hasMaterials(buildingId)) {
     return false;
-
   }
 
-
-  /*
-  Keep buildings on the island.
-  */
-
-  const distance =
-    Math.sqrt(
-      position.x * position.x +
-      position.z * position.z
-    );
-
-
-  if (
-    distance > 27
-  ) {
-
-    return false;
-
+  for (const [item, amount] of Object.entries(recipe.ingredients || {})) {
+    if (!removeItem(item, amount)) {
+      return false;
+    }
   }
 
+  return true;
+}
 
-  /*
-  Don't place directly inside the lake.
-  */
+function snap(value) {
+  return Math.round(value / buildingState.gridSize) *
+    buildingState.gridSize;
+}
 
+// --------------------------------------------------
+// PLACEMENT POSITION
+// --------------------------------------------------
+
+function getPlacementPosition() {
+  const camera = SurvivalVR.camera;
+
+  if (!camera) {
+    return null;
+  }
+
+  const direction = new THREE.Vector3();
+
+  camera.getWorldDirection(direction);
+
+  const position = camera.getWorldPosition(
+    new THREE.Vector3()
+  );
+
+  const target = position.clone()
+    .add(direction.multiplyScalar(buildingState.placementDistance));
+
+  target.x = snap(target.x);
+  target.z = snap(target.z);
+
+  // Keep building on the ground.
+  target.y = 0;
+
+  return target;
+}
+
+// --------------------------------------------------
+// ISLAND / LAKE CHECKING
+// --------------------------------------------------
+
+function isInsideIsland(position) {
+  const radius = 27;
+
+  const distance = Math.sqrt(
+    position.x * position.x +
+    position.z * position.z
+  );
+
+  return distance <= radius;
+}
+
+function isInsideLake(position) {
   const lakeX = 9;
   const lakeZ = -7;
   const lakeRadius = 9;
 
+  const dx = position.x - lakeX;
+  const dz = position.z - lakeZ;
 
-  const lakeDistance =
-    Math.sqrt(
-      Math.pow(
-        position.x - lakeX,
-        2
-      ) +
-      Math.pow(
-        position.z - lakeZ,
-        2
-      )
-    );
-
-
-  if (
-    lakeDistance <
-    lakeRadius - 1
-  ) {
-
-    return false;
-
-  }
-
-
-  /*
-  Prevent buildings from overlapping
-  existing buildings.
-  */
-
-  const buildings =
-    window.SurvivalVR?.buildings ||
-    [];
-
-
-  const newBuilding =
-    getBuilding(
-      buildingId
-    );
-
-
-  if (!newBuilding) {
-
-    return false;
-
-  }
-
-
-  for (
-    const existing
-    of buildings
-  ) {
-
-    if (
-      !existing ||
-      !existing.userData
-    ) {
-
-      continue;
-
-    }
-
-
-    const dx =
-      Math.abs(
-        existing.position.x -
-        position.x
-      );
-
-
-    const dz =
-      Math.abs(
-        existing.position.z -
-        position.z
-      );
-
-
-    if (
-      dx <
-      newBuilding.size.x * 0.75 &&
-      dz <
-      newBuilding.size.z * 0.75
-    ) {
-
-      return false;
-
-    }
-
-  }
-
-
-  return true;
-
+  return Math.sqrt(dx * dx + dz * dz) < lakeRadius;
 }
 
+// --------------------------------------------------
+// COLLISION CHECKING
+// --------------------------------------------------
 
-/* ========================================================
-   PLACE BUILDING
-======================================================== */
+function getGhostBox() {
+  if (!buildingState.ghost) {
+    return null;
+  }
 
-export function placeBuilding() {
+  buildingState.ghost.updateMatrixWorld(true);
+
+  return new THREE.Box3().setFromObject(
+    buildingState.ghost
+  );
+}
+
+function isOverlappingExistingBuilding(box) {
+  const buildings = SurvivalVR.buildings || [];
+
+  for (const building of buildings) {
+    if (!building || !building.mesh) {
+      continue;
+    }
+
+    if (!building.mesh.visible) {
+      continue;
+    }
+
+    const otherBox = new THREE.Box3().setFromObject(
+      building.mesh
+    );
+
+    if (box.intersectsBox(otherBox)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// --------------------------------------------------
+// VALIDATION
+// --------------------------------------------------
+
+function validatePlacement() {
+  if (!buildingState.ghost) {
+    buildingState.validPlacement = false;
+    return false;
+  }
+
+  const position = buildingState.ghost.position;
+
+  if (!isInsideIsland(position)) {
+    buildingState.validPlacement = false;
+    return false;
+  }
+
+  if (isInsideLake(position)) {
+    buildingState.validPlacement = false;
+    return false;
+  }
+
+  if (!hasMaterials(buildingState.selectedBuilding)) {
+    buildingState.validPlacement = false;
+    return false;
+  }
+
+  const box = getGhostBox();
+
+  if (!box) {
+    buildingState.validPlacement = false;
+    return false;
+  }
+
+  if (isOverlappingExistingBuilding(box)) {
+    buildingState.validPlacement = false;
+    return false;
+  }
+
+  buildingState.validPlacement = true;
+
+  return true;
+}
+
+// --------------------------------------------------
+// GHOST MATERIAL
+// --------------------------------------------------
+
+function createGhostMaterial() {
+  return new THREE.MeshStandardMaterial({
+    color: 0x4cff78,
+    transparent: true,
+    opacity: 0.42,
+    roughness: 0.75,
+    metalness: 0
+  });
+}
+
+function updateGhostColor() {
+  if (!buildingState.ghost) {
+    return;
+  }
+
+  const valid = buildingState.validPlacement;
+
+  buildingState.ghost.traverse(object => {
+    if (!object.isMesh) {
+      return;
+    }
+
+    object.material = object.material.clone();
+
+    object.material.color.setHex(
+      valid ? 0x4cff78 : 0xff4c4c
+    );
+
+    object.material.opacity = valid ? 0.42 : 0.32;
+    object.material.transparent = true;
+  });
+}
+
+// --------------------------------------------------
+// BUILDING MESHES
+// --------------------------------------------------
+
+function createWoodMaterial(color) {
+  return new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.86,
+    metalness: 0
+  });
+}
+
+function createBuildingMesh(buildingId) {
+  const building = getBuilding(buildingId);
+
+  if (!building) {
+    return null;
+  }
+
+  const group = new THREE.Group();
+
+  // -----------------------------------------------
+  // FLOOR
+  // -----------------------------------------------
+
+  if (building.type === "floor") {
+    const geometry = new THREE.BoxGeometry(
+      2.8,
+      0.18,
+      2.8
+    );
+
+    const mesh = new THREE.Mesh(
+      geometry,
+      createWoodMaterial(0x8b5a2b)
+    );
+
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    group.add(mesh);
+
+    // Wooden support beams.
+    for (let x = -1; x <= 1; x += 1) {
+      const beam = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 0.22, 2.6),
+        createWoodMaterial(0x5d351a)
+      );
+
+      beam.position.set(x, -0.13, 0);
+      beam.castShadow = true;
+
+      group.add(beam);
+    }
+
+    return group;
+  }
+
+  // -----------------------------------------------
+  // WALL
+  // -----------------------------------------------
+
+  if (building.type === "wall") {
+    const wall = new THREE.Mesh(
+      new THREE.BoxGeometry(2.8, 2.6, 0.18),
+      createWoodMaterial(0x74451f)
+    );
+
+    wall.position.y = 1.3;
+    wall.castShadow = true;
+    wall.receiveShadow = true;
+
+    group.add(wall);
+
+    // Vertical supports.
+    for (const x of [-1.25, 0, 1.25]) {
+      const post = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 2.72, 0.24),
+        createWoodMaterial(0x4f2c15)
+      );
+
+      post.position.set(x, 1.36, 0);
+      post.castShadow = true;
+
+      group.add(post);
+    }
+
+    // Horizontal support.
+    for (const y of [0.55, 1.3, 2.05]) {
+      const beam = new THREE.Mesh(
+        new THREE.BoxGeometry(2.7, 0.13, 0.25),
+        createWoodMaterial(0x4f2c15)
+      );
+
+      beam.position.set(0, y, 0);
+      beam.castShadow = true;
+
+      group.add(beam);
+    }
+
+    return group;
+  }
+
+  // -----------------------------------------------
+  // DOOR
+  // -----------------------------------------------
+
+  if (building.type === "door") {
+    const frameMaterial = createWoodMaterial(0x4b2914);
+    const doorMaterial = createWoodMaterial(0x5b351a);
+
+    const frameLeft = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, 2.7, 0.28),
+      frameMaterial
+    );
+
+    frameLeft.position.set(-1.3, 1.35, 0);
+
+    const frameRight = frameLeft.clone();
+    frameRight.position.x = 1.3;
+
+    const top = new THREE.Mesh(
+      new THREE.BoxGeometry(2.78, 0.18, 0.28),
+      frameMaterial
+    );
+
+    top.position.set(0, 2.65, 0);
+
+    group.add(frameLeft);
+    group.add(frameRight);
+    group.add(top);
+
+    const door = new THREE.Mesh(
+      new THREE.BoxGeometry(2.25, 2.35, 0.14),
+      doorMaterial
+    );
+
+    door.position.set(0, 1.18, 0);
+
+    group.add(door);
+
+    const handle = new THREE.Mesh(
+      new THREE.SphereGeometry(0.07, 10, 10),
+      new THREE.MeshStandardMaterial({
+        color: 0xb99a58,
+        roughness: 0.4,
+        metalness: 0.65
+      })
+    );
+
+    handle.position.set(0.82, 1.2, -0.13);
+
+    group.add(handle);
+
+    return group;
+  }
+
+  // -----------------------------------------------
+  // CAMPFIRE
+  // -----------------------------------------------
+
+  if (building.type === "campfire") {
+    const stoneMaterial = new THREE.MeshStandardMaterial({
+      color: 0x575757,
+      roughness: 1
+    });
+
+    const woodMaterial = createWoodMaterial(0x583117);
+
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * 2 * i) / 8;
+
+      const stone = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(0.22, 0),
+        stoneMaterial
+      );
+
+      stone.position.set(
+        Math.cos(angle) * 0.55,
+        0.22,
+        Math.sin(angle) * 0.55
+      );
+
+      stone.scale.set(1, 0.7, 1);
+      stone.castShadow = true;
+
+      group.add(stone);
+    }
+
+    for (let i = 0; i < 3; i++) {
+      const log = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.12,
+          0.14,
+          1.05,
+          8
+        ),
+        woodMaterial
+      );
+
+      log.rotation.z = Math.PI / 2;
+      log.rotation.y = (i * Math.PI) / 3;
+
+      log.position.y = 0.35;
+
+      group.add(log);
+    }
+
+    const flameMaterial = new THREE.MeshStandardMaterial({
+      color: 0xff8a20,
+      emissive: 0xff4d00,
+      emissiveIntensity: 1.8,
+      transparent: true,
+      opacity: 0.9
+    });
+
+    const flame = new THREE.Mesh(
+      new THREE.ConeGeometry(0.3, 0.9, 8),
+      flameMaterial
+    );
+
+    flame.position.y = 0.95;
+    flame.scale.x = 0.7;
+    flame.scale.z = 0.7;
+
+    group.add(flame);
+
+    const light = new THREE.PointLight(
+      0xff7a22,
+      2.2,
+      7,
+      2
+    );
+
+    light.position.y = 1.1;
+
+    group.add(light);
+
+    group.userData.flame = flame;
+    group.userData.light = light;
+
+    return group;
+  }
+
+  // -----------------------------------------------
+  // STORAGE BOX
+  // -----------------------------------------------
+
+  if (building.type === "storage") {
+    const boxMaterial = createWoodMaterial(0x6e421e);
+
+    const box = new THREE.Mesh(
+      new THREE.BoxGeometry(1.5, 0.9, 1.1),
+      boxMaterial
+    );
+
+    box.position.y = 0.5;
+    box.castShadow = true;
+    box.receiveShadow = true;
+
+    group.add(box);
+
+    const lid = new THREE.Mesh(
+      new THREE.BoxGeometry(1.56, 0.14, 1.16),
+      createWoodMaterial(0x4d2c16)
+    );
+
+    lid.position.y = 1.0;
+    lid.castShadow = true;
+
+    group.add(lid);
+
+    const bandMaterial = new THREE.MeshStandardMaterial({
+      color: 0x9a743f,
+      roughness: 0.5,
+      metalness: 0.25
+    });
+
+    for (const x of [-0.55, 0.55]) {
+      const band = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.98, 1.15),
+        bandMaterial
+      );
+
+      band.position.set(x, 0.53, 0);
+
+      group.add(band);
+    }
+
+    return group;
+  }
+
+  return null;
+}
+
+// --------------------------------------------------
+// GHOST CREATION
+// --------------------------------------------------
+
+function createGhost() {
+  removeGhost();
+
+  const mesh = createBuildingMesh(
+    buildingState.selectedBuilding
+  );
+
+  if (!mesh) {
+    return;
+  }
+
+  const ghostMaterial = createGhostMaterial();
+
+  mesh.traverse(object => {
+    if (!object.isMesh) {
+      return;
+    }
+
+    object.material = ghostMaterial.clone();
+    object.castShadow = false;
+    object.receiveShadow = false;
+  });
+
+  mesh.userData.isBuildingGhost = true;
+  mesh.userData.buildingId =
+    buildingState.selectedBuilding;
+
+  buildingState.ghost = mesh;
+
+  const scene = SurvivalVR.scene;
+
+  if (scene) {
+    scene.add(mesh);
+  }
+
+  updateGhost();
+}
+
+function removeGhost() {
+  if (!buildingState.ghost) {
+    return;
+  }
+
+  if (buildingState.ghost.parent) {
+    buildingState.ghost.parent.remove(
+      buildingState.ghost
+    );
+  }
+
+  buildingState.ghost.traverse(object => {
+    if (object.geometry) {
+      object.geometry.dispose();
+    }
+
+    if (object.material) {
+      if (Array.isArray(object.material)) {
+        object.material.forEach(material => {
+          material.dispose();
+        });
+      } else {
+        object.material.dispose();
+      }
+    }
+  });
+
+  buildingState.ghost = null;
+}
+
+// --------------------------------------------------
+// UPDATE GHOST
+// --------------------------------------------------
+
+function updateGhost() {
+  if (!buildingState.active) {
+    return;
+  }
+
+  if (!buildingState.ghost) {
+    createGhost();
+  }
+
+  if (!buildingState.ghost) {
+    return;
+  }
+
+  const position = getPlacementPosition();
+
+  if (!position) {
+    return;
+  }
+
+  buildingState.ghost.position.copy(position);
+
+  buildingState.ghost.rotation.y =
+    buildingState.rotation;
+
+  validatePlacement();
+  updateGhostColor();
+}
+
+// --------------------------------------------------
+// PLACE BUILDING
+// --------------------------------------------------
+
+function placeBuilding() {
+  if (!buildingState.active) {
+    return false;
+  }
+
+  const now = performance.now();
 
   if (
-    !buildingState.active
+    now - buildingState.lastPlacement <
+    buildingState.placementCooldown
   ) {
-
     return false;
-
   }
 
-
-  const ghost =
-    buildingState.ghost;
-
-
-  if (!ghost) {
-
-    return false;
-
-  }
-
+  buildingState.lastPlacement = now;
 
   updateGhost();
 
-
-  if (
-    !buildingState.validPlacement
-  ) {
-
-    showBuildingMessage(
-      "You cannot build there."
-    );
-
+  if (!buildingState.validPlacement) {
+    showMessage("You can't build there.");
     return false;
-
   }
-
 
   const buildingId =
     buildingState.selectedBuilding;
 
-
-  const building =
-    getBuilding(
-      buildingId
-    );
-
-
-  const recipe =
-    RECIPES[
-      building.recipe
-    ];
-
-
-  if (!recipe) {
-
+  if (!consumeMaterials(buildingId)) {
+    showMessage("You don't have enough materials.");
+    updateGhost();
+    refreshBuildingUI();
     return false;
-
   }
 
+  const building = getBuilding(buildingId);
 
-  /*
-  Remove crafting materials.
-  */
+  const mesh = createBuildingMesh(buildingId);
 
-  for (
-    const [item, amount]
-    of Object.entries(
-      recipe.ingredients
-    )
-  ) {
-
-    removeItem(
-      item,
-      amount
-    );
-
-  }
-
-
-  /*
-  Create actual building.
-  */
-
-  const actual =
-    createBuildingMesh(
-      building,
-      ghost.position,
-      ghost.rotation.y
-    );
-
-
-  if (!actual) {
-
+  if (!mesh) {
+    showMessage("Building failed.");
     return false;
-
   }
 
+  const position =
+    buildingState.ghost.position.clone();
 
-  window.SurvivalVR.buildings.push(
-    actual
+  mesh.position.copy(position);
+  mesh.rotation.y = buildingState.rotation;
+
+  mesh.userData.buildingId = buildingId;
+  mesh.userData.type = building.type;
+  mesh.userData.createdAt = Date.now();
+
+  if (SurvivalVR.scene) {
+    SurvivalVR.scene.add(mesh);
+  }
+
+  if (!SurvivalVR.buildings) {
+    SurvivalVR.buildings = [];
+  }
+
+  const buildingRecord = {
+    id: buildingId,
+    type: building.type,
+    mesh,
+    position: {
+      x: position.x,
+      y: position.y,
+      z: position.z
+    },
+    rotation: buildingState.rotation,
+    createdAt: Date.now()
+  };
+
+  SurvivalVR.buildings.push(
+    buildingRecord
   );
 
+  // Keep the core game state synchronized.
+  addBuildingPiece(buildingId);
 
-  /*
-  Update game statistics.
-  */
+  GAME.statistics.buildingsBuilt =
+    (GAME.statistics.buildingsBuilt || 0) + 1;
 
-  addBuildingPiece(
-    buildingId
-  );
-
-
-  if (
-    !buildingState.builtCount[
-      buildingId
-    ]
-  ) {
-
-    buildingState.builtCount[
-      buildingId
-    ] = 0;
-
+  if (building.type === "campfire") {
+    buildingState.campfires.push(mesh);
   }
 
-
-  buildingState.builtCount[
-    buildingId
-  ] += 1;
-
+  if (building.type === "storage") {
+    buildingState.storageBoxes.push(mesh);
+  }
 
   gameEvent(
     "building-placed",
-    {
-      building: buildingId,
-
-      position: {
-        x: actual.position.x,
-        y: actual.position.y,
-        z: actual.position.z
-      },
-
-      rotation:
-        actual.rotation.y
-    }
+    buildingRecord
   );
 
-
-  window.dispatchEvent(
-    new CustomEvent(
-      "survival-building-placed",
-      {
-        detail: {
-          building: buildingId,
-          object: actual
-        }
-      }
-    )
-  );
-
-
-  showBuildingMessage(
+  showMessage(
     `${building.name} built!`
   );
 
+  refreshBuildingUI();
 
   updateGhost();
 
-
   return true;
-
 }
 
-
-/* ========================================================
-   CREATE BUILDING MESH
-======================================================== */
-
-function createBuildingMesh(
-  building,
-  position,
-  rotation
-) {
-
-  const THREE =
-    window.SurvivalVR?.THREE;
-
-
-  const scene =
-    window.SurvivalVR?.scene;
-
-
-  if (
-    !THREE ||
-    !scene
-  ) {
-
-    return null;
-
-  }
-
-
-  const group =
-    new THREE.Group();
-
-
-  group.userData.type =
-    "building";
-
-
-  group.userData.building =
-    building.id;
-
-
-  group.userData.category =
-    building.category;
-
-
-  group.position.copy(
-    position
-  );
-
-
-  group.rotation.y =
-    rotation;
-
-
-  /*
-  ========================================================
-  FLOOR
-  ========================================================
-  */
-
-  if (
-    building.id ===
-    "woodFloor"
-  ) {
-
-    const floor =
-      new THREE.Mesh(
-
-        new THREE.BoxGeometry(
-          3,
-          0.2,
-          3
-        ),
-
-        new THREE.MeshStandardMaterial({
-          color: 0x80502d,
-          roughness: 0.9
-        })
-
-      );
-
-
-    floor.castShadow = true;
-    floor.receiveShadow = true;
-
-    group.add(
-      floor
-    );
-
-  }
-
-
-  /*
-  ========================================================
-  WALL
-  ========================================================
-  */
-
-  else if (
-    building.id ===
-    "woodWall"
-  ) {
-
-    const wall =
-      new THREE.Mesh(
-
-        new THREE.BoxGeometry(
-          3,
-          2.8,
-          0.2
-        ),
-
-        new THREE.MeshStandardMaterial({
-          color: 0x70452a,
-          roughness: 0.95
-        })
-
-      );
-
-
-    wall.position.y =
-      0;
-
-
-    wall.castShadow = true;
-    wall.receiveShadow = true;
-
-    group.add(
-      wall
-    );
-
-
-    addWoodSupports(
-      group
-    );
-
-  }
-
-
-  /*
-  ========================================================
-  DOOR
-  ========================================================
-  */
-
-  else if (
-    building.id ===
-    "woodDoor"
-  ) {
-
-    const door =
-      new THREE.Mesh(
-
-        new THREE.BoxGeometry(
-          1.4,
-          2.7,
-          0.2
-        ),
-
-        new THREE.MeshStandardMaterial({
-          color: 0x70452a,
-          roughness: 0.9
-        })
-
-      );
-
-
-    door.castShadow = true;
-
-    group.add(
-      door
-    );
-
-
-    group.userData.open =
-      false;
-
-
-    group.userData.interactable =
-      true;
-
-  }
-
-
-  /*
-  ========================================================
-  CAMPFIRE
-  ========================================================
-  */
-
-  else if (
-    building.id ===
-    "campfire"
-  ) {
-
-    createCampfire(
-      group
-    );
-
-  }
-
-
-  /*
-  ========================================================
-  STORAGE BOX
-  ========================================================
-  */
-
-  else if (
-    building.id ===
-    "storageBox"
-  ) {
-
-    createStorageBox(
-      group
-    );
-
-  }
-
-
-  scene.add(
-    group
-  );
-
-
-  return group;
-
-}
-
-
-/* ========================================================
-   WOOD SUPPORTS
-======================================================== */
-
-function addWoodSupports(
-  group
-) {
-
-  const THREE =
-    window.SurvivalVR?.THREE;
-
-
-  if (!THREE) {
+// --------------------------------------------------
+// SELECTION
+// --------------------------------------------------
+
+function selectBuilding(id) {
+  if (!BUILDINGS[id]) {
     return;
   }
 
+  buildingState.selectedBuilding = id;
 
-  const material =
-    new THREE.MeshStandardMaterial({
-      color: 0x57351f,
-      roughness: 1
-    });
+  createGhost();
+  refreshBuildingUI();
 
-
-  const left =
-    new THREE.Mesh(
-      new THREE.BoxGeometry(
-        0.18,
-        2.9,
-        0.25
-      ),
-      material
-    );
-
-
-  left.position.x =
-    -1.25;
-
-
-  left.castShadow = true;
-
-
-  const right =
-    left.clone();
-
-
-  right.position.x =
-    1.25;
-
-
-  group.add(
-    left
+  showMessage(
+    `Selected ${BUILDINGS[id].name}`
   );
-
-  group.add(
-    right
-  );
-
 }
 
+function rotateBuilding() {
+  buildingState.rotation += Math.PI / 2;
 
-/* ========================================================
-   CAMPFIRE
-======================================================== */
+  if (
+    buildingState.rotation >=
+    Math.PI * 2
+  ) {
+    buildingState.rotation = 0;
+  }
 
-function createCampfire(
-  group
-) {
+  updateGhost();
+}
 
-  const THREE =
-    window.SurvivalVR?.THREE;
+// --------------------------------------------------
+// UI
+// --------------------------------------------------
 
-
-  if (!THREE) {
+function createBuildingUI() {
+  if (document.getElementById("buildingUI")) {
     return;
   }
 
+  const panel = document.createElement("div");
 
-  const stoneMaterial =
-    new THREE.MeshStandardMaterial({
-      color: 0x555555,
-      roughness: 1
-    });
+  panel.id = "buildingUI";
+  panel.className =
+    "overlayPanel buildingUI hidden";
 
+  panel.innerHTML = `
+    <div class="panelHeader">
+      <div>
+        <div class="panelTitle">BUILD</div>
+        <div class="panelSubtitle">
+          Choose a structure
+        </div>
+      </div>
 
+      <button
+        class="closeButton"
+        id="buildingClose"
+        type="button"
+      >
+        ×
+      </button>
+    </div>
+
+    <div
+      class="buildingControls"
+      style="
+        display:flex;
+        gap:8px;
+        margin:12px 0;
+        flex-wrap:wrap;
+      "
+    >
+      <button
+        class="secondaryButton"
+        id="buildingRotate"
+        type="button"
+      >
+        ↻ Rotate
+      </button>
+
+      <button
+        class="secondaryButton"
+        id="buildingCancel"
+        type="button"
+      >
+        Cancel
+      </button>
+    </div>
+
+    <div
+      id="buildingList"
+      class="buildingGrid"
+    ></div>
+
+    <div
+      id="buildingHint"
+      class="buildingHint"
+    >
+      Move the ghost where you want to build.
+    </div>
+  `;
+
+  document.body.appendChild(panel);
+
+  buildingState.ui = panel;
+
+  document
+    .getElementById("buildingClose")
+    ?.addEventListener(
+      "click",
+      () => setBuildingMode(false)
+    );
+
+  document
+    .getElementById("buildingCancel")
+    ?.addEventListener(
+      "click",
+      () => setBuildingMode(false)
+    );
+
+  document
+    .getElementById("buildingRotate")
+    ?.addEventListener(
+      "click",
+      rotateBuilding
+    );
+
+  renderBuildingCards();
+}
+
+function renderBuildingCards() {
+  const list =
+    document.getElementById("buildingList");
+
+  if (!list) {
+    return;
+  }
+
+  list.innerHTML = "";
+
+  for (const id of BUILDING_ORDER) {
+    const building = BUILDINGS[id];
+
+    const card =
+      document.createElement("button");
+
+    card.type = "button";
+    card.className = "buildingCard";
+
+    card.dataset.building = id;
+
+    card.innerHTML = `
+      <div
+        class="buildingIcon"
+        style="font-size:28px;"
+      >
+        ${building.icon}
+      </div>
+
+      <div
+        class="buildingName"
+      >
+        ${building.name}
+      </div>
+
+      <div
+        class="buildingMaterials"
+      >
+        ${getRecipeText(
+          getRecipe(building.recipe)
+        )}
+      </div>
+    `;
+
+    card.addEventListener(
+      "click",
+      () => selectBuilding(id)
+    );
+
+    list.appendChild(card);
+
+    buildingState.buttons.set(
+      id,
+      card
+    );
+  }
+}
+
+function refreshBuildingUI() {
   for (
-    let i = 0;
-    i < 8;
-    i++
+    const [id, button]
+    of buildingState.buttons.entries()
   ) {
+    const building = BUILDINGS[id];
 
-    const angle =
-      i /
-      8 *
-      Math.PI *
-      2;
+    const enough =
+      hasMaterials(id);
 
-
-    const stone =
-      new THREE.Mesh(
-
-        new THREE.DodecahedronGeometry(
-          0.22,
-          1
-        ),
-
-        stoneMaterial
-      );
-
-
-    stone.position.set(
-
-      Math.cos(angle) *
-        0.65,
-
-      0.22,
-
-      Math.sin(angle) *
-        0.65
-
+    button.classList.toggle(
+      "selected",
+      id === buildingState.selectedBuilding
     );
 
-
-    stone.scale.y =
-      0.7;
-
-
-    stone.castShadow = true;
-
-    group.add(
-      stone
+    button.classList.toggle(
+      "disabled",
+      !enough
     );
 
+    button.setAttribute(
+      "aria-disabled",
+      String(!enough)
+    );
   }
 
+  const hint =
+    document.getElementById("buildingHint");
 
-  const fire =
-    new THREE.Mesh(
-
-      new THREE.ConeGeometry(
-        0.45,
-        1.2,
-        8
-      ),
-
-      new THREE.MeshBasicMaterial({
-        color: 0xff8a20
-      })
-
-    );
-
-
-  fire.position.y =
-    0.7;
-
-
-  group.add(
-    fire
-  );
-
-
-  const light =
-    new THREE.PointLight(
-      0xff9b38,
-      2.5,
-      8
-    );
-
-
-  light.position.y =
-    1.2;
-
-
-  group.add(
-    light
-  );
-
-
-  group.userData.fire =
-    fire;
-
-
-  group.userData.light =
-    light;
-
-}
-
-
-/* ========================================================
-   STORAGE BOX
-======================================================== */
-
-function createStorageBox(
-  group
-) {
-
-  const THREE =
-    window.SurvivalVR?.THREE;
-
-
-  if (!THREE) {
+  if (!hint) {
     return;
   }
 
-
-  const box =
-    new THREE.Mesh(
-
-      new THREE.BoxGeometry(
-        1.5,
-        0.8,
-        1
-      ),
-
-      new THREE.MeshStandardMaterial({
-        color: 0x70452a,
-        roughness: 0.9
-      })
-
-    );
-
-
-  box.position.y =
-    0.4;
-
-
-  box.castShadow = true;
-  box.receiveShadow = true;
-
-
-  group.add(
-    box
-  );
-
-
-  const lid =
-    new THREE.Mesh(
-
-      new THREE.BoxGeometry(
-        1.55,
-        0.12,
-        1.05
-      ),
-
-      new THREE.MeshStandardMaterial({
-        color: 0x5a371f,
-        roughness: 0.9
-      })
-
-    );
-
-
-  lid.position.y =
-    0.86;
-
-
-  lid.castShadow = true;
-
-
-  group.add(
-    lid
-  );
-
-
-  group.userData.storage = {};
-
-  group.userData.open =
-    false;
-
-}
-
-
-/* ========================================================
-   DOOR INTERACTION
-======================================================== */
-
-export function toggleDoor(
-  door
-) {
-
-  if (
-    !door ||
-    door.userData.building !==
-      "woodDoor"
-  ) {
-
-    return false;
-
+  if (!buildingState.active) {
+    hint.textContent =
+      "Press B to enter building mode.";
+    return;
   }
 
-
-  door.userData.open =
-    !door.userData.open;
-
-
-  door.rotation.y =
-    door.userData.open
-      ? Math.PI / 2
-      : 0;
-
-
-  return true;
-
+  if (!buildingState.validPlacement) {
+    hint.textContent =
+      "Red = invalid placement.";
+  } else {
+    hint.textContent =
+      "Green = valid placement. Press E or grab to build.";
+  }
 }
 
+function setBuildingMode(active) {
+  buildingState.active = Boolean(active);
 
-/* ========================================================
-   BUILDING UPDATE
-======================================================== */
+  if (buildingState.active) {
+    createBuildingUI();
 
-export function updateBuilding(
-  delta
-) {
+    buildingState.ui?.classList.remove(
+      "hidden"
+    );
 
-  const buildings =
-    window.SurvivalVR?.buildings ||
-    [];
+    createGhost();
+    refreshBuildingUI();
+  } else {
+    buildingState.ui?.classList.add(
+      "hidden"
+    );
 
+    removeGhost();
+  }
+}
 
-  for (
-    const building
-    of buildings
-  ) {
+function toggleBuilding() {
+  setBuildingMode(
+    !buildingState.active
+  );
+}
 
-    if (!building) {
+// --------------------------------------------------
+// CAMPFIRE ANIMATION
+// --------------------------------------------------
+
+function updateCampfires(time) {
+  for (const campfire of buildingState.campfires) {
+    if (!campfire) {
       continue;
     }
 
+    const flame =
+      campfire.userData.flame;
 
-    /*
-    Animate campfire.
-    */
+    const light =
+      campfire.userData.light;
 
-    if (
-      building.userData.building ===
-      "campfire"
-    ) {
+    if (flame) {
+      flame.scale.y =
+        0.85 +
+        Math.sin(time * 0.012) * 0.16;
 
-      const fire =
-        building.userData.fire;
+      flame.scale.x =
+        0.7 +
+        Math.sin(time * 0.017) * 0.08;
 
-
-      const light =
-        building.userData.light;
-
-
-      if (fire) {
-
-        fire.scale.y =
-          0.9 +
-          Math.sin(
-            performance.now() *
-            0.008
-          ) *
-          0.12;
-
-      }
-
-
-      if (light) {
-
-        light.intensity =
-          2.2 +
-          Math.sin(
-            performance.now() *
-            0.01
-          ) *
-          0.35;
-
-      }
-
+      flame.rotation.y =
+        time * 0.002;
     }
 
+    if (light) {
+      light.intensity =
+        2.0 +
+        Math.sin(time * 0.009) * 0.35;
+    }
   }
+}
 
+// --------------------------------------------------
+// INPUT
+// --------------------------------------------------
+
+function handleKeyDown(event) {
+  const key =
+    event.key.toLowerCase();
+
+  if (key === "b") {
+    toggleBuilding();
+    return;
+  }
 
   if (
+    key === "escape" &&
     buildingState.active
   ) {
-
-    updateGhost();
-
+    setBuildingMode(false);
+    return;
   }
 
-}
+  if (
+    key === "r" &&
+    buildingState.active
+  ) {
+    rotateBuilding();
+    return;
+  }
 
-
-/* ========================================================
-   CONTROLLER EVENTS
-======================================================== */
-
-/*
-Trigger placement with the controller
-select event.
-
-The main index.html already sends
-survival-grab events.
-*/
-
-window.addEventListener(
-  "survival-grab",
-  event => {
-
-    if (
-      !buildingState.active
-    ) {
-
-      return;
-
-    }
-
-
+  if (
+    key === "e" &&
+    buildingState.active
+  ) {
     placeBuilding();
-
-  }
-);
-
-
-/* ========================================================
-   KEYBOARD CONTROLS
-======================================================== */
-
-window.addEventListener(
-  "keydown",
-  event => {
-
-    if (
-      event.key.toLowerCase() ===
-      "b"
-    ) {
-
-      toggleBuilding();
-
-    }
-
-
-    if (
-      !buildingState.active
-    ) {
-
-      return;
-
-    }
-
-
-    /*
-    R rotates.
-    */
-
-    if (
-      event.key.toLowerCase() ===
-      "r"
-    ) {
-
-      rotateBuilding(
-        1
-      );
-
-    }
-
-
-    /*
-    Number keys select common
-    building pieces.
-    */
-
-    if (
-      event.key === "1"
-    ) {
-
-      selectBuilding(
-        "woodFloor"
-      );
-
-    }
-
-
-    if (
-      event.key === "2"
-    ) {
-
-      selectBuilding(
-        "woodWall"
-      );
-
-    }
-
-
-    if (
-      event.key === "3"
-    ) {
-
-      selectBuilding(
-        "woodDoor"
-      );
-
-    }
-
-
-    if (
-      event.key === "4"
-    ) {
-
-      selectBuilding(
-        "campfire"
-      );
-
-    }
-
-
-    if (
-      event.key === "5"
-    ) {
-
-      selectBuilding(
-        "storageBox"
-      );
-
-    }
-
-
-    if (
-      event.key ===
-      "Escape"
-    ) {
-
-      closeBuilding();
-
-    }
-
-  }
-);
-
-
-/* ========================================================
-   BUILDING MESSAGE
-======================================================== */
-
-function showBuildingMessage(
-  message
-) {
-
-  const element =
-    document.getElementById(
-      "message"
-    );
-
-
-  if (element) {
-
-    element.textContent =
-      message;
-
-
-    element.classList.add(
-      "show"
-    );
-
-
-    clearTimeout(
-      showBuildingMessage.timeout
-    );
-
-
-    showBuildingMessage.timeout =
-      setTimeout(
-        () => {
-
-          element.classList.remove(
-            "show"
-          );
-
-        },
-        1800
-      );
-
+    return;
   }
 
+  if (!buildingState.active) {
+    return;
+  }
+
+  const number =
+    Number(event.key);
+
+  if (
+    number >= 1 &&
+    number <= BUILDING_ORDER.length
+  ) {
+    selectBuilding(
+      BUILDING_ORDER[number - 1]
+    );
+  }
 }
 
+function handleGrab(event) {
+  if (!buildingState.active) {
+    return;
+  }
 
-/* ========================================================
-   INITIALIZE
-======================================================== */
+  placeBuilding();
+}
 
-console.log(
-  "🏠 Building system loaded."
-);
+// --------------------------------------------------
+// EVENTS
+// --------------------------------------------------
 
-console.log(
-  `🏗️ ${Object.keys(BUILDINGS).length} building types registered.`
-);
+function setupEvents() {
+  window.addEventListener(
+    "keydown",
+    handleKeyDown
+  );
+
+  window.addEventListener(
+    "survival-grab",
+    handleGrab
+  );
+
+  window.addEventListener(
+    "survival-menu-button",
+    () => {
+      if (buildingState.active) {
+        setBuildingMode(false);
+      }
+    }
+  );
+
+  window.addEventListener(
+    "survival-inventory-changed",
+    () => {
+      refreshBuildingUI();
+      updateGhost();
+    }
+  );
+}
+
+// --------------------------------------------------
+// SYSTEM API
+// --------------------------------------------------
+
+function initialize() {
+  if (buildingState.initialized) {
+    return;
+  }
+
+  buildingState.initialized = true;
+
+  createBuildingUI();
+  setupEvents();
+
+  refreshBuildingUI();
+}
+
+function update(time = performance.now()) {
+  if (!buildingState.initialized) {
+    initialize();
+  }
+
+  if (buildingState.active) {
+    updateGhost();
+  }
+
+  updateCampfires(time);
+}
+
+function getState() {
+  return {
+    ...buildingState,
+    ghost: undefined,
+    ui: undefined,
+    buttons: undefined
+  };
+}
+
+function destroy() {
+  setBuildingMode(false);
+
+  for (const campfire of buildingState.campfires) {
+    if (campfire?.parent) {
+      campfire.parent.remove(campfire);
+    }
+  }
+
+  buildingState.campfires.length = 0;
+  buildingState.storageBoxes.length = 0;
+
+  window.removeEventListener(
+    "keydown",
+    handleKeyDown
+  );
+
+  buildingState.initialized = false;
+}
+
+// --------------------------------------------------
+// REGISTER SYSTEM
+// --------------------------------------------------
+
+SurvivalVR.systems.building = {
+  state: buildingState,
+
+  BUILDINGS,
+  BUILDING_ORDER,
+
+  initialize,
+  update,
+
+  open: () => setBuildingMode(true),
+  close: () => setBuildingMode(false),
+  toggle: toggleBuilding,
+
+  select: selectBuilding,
+  rotate: rotateBuilding,
+  place: placeBuilding,
+
+  hasMaterials,
+  getPlacementPosition,
+  validatePlacement,
+
+  getState,
+  destroy
+};
+
+initialize();
+
+export {
+  BUILDINGS,
+  BUILDING_ORDER,
+  buildingState,
+  initialize,
+  update,
+  setBuildingMode,
+  toggleBuilding,
+  selectBuilding,
+  rotateBuilding,
+  placeBuilding,
+  hasMaterials
+};
