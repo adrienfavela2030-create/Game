@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VR Convenience Store</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #111;
+    }
+
+    #startScreen {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      padding: 20px;
+
+      background:
+        radial-gradient(
+          circle at center,
+          #263a32 0%,
+          #111916 55%,
+          #060807 100%
+        );
+
+      color: white;
+    }
+
+    .panel {
+      width: min(520px, 92vw);
+      padding: 32px;
+
+      text-align: center;
+
+      background: rgba(20, 25, 23, 0.95);
+
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 24px;
+
+      box-shadow: 0 20px 70px rgba(0,0,0,0.5);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 34px;
+    }
+
+    p {
+      color: #c9d2ce;
+      line-height: 1.5;
+    }
+
+    #enterVR {
+      margin-top: 15px;
+
+      padding: 15px 25px;
+
+      border: none;
+      border-radius: 14px;
+
+      background: white;
+      color: #111;
+
+      font-size: 17px;
+      font-weight: bold;
+    }
+
+    #status {
+      margin-top: 15px;
+      color: #9ca9a4;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="startScreen">
+
+    <div class="panel">
+
+      <h1>🏪 VR Convenience Store</h1>
+
+      <p>
+        Welcome to your store.
+        <br><br>
+        Left joystick = move
+        <br>
+        Right joystick = turn
+        <br>
+        Head movement = look around
+      </p>
+
+      <button id="enterVR">
+        ENTER VR
+      </button>
+
+      <div id="status">
+        Open this page on your Meta Quest 3S.
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <script type="module">
+
+    import * as THREE from
+      "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
+
+    import { VRButton } from
+      "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/webxr/VRButton.js";
+
+
+    // =========================================================
+    // SCENE
+    // =========================================================
+
+    const scene = new THREE.Scene();
+
+    scene.background = new THREE.Color(0x171c1a);
+
+    scene.fog = new THREE.Fog(
+      0x171c1a,
+      15,
+      45
+    );
+
+
+    // =========================================================
+    // CAMERA
+    // =========================================================
+
+    const camera = new THREE.PerspectiveCamera(
+      70,
+      window.innerWidth / window.innerHeight,
+      0.05,
+      100
+    );
+
+    camera.position.set(
+      0,
+      1.6,
+      7
+    );
+
+
+    // =========================================================
+    // PLAYER
+    // =========================================================
+
+    const player = new THREE.Group();
+
+    player.position.set(
+      0,
+      0,
+      7
+    );
+
+    player.add(camera);
+
+    scene.add(player);
+
+
+    // =========================================================
+    // RENDERER
+    // =========================================================
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true
+    });
+
+    renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio, 2)
+    );
+
+    renderer.setSize(
+      window.innerWidth,
+      window.innerHeight
+    );
+
+    renderer.xr.enabled = true;
+
+    renderer.xr.setReferenceSpaceType(
+      "local-floor"
+    );
+
+    document.body.appendChild(
+      renderer.domElement
+    );
+
+
+    // =========================================================
+    // VR BUTTON
+    // =========================================================
+
+    const vrButton = VRButton.createButton(
+      renderer
+    );
+
+    vrButton.style.display = "none";
+
+    document.body.appendChild(
+      vrButton
+    );
+
+
+    // =========================================================
+    // MATERIALS
+    // =========================================================
+
+    const floorMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x303634,
+        roughness: 0.8
+      });
+
+    const wallMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0xd8ddd9,
+        roughness: 0.9
+      });
+
+    const shelfMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x553d2c,
+        roughness: 0.75
+      });
+
+    const metalMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x8b9290,
+        metalness: 0.7,
+        roughness: 0.3
+      });
+
+    const counterMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x222625,
+        roughness: 0.65
+      });
+
+
+    // =========================================================
+    // HELPER: BOX
+    // =========================================================
+
+    function box(
+      width,
+      height,
+      depth,
+      material,
+      x,
+      y,
+      z
+    ) {
+
+      const geometry =
+        new THREE.BoxGeometry(
+          width,
+          height,
+          depth
+        );
+
+      const mesh =
+        new THREE.Mesh(
+          geometry,
+          material
+        );
+
+      mesh.position.set(
+        x,
+        y,
+        z
+      );
+
+      scene.add(mesh);
+
+      return mesh;
+    }
+
+
+    // =========================================================
+    // FLOOR
+    // =========================================================
+
+    box(
+      20,
+      0.2,
+      20,
+      floorMaterial,
+      0,
+      -0.1,
+      0
+    );
+
+
+    // =========================================================
+    // WALLS
+    // =========================================================
+
+    // Back wall
+
+    box(
+      20,
+      5,
+      0.3,
+      wallMaterial,
+      0,
+      2.5,
+      -10
+    );
+
+
+    // Left wall
+
+    box(
+      0.3,
+      5,
+      20,
+      wallMaterial,
+      -10,
+      2.5,
+      0
+    );
+
+
+    // Right wall
+
+    box(
+      0.3,
+      5,
+      20,
+      wallMaterial,
+      10,
+      2.5,
+      0
+    );
+
+
+    // Front wall pieces
+    // Leaving an entrance in the middle.
+
+    box(
+      7,
+      5,
+      0.3,
+      wallMaterial,
+      -6.5,
+      2.5,
+      10
+    );
+
+    box(
+      7,
+      5,
+      0.3,
+      wallMaterial,
+      6.5,
+      2.5,
+      10
+    );
+
+
+    // =========================================================
+    // CEILING
+    // =========================================================
+
+    box(
+      20,
+      0.2,
+      20,
+      wallMaterial,
+      0,
+      5,
+      0
+    );
+
+
+    // =========================================================
+    // SHELF FUNCTION
+    // =========================================================
+
+    function createShelf(
+      x,
+      z
+    ) {
+
+      // Back board
+
+      box(
+        4,
+        2.8,
+        0.25,
+        shelfMaterial,
+        x,
+        1.6,
+        z
+      );
+
+
+      // Bottom
+
+      box(
+        4.2,
+        0.2,
+        1.2,
+        shelfMaterial,
+        x,
+        0.5,
+        z + 0.35
+      );
+
+
+      // Middle shelf
+
+      box(
+        4.2,
+        0.2,
+        1.2,
+        shelfMaterial,
+        x,
+        1.35,
+        z + 0.35
+      );
+
+
+      // Top shelf
+
+      box(
+        4.2,
+        0.2,
+        1.2,
+        shelfMaterial,
+        x,
+        2.2,
+        z + 0.35
+      );
+
+
+      // Side posts
+
+      box(
+        0.2,
+        2.8,
+        1.2,
+        shelfMaterial,
+        x - 2,
+        1.6,
+        z + 0.35
+      );
+
+      box(
+        0.2,
+        2.8,
+        1.2,
+        shelfMaterial,
+        x + 2,
+        1.6,
+        z + 0.35
+      );
+
+
+      // Products
+
+      createProducts(
+        x,
+        z
+      );
+    }
+
+
+    // =========================================================
+    // PRODUCT FUNCTION
+    // =========================================================
+
+    function createProducts(
+      x,
+      z
+    ) {
+
+      const productColors = [
+        0xe74c3c,
+        0x3498db,
+        0xf1c40f,
+        0x2ecc71,
+        0x9b59b6
+      ];
+
+
+      const shelfHeights = [
+        0.75,
+        1.6,
+        2.45
+      ];
+
+
+      shelfHeights.forEach(
+        (height, row) => {
+
+          for (
+            let i = -1;
+            i <= 1;
+            i++
+          ) {
+
+            const material =
+              new THREE.MeshStandardMaterial({
+                color:
+                  productColors[
+                    (i + row + 3) %
+                    productColors.length
+                  ]
+              });
+
+
+            const product =
+              new THREE.Mesh(
+                new THREE.BoxGeometry(
+                  0.42,
+                  0.55,
+                  0.42
+                ),
+                material
+              );
+
+
+            product.position.set(
+              x + i * 1.15,
+              height,
+              z + 0.9
+            );
+
+
+            scene.add(product);
+          }
+        }
+      );
+    }
+
+
+    // =========================================================
+    // SHELVES
+    // =========================================================
+
+    createShelf(
+      -6,
+      -4
+    );
+
+    createShelf(
+      0,
+      -4
+    );
+
+    createShelf(
+      6,
+      -4
+    );
+
+
+    createShelf(
+      -6,
+      1
+    );
+
+    createShelf(
+      6,
+      1
+    );
+
+
+    // =========================================================
+    // REFRIGERATOR
+    // =========================================================
+
+    function createFridge(
+      x,
+      z
+    ) {
+
+      // Main fridge
+
+      box(
+        5,
+        3.2,
+        1,
+        metalMaterial,
+        x,
+        1.7,
+        z
+      );
+
+
+      // Glass doors
+
+      const glassMaterial =
+        new THREE.MeshStandardMaterial({
+          color: 0x6e9fa8,
+          transparent: true,
+          opacity: 0.35,
+          metalness: 0.2,
+          roughness: 0.1
+        });
+
+
+      for (
+        let i = -1;
+        i <= 1;
+        i++
+      ) {
+
+        box(
+          1.45,
+          2.6,
+          0.05,
+          glassMaterial,
+          x + i * 1.5,
+          1.7,
+          z - 0.53
+        );
+      }
+
+
+      // Drinks
+
+      for (
+        let row = 0;
+        row < 2;
+        row++
+      ) {
+
+        for (
+          let i = -4;
+          i <= 4;
+          i++
+        ) {
+
+          const drinkMaterial =
+            new THREE.MeshStandardMaterial({
+              color:
+                i % 2 === 0
+                  ? 0xe74c3c
+                  : 0x3498db
+            });
+
+
+          const drink =
+            new THREE.Mesh(
+              new THREE.CylinderGeometry(
+                0.09,
+                0.09,
+                0.55,
+                12
+              ),
+              drinkMaterial
+            );
+
+
+          drink.position.set(
+            x + i * 0.45,
+            1.1 + row * 1,
+            z - 0.65
+          );
+
+
+          scene.add(drink);
+        }
+      }
+    }
+
+
+    createFridge(
+      0,
+      -8.7
+    );
+
+
+    // =========================================================
+    // CHECKOUT COUNTER
+    // =========================================================
+
+    box(
+      5,
+      1.2,
+      1.6,
+      counterMaterial,
+      0,
+      0.6,
+      5
+    );
+
+
+    // Counter top
+
+    box(
+      5.3,
+      0.15,
+      1.8,
+      metalMaterial,
+      0,
+      1.25,
+      5
+    );
+
+
+    // Register
+
+    box(
+      0.9,
+      0.45,
+      0.7,
+      metalMaterial,
+      0,
+      1.55,
+      5
+    );
+
+
+    // Register screen
+
+    box(
+      0.65,
+      0.5,
+      0.1,
+      new THREE.MeshStandardMaterial({
+        color: 0x111111
+      }),
+      0,
+      1.95,
+      4.75
+    );
+
+
+    // =========================================================
+    // ENTRANCE
+    // =========================================================
+
+    const entranceMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x202b27,
+        roughness: 0.6
+      });
+
+
+    box(
+      6,
+      0.15,
+      0.4,
+      entranceMaterial,
+      0,
+      3.8,
+      9.8
+    );
+
+
+    // =========================================================
+    // LIGHTING
+    // =========================================================
+
+    const ambientLight =
+      new THREE.HemisphereLight(
+        0xffffff,
+        0x39433f,
+        2
+      );
+
+    scene.add(
+      ambientLight
+    );
+
+
+    const mainLight =
+      new THREE.DirectionalLight(
+        0xffffff,
+        2.5
+      );
+
+    mainLight.position.set(
+      0,
+      5,
+      2
+    );
+
+    scene.add(
+      mainLight
+    );
+
+
+    // Ceiling lights
+
+    for (
+      let x = -6;
+      x <= 6;
+      x += 6
+    ) {
+
+      const light =
+        new THREE.PointLight(
+          0xffffff,
+          1.5,
+          12
+        );
+
+      light.position.set(
+        x,
+        4.5,
+        0
+      );
+
+      scene.add(
+        light
+      );
+    }
+
+
+    // =========================================================
+    // QUEST CONTROLLERS
+    // =========================================================
+
+    let leftController = null;
+    let rightController = null;
+
+
+    renderer.xr.addEventListener(
+      "sessionstart",
+      () => {
+
+        document
+          .getElementById("startScreen")
+          .style.display = "none";
+
+      }
+    );
+
+
+    renderer.xr.addEventListener(
+      "sessionend",
+      () => {
+
+        document
+          .getElementById("startScreen")
+          .style.display = "flex";
+
+      }
+    );
+
+
+    leftController =
+      renderer.xr.getController(0);
+
+    rightController =
+      renderer.xr.getController(1);
+
+    scene.add(
+      leftController
+    );
+
+    scene.add(
+      rightController
+    );
+
+
+    // =========================================================
+    // CONTROLLER HANDLERS
+    // =========================================================
+
+    renderer.xr.addEventListener(
+      "sessionstart",
+      () => {
+
+        const session =
+          renderer.xr.getSession();
+
+        session.addEventListener(
+          "inputsourceschange",
+          updateControllers
+        );
+
+        updateControllers();
+      }
+    );
+
+
+    function updateControllers() {
+
+      const session =
+        renderer.xr.getSession();
+
+      if (!session) return;
+
+
+      leftController =
+        null;
+
+      rightController =
+        null;
+
+
+      for (
+        const source of session.inputSources
+      ) {
+
+        if (
+          source.handedness === "left" &&
+          source.gamepad
+        ) {
+
+          leftController =
+            source;
+        }
+
+
+        if (
+          source.handedness === "right" &&
+          source.gamepad
+        ) {
+
+          rightController =
+            source;
+        }
+      }
+    }
+
+
+    // =========================================================
+    // MOVEMENT
+    // =========================================================
+
+    const movementSpeed = 2.5;
+
+    const turnSpeed = 1.8;
+
+
+    function getAxis(
+      gamepad,
+      index
+    ) {
+
+      if (
+        !gamepad ||
+        !gamepad.axes ||
+        gamepad.axes.length <= index
+      ) {
+
+        return 0;
+      }
+
+
+      const value =
+        gamepad.axes[index];
+
+
+      // Dead zone
+
+      if (
+        Math.abs(value) < 0.15
+      ) {
+
+        return 0;
+      }
+
+
+      return value;
+    }
+
+
+    function updateMovement(
+      delta
+    ) {
+
+      if (
+        !renderer.xr.isPresenting
+      ) {
+
+        return;
+      }
+
+
+      // =======================================================
+      // LEFT JOYSTICK
+      // =======================================================
+
+      if (
+        leftController &&
+        leftController.gamepad
+      ) {
+
+        const gamepad =
+          leftController.gamepad;
+
+
+        const x =
+          getAxis(
+            gamepad,
+            2
+          );
+
+
+        const y =
+          getAxis(
+            gamepad,
+            3
+          );
+
+
+        if (
+          Math.abs(x) > 0.05 ||
+          Math.abs(y) > 0.05
+        ) {
+
+          // Movement direction follows
+          // where the player is facing.
+
+          const direction =
+            new THREE.Vector3(
+              x,
+              0,
+              y
+            );
+
+
+          direction.applyQuaternion(
+            player.quaternion
+          );
+
+
+          direction.y = 0;
+
+
+          if (
+            direction.lengthSq() > 0
+          ) {
+
+            direction.normalize();
+
+            player.position.addScaledVector(
+              direction,
+              movementSpeed * delta
+            );
+          }
+        }
+      }
+
+
+      // =======================================================
+      // RIGHT JOYSTICK
+      // =======================================================
+
+      if (
+        rightController &&
+        rightController.gamepad
+      ) {
+
+        const gamepad =
+          rightController.gamepad;
+
+
+        const turn =
+          getAxis(
+            gamepad,
+            2
+          );
+
+
+        if (
+          Math.abs(turn) > 0.15
+        ) {
+
+          player.rotation.y -=
+            turn *
+            turnSpeed *
+            delta;
+        }
+      }
+
+
+      // =======================================================
+      // KEEP PLAYER INSIDE STORE
+      // =======================================================
+
+      player.position.x =
+        THREE.MathUtils.clamp(
+          player.position.x,
+          -8.5,
+          8.5
+        );
+
+
+      player.position.z =
+        THREE.MathUtils.clamp(
+          player.position.z,
+          -8.5,
+          8.5
+        );
+    }
+
+
+    // =========================================================
+    // NON-VR KEYBOARD TESTING
+    // =========================================================
+
+    const keys = {};
+
+
+    window.addEventListener(
+      "keydown",
+      (event) => {
+
+        keys[event.key.toLowerCase()] =
+          true;
+      }
+    );
+
+
+    window.addEventListener(
+      "keyup",
+      (event) => {
+
+        keys[event.key.toLowerCase()] =
+          false;
+      }
+    );
+
+
+    function keyboardMovement(
+      delta
+    ) {
+
+      if (
+        renderer.xr.isPresenting
+      ) {
+
+        return;
+      }
+
+
+      const speed =
+        4 * delta;
+
+
+      if (keys["w"]) {
+
+        player.translateZ(
+          -speed
+        );
+      }
+
+
+      if (keys["s"]) {
+
+        player.translateZ(
+          speed
+        );
+      }
+
+
+      if (keys["a"]) {
+
+        player.translateX(
+          -speed
+        );
+      }
+
+
+      if (keys["d"]) {
+
+        player.translateX(
+          speed
+        );
+      }
+
+
+      if (keys["q"]) {
+
+        player.rotation.y +=
+          1.5 * delta;
+      }
+
+
+      if (keys["e"]) {
+
+        player.rotation.y -=
+          1.5 * delta;
+      }
+
+
+      player.position.x =
+        THREE.MathUtils.clamp(
+          player.position.x,
+          -8.5,
+          8.5
+        );
+
+
+      player.position.z =
+        THREE.MathUtils.clamp(
+          player.position.z,
+          -8.5,
+          8.5
+        );
+    }
+
+
+    // =========================================================
+    // RESIZE
+    // =========================================================
+
+    window.addEventListener(
+      "resize",
+      () => {
+
+        camera.aspect =
+          window.innerWidth /
+          window.innerHeight;
+
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(
+          window.innerWidth,
+          window.innerHeight
+        );
+      }
+    );
+
+
+    // =========================================================
+    // START VR
+    // =========================================================
+
+    document
+      .getElementById("enterVR")
+      .addEventListener(
+        "click",
+        async () => {
+
+          if (
+            !navigator.xr
+          ) {
+
+            document
+              .getElementById("status")
+              .textContent =
+              "WebXR is not available. Open this website in your Meta Quest browser.";
+
+            return;
+          }
+
+
+          try {
+
+            const supported =
+              await navigator.xr.isSessionSupported(
+                "immersive-vr"
+              );
+
+
+            if (!supported) {
+
+              document
+                .getElementById("status")
+                .textContent =
+                "Your browser does not currently support immersive VR.";
+
+              return;
+            }
+
+
+            vrButton.click();
+
+          } catch (error) {
+
+            console.error(
+              error
+            );
+
+            document
+              .getElementById("status")
+              .textContent =
+              "Could not start VR.";
+          }
+        }
+      );
+
+
+    // =========================================================
+    // GAME LOOP
+    // =========================================================
+
+    const clock =
+      new THREE.Clock();
+
+
+    function animate() {
+
+      const delta =
+        Math.min(
+          clock.getDelta(),
+          0.05
+        );
+
+
+      updateMovement(
+        delta
+      );
+
+
+      keyboardMovement(
+        delta
+      );
+
+
+      renderer.render(
+        scene,
+        camera
+      );
+    }
+
+
+    renderer.setAnimationLoop(
+      animate
+    );
+
+  </script>
+
+</body>
+</html>
