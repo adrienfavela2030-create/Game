@@ -1,21 +1,39 @@
-/* =========================================================
-   HANDS.JS
-   Island Survival VR hand/controller system
-========================================================= */
+import * as THREE from "three";
 
-const SurvivalVR = window.SurvivalVR;
+/*
+ * ============================================================
+ * SURVIVAL VR — HANDS + VR LOCOMOTION
+ * ============================================================
+ *
+ * Left stick:
+ *   Move forward/back/left/right
+ *
+ * Right stick:
+ *   Snap turn
+ *
+ * Trigger:
+ *   Grab/interact event
+ *
+ * Grip:
+ *   Grab event
+ *
+ * This file is safe to load AFTER window.SurvivalVR exists.
+ * ============================================================
+ */
 
-if (!SurvivalVR) {
+const S = window.SurvivalVR;
+
+if (!S) {
   throw new Error(
-    "hands.js loaded before window.SurvivalVR was created."
+    "SurvivalVR must be created before hands.js loads."
   );
 }
 
-const THREE = SurvivalVR.THREE;
+const THREE_NS = THREE;
 
-const hands = {
-  left: null,
-  right: null,
+const state = {
+
+  initialized: false,
 
   leftController: null,
   rightController: null,
@@ -23,319 +41,196 @@ const hands = {
   leftGrip: null,
   rightGrip: null,
 
-  leftHanded: null,
-  rightHanded: null,
+  leftHand: null,
+  rightHand: null,
 
-  initialized: false,
+  leftInput: null,
+  rightInput: null,
 
-  grabbing: {
-    left: false,
-    right: false
-  },
+  leftPressed: false,
+  rightPressed: false,
 
-  trigger: {
-    left: 0,
-    right: 0
-  },
+  leftSqueeze: false,
+  rightSqueeze: false,
 
-  squeeze: {
-    left: 0,
-    right: 0
-  },
+  lastSnapTime: 0,
 
-  thumbstick: {
-    leftX: 0,
-    leftY: 0,
-    rightX: 0,
-    rightY: 0
-  },
+  snapCooldown: 0.28,
 
-  lastButtonState: {
-    left: {},
-    right: {}
-  },
+  moveSpeed: 2.2,
 
-  handOffset: {
-    left: new THREE.Vector3(-0.25, -0.05, -0.35),
-    right: new THREE.Vector3(0.25, -0.05, -0.35)
-  }
+  sprintSpeed: 4.0,
+
+  snapAngle: 30,
+
+  deadzone: 0.15,
+
+  handsGroup: null
+
 };
 
 
-/* =========================================================
-   COLORS / MATERIALS
-========================================================= */
+/* ============================================================
+   UTILITY
+   ============================================================ */
 
-const handMaterial = new THREE.MeshStandardMaterial({
-  color: 0xd7a77c,
-  roughness: 0.72,
-  metalness: 0.02
-});
+function dispatch(name, detail = {}) {
 
-const handDarkMaterial = new THREE.MeshStandardMaterial({
-  color: 0x8b6048,
-  roughness: 0.8,
-  metalness: 0
-});
+  window.dispatchEvent(
+    new CustomEvent(name, {
+      detail
+    })
+  );
+
+}
 
 
-/* =========================================================
+/* ============================================================
    CREATE SIMPLE VR HAND
-========================================================= */
+   ============================================================ */
 
 function createHand(side) {
 
-  const group = new THREE.Group();
+  const group =
+    new THREE.Group();
 
   group.name =
-    side === "left"
-      ? "VR_Left_Hand"
-      : "VR_Right_Hand";
+    `${side}-vr-hand`;
 
-  const palm = new THREE.Mesh(
+  const skinMaterial =
+    new THREE.MeshStandardMaterial({
+      color: 0xd69b72,
+      roughness: 0.75,
+      metalness: 0
+    });
+
+
+  const palmGeometry =
     new THREE.SphereGeometry(
       0.075,
-      16,
-      12
-    ),
-    handMaterial
-  );
+      12,
+      8
+    );
+
+
+  const palm =
+    new THREE.Mesh(
+      palmGeometry,
+      skinMaterial
+    );
+
 
   palm.scale.set(
-    0.85,
-    1,
-    0.65
+    0.9,
+    1.15,
+    0.55
   );
+
 
   group.add(palm);
 
 
   /*
-    Four fingers.
+   * Fingers
+   */
 
-    These are intentionally simple so the game
-    does not become too heavy on Quest 3S.
-  */
+  const fingerGeometry =
+    new THREE.CapsuleGeometry(
+      0.018,
+      0.075,
+      4,
+      6
+    );
+
 
   const fingerPositions = [
-    -0.045,
-    -0.015,
-    0.015,
-    0.045
+
+    [-0.045, 0.075, -0.015],
+
+    [-0.015, 0.09, -0.02],
+
+    [0.015, 0.09, -0.02],
+
+    [0.045, 0.075, -0.015]
+
   ];
 
-  fingerPositions.forEach(
-    (x, index) => {
 
-      const finger = new THREE.Mesh(
-        new THREE.CapsuleGeometry(
-          0.014,
-          0.065,
-          5,
-          8
-        ),
-        handMaterial
+  for (
+    const position of fingerPositions
+  ) {
+
+    const finger =
+      new THREE.Mesh(
+        fingerGeometry,
+        skinMaterial
       );
 
-      finger.position.set(
-        x,
-        0.065,
-        0
-      );
 
-      finger.rotation.x =
-        Math.PI / 2;
+    finger.position.set(
+      position[0],
+      position[1],
+      position[2]
+    );
 
-      finger.name =
-        `Finger_${index}`;
 
-      group.add(finger);
-    }
-  );
+    group.add(finger);
+
+  }
 
 
   /*
-    Thumb
-  */
+   * Thumb
+   */
 
-  const thumb = new THREE.Mesh(
-    new THREE.CapsuleGeometry(
-      0.017,
-      0.065,
-      5,
-      8
-    ),
-    handMaterial
-  );
+  const thumb =
+    new THREE.Mesh(
+      new THREE.CapsuleGeometry(
+        0.02,
+        0.065,
+        4,
+        6
+      ),
+      skinMaterial
+    );
+
+
+  thumb.rotation.z =
+    side === "left"
+      ? -0.7
+      : 0.7;
+
 
   thumb.position.set(
     side === "left"
       ? -0.065
       : 0.065,
-
     0.015,
-
-    -0.025
+    -0.015
   );
 
-  thumb.rotation.z =
-    side === "left"
-      ? -0.65
-      : 0.65;
 
   group.add(thumb);
 
 
   /*
-    Small wrist piece.
-  */
+   * Hide the hand until appropriate.
+   */
 
-  const wrist = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      0.045,
-      0.052,
-      0.08,
-      12
-    ),
-    handDarkMaterial
-  );
+  group.visible =
+    true;
 
-  wrist.rotation.z =
-    Math.PI / 2;
-
-  wrist.position.y =
-    -0.075;
-
-  group.add(wrist);
-
-
-  group.visible = false;
 
   return group;
+
 }
 
 
-/* =========================================================
-   CONTROLLER GRIP VISUAL
-========================================================= */
+/* ============================================================
+   CONTROLLER SETUP
+   ============================================================ */
 
-function createControllerGrip(side) {
-
-  const group = new THREE.Group();
-
-  group.name =
-    side === "left"
-      ? "Left_Controller"
-      : "Right_Controller";
-
-
-  const handle = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      0.025,
-      0.032,
-      0.13,
-      10
-    ),
-    new THREE.MeshStandardMaterial({
-      color: 0x222a25,
-      roughness: 0.6
-    })
-  );
-
-  handle.rotation.x =
-    Math.PI / 2;
-
-  group.add(handle);
-
-
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(
-      0.045,
-      0.007,
-      8,
-      20
-    ),
-    new THREE.MeshStandardMaterial({
-      color: 0x4b6655,
-      roughness: 0.5
-    })
-  );
-
-  ring.rotation.x =
-    Math.PI / 2;
-
-  group.add(ring);
-
-
-  group.visible = false;
-
-  return group;
-}
-
-
-/* =========================================================
-   ATTACH HAND
-========================================================= */
-
-function attachHand(
-  controller,
-  side
-) {
-
-  if (!controller) {
-    return null;
-  }
-
-
-  const hand =
-    createHand(side);
-
-  const grip =
-    createControllerGrip(side);
-
-
-  controller.add(hand);
-
-  controller.add(grip);
-
-
-  if (side === "left") {
-
-    hands.left = hand;
-
-    hands.leftGrip = grip;
-
-    hands.leftController =
-      controller;
-
-  } else {
-
-    hands.right = hand;
-
-    hands.rightGrip = grip;
-
-    hands.rightController =
-      controller;
-  }
-
-
-  setupControllerEvents(
-    controller,
-    side
-  );
-
-
-  updateHandVisibility();
-
-  return hand;
-}
-
-
-/* =========================================================
-   SETUP GRIP
-========================================================= */
-
-function setupGrip(
+function setupController(
   controller,
   side
 ) {
@@ -345,38 +240,31 @@ function setupGrip(
   }
 
 
-  const grip =
-    createControllerGrip(side);
-
-  controller.add(grip);
+  controller.userData.side =
+    side;
 
 
-  if (side === "left") {
-    hands.leftGrip = grip;
-  } else {
-    hands.rightGrip = grip;
-  }
-}
-
-
-/* =========================================================
-   CONTROLLER EVENTS
-========================================================= */
-
-function setupControllerEvents(
-  controller,
-  side
-) {
+  /*
+   * Trigger / select
+   */
 
   controller.addEventListener(
     "selectstart",
     () => {
 
-      hands.grabbing[side] = true;
+      if (side === "left") {
+        state.leftPressed = true;
+      } else {
+        state.rightPressed = true;
+      }
 
-      emitGrab(
-        side,
-        true
+
+      dispatch(
+        "survival-grab",
+        {
+          side,
+          source: "trigger"
+        }
       );
 
     }
@@ -387,24 +275,41 @@ function setupControllerEvents(
     "selectend",
     () => {
 
-      hands.grabbing[side] = false;
+      if (side === "left") {
+        state.leftPressed = false;
+      } else {
+        state.rightPressed = false;
+      }
 
-      emitGrab(
-        side,
-        false
+
+      dispatch(
+        "survival-release",
+        {
+          side,
+          source: "trigger"
+        }
       );
 
     }
   );
 
 
+  /*
+   * Grip button
+   */
+
   controller.addEventListener(
     "squeezestart",
     () => {
 
-      hands.squeeze[side] = 1;
+      if (side === "left") {
+        state.leftSqueeze = true;
+      } else {
+        state.rightSqueeze = true;
+      }
 
-      emitEvent(
+
+      dispatch(
         "survival-squeeze",
         {
           side,
@@ -420,9 +325,14 @@ function setupControllerEvents(
     "squeezeend",
     () => {
 
-      hands.squeeze[side] = 0;
+      if (side === "left") {
+        state.leftSqueeze = false;
+      } else {
+        state.rightSqueeze = false;
+      }
 
-      emitEvent(
+
+      dispatch(
         "survival-squeeze",
         {
           side,
@@ -433,556 +343,769 @@ function setupControllerEvents(
     }
   );
 
-
-  controller.addEventListener(
-    "connected",
-    event => {
-
-      const data =
-        event.data || {};
-
-      console.log(
-        `[VR] ${side} controller connected:`,
-        data
-      );
-
-      emitEvent(
-        "survival-controller-connected",
-        {
-          side,
-          data
-        }
-      );
-
-    }
-  );
-
-
-  controller.addEventListener(
-    "disconnected",
-    () => {
-
-      console.log(
-        `[VR] ${side} controller disconnected`
-      );
-
-      emitEvent(
-        "survival-controller-disconnected",
-        {
-          side
-        }
-      );
-
-    }
-  );
 }
 
 
-/* =========================================================
-   GRAB EVENT
-========================================================= */
+/* ============================================================
+   INPUT SOURCE
+   ============================================================ */
 
-function emitGrab(
-  side,
-  pressed
-) {
+function getGamepadForSide(side) {
 
-  emitEvent(
-    "survival-grab",
-    {
-      side,
-      pressed,
+  if (!S.renderer) {
+    return null;
+  }
 
-      controller:
-        side === "left"
-          ? hands.leftController
-          : hands.rightController,
 
-      hand:
-        side === "left"
-          ? hands.left
-          : hands.right
+  const session =
+    S.renderer.xr.getSession();
+
+
+  if (!session) {
+    return null;
+  }
+
+
+  for (
+    const source of session.inputSources
+  ) {
+
+    if (
+      source.handedness !== side
+    ) {
+      continue;
     }
-  );
+
+
+    if (
+      source.gamepad
+    ) {
+
+      return source.gamepad;
+
+    }
+
+  }
+
+
+  return null;
+
 }
 
 
-/* =========================================================
-   GENERIC EVENT
-========================================================= */
+/* ============================================================
+   DEADZONE
+   ============================================================ */
 
-function emitEvent(
-  name,
-  detail = {}
+function applyDeadzone(value) {
+
+  const absolute =
+    Math.abs(value);
+
+
+  if (
+    absolute <
+    state.deadzone
+  ) {
+
+    return 0;
+
+  }
+
+
+  const sign =
+    Math.sign(value);
+
+
+  const normalized =
+    (
+      absolute -
+      state.deadzone
+    ) /
+    (
+      1 -
+      state.deadzone
+    );
+
+
+  return sign *
+    Math.min(
+      1,
+      normalized
+    );
+
+}
+
+
+/* ============================================================
+   PLAYER MOVEMENT
+   ============================================================ */
+
+function updateMovement(
+  delta
 ) {
 
-  window.dispatchEvent(
-    new CustomEvent(
-      name,
-      {
-        detail
-      }
+  if (!S.renderer) {
+    return;
+  }
+
+
+  if (!S.renderer.xr.isPresenting) {
+    return;
+  }
+
+
+  if (!S.playerGroup) {
+    return;
+  }
+
+
+  if (
+    S.GAME &&
+    S.GAME.state &&
+    (
+      S.GAME.state.paused ||
+      S.GAME.state.gameOver
     )
+  ) {
+
+    return;
+
+  }
+
+
+  const gamepad =
+    getGamepadForSide(
+      "left"
+    );
+
+
+  if (!gamepad) {
+    return;
+  }
+
+
+  const axes =
+    gamepad.axes || [];
+
+
+  /*
+   * Quest controllers normally expose the main
+   * thumbstick around axes 2 and 3.
+   *
+   * Some browsers expose them at 0 and 1.
+   */
+
+  let x =
+    axes.length >= 4
+      ? axes[2]
+      : axes[0] || 0;
+
+
+  let y =
+    axes.length >= 4
+      ? axes[3]
+      : axes[1] || 0;
+
+
+  x =
+    applyDeadzone(x);
+
+
+  y =
+    applyDeadzone(y);
+
+
+  if (
+    Math.abs(x) < 0.001 &&
+    Math.abs(y) < 0.001
+  ) {
+
+    return;
+
+  }
+
+
+  /*
+   * Camera direction.
+   *
+   * We only use the horizontal direction so
+   * looking up/down doesn't make you fly.
+   */
+
+  const camera =
+    S.camera;
+
+
+  const forward =
+    new THREE.Vector3();
+
+
+  camera.getWorldDirection(
+    forward
   );
+
+
+  forward.y = 0;
+
+
+  if (
+    forward.lengthSq() < 0.0001
+  ) {
+
+    return;
+
+  }
+
+
+  forward.normalize();
+
+
+  const right =
+    new THREE.Vector3(
+      forward.z,
+      0,
+      -forward.x
+    );
+
+
+  /*
+   * Quest stick:
+   *
+   * Y forward/back
+   * X strafe
+   */
+
+  const movement =
+    new THREE.Vector3();
+
+
+  movement.addScaledVector(
+    forward,
+    -y
+  );
+
+
+  movement.addScaledVector(
+    right,
+    x
+  );
+
+
+  if (
+    movement.lengthSq() < 0.0001
+  ) {
+
+    return;
+
+  }
+
+
+  movement.normalize();
+
+
+  /*
+   * Sprint when the game core says sprinting.
+   */
+
+  let speed =
+    state.moveSpeed;
+
+
+  if (
+    S.GAME &&
+    S.GAME.player &&
+    S.GAME.player.sprinting
+  ) {
+
+    speed =
+      state.sprintSpeed;
+
+  }
+
+
+  const distance =
+    speed * delta;
+
+
+  S.playerGroup.position.x +=
+    movement.x * distance;
+
+
+  S.playerGroup.position.z +=
+    movement.z * distance;
+
+
+  /*
+   * Keep the player on the ground.
+   */
+
+  updateGroundHeight();
+
+
+  /*
+   * Keep game.js position synchronized.
+   */
+
+  if (
+    S.GAME &&
+    S.GAME.position
+  ) {
+
+    S.GAME.position.x =
+      S.playerGroup.position.x;
+
+    S.GAME.position.z =
+      S.playerGroup.position.z;
+
+  }
+
+
+  dispatch(
+    "survival-player-moved",
+    {
+      x:
+        S.playerGroup.position.x,
+
+      y:
+        S.playerGroup.position.y,
+
+      z:
+        S.playerGroup.position.z
+    }
+  );
+
 }
 
 
-/* =========================================================
-   UPDATE HAND
-========================================================= */
+/* ============================================================
+   GROUND HEIGHT
+   ============================================================ */
 
-function updateHand(
-  side,
-  delta = 0
-) {
+function updateGroundHeight() {
 
-  const controller =
-    side === "left"
-      ? hands.leftController
-      : hands.rightController;
-
-  const hand =
-    side === "left"
-      ? hands.left
-      : hands.right;
-
-
-  if (!controller || !hand) {
+  if (!S.playerGroup) {
     return;
   }
 
 
   /*
-    The hand follows the Quest controller.
+   * The playerGroup itself represents the player's feet.
+   *
+   * Terrain systems can provide a terrain height function.
+   */
 
-    Later, real Quest hand tracking can use
-    this same system without changing the
-    rest of the game.
-  */
+  let height = 0;
 
-  if (hands.grabbing[side]) {
 
-    hand.scale.lerp(
-      new THREE.Vector3(
-        0.88,
-        0.88,
-        0.88
-      ),
-      Math.min(
-        1,
-        delta * 12
-      )
-    );
+  const world =
+    S.systems &&
+    S.systems.world;
 
-  } else {
-
-    hand.scale.lerp(
-      new THREE.Vector3(
-        1,
-        1,
-        1
-      ),
-      Math.min(
-        1,
-        delta * 12
-      )
-    );
-
-  }
-}
-
-
-/* =========================================================
-   UPDATE ALL HANDS
-========================================================= */
-
-function updateHands(
-  delta
-) {
-
-  updateHand(
-    "left",
-    delta
-  );
-
-  updateHand(
-    "right",
-    delta
-  );
-
-  updateThumbsticks();
-}
-
-
-/* =========================================================
-   THUMBSTICKS
-========================================================= */
-
-function updateThumbsticks() {
-
-  const controllers = [
-    {
-      controller:
-        hands.leftController,
-      side: "left"
-    },
-
-    {
-      controller:
-        hands.rightController,
-      side: "right"
-    }
-  ];
-
-
-  controllers.forEach(
-    ({ controller, side }) => {
-
-      if (!controller ||
-          !controller.gamepad) {
-
-        return;
-      }
-
-
-      const axes =
-        controller.gamepad.axes || [];
-
-
-      const x =
-        Number(axes[2] || 0);
-
-      const y =
-        Number(axes[3] || 0);
-
-
-      if (side === "left") {
-
-        hands.thumbstick.leftX = x;
-
-        hands.thumbstick.leftY = y;
-
-      } else {
-
-        hands.thumbstick.rightX = x;
-
-        hands.thumbstick.rightY = y;
-      }
-    }
-  );
-}
-
-
-/* =========================================================
-   BUTTON STATE
-========================================================= */
-
-function isButtonPressed(
-  side,
-  buttonIndex
-) {
-
-  const controller =
-    side === "left"
-      ? hands.leftController
-      : hands.rightController;
-
-
-  if (!controller ||
-      !controller.gamepad) {
-
-    return false;
-  }
-
-
-  const buttons =
-    controller.gamepad.buttons || [];
-
-
-  return Boolean(
-    buttons[buttonIndex]?.pressed
-  );
-}
-
-
-/* =========================================================
-   MENU BUTTON
-========================================================= */
-
-function checkMenuButton() {
-
-  const sides = [
-    "left",
-    "right"
-  ];
-
-
-  sides.forEach(
-    side => {
-
-      const pressed =
-        isButtonPressed(
-          side,
-          3
-        );
-
-
-      const old =
-        Boolean(
-          hands.lastButtonState[
-            side
-          ].menu
-        );
-
-
-      if (pressed && !old) {
-
-        emitEvent(
-          "survival-menu-button",
-          {
-            side
-          }
-        );
-      }
-
-
-      hands.lastButtonState[
-        side
-      ].menu = pressed;
-
-    }
-  );
-}
-
-
-/* =========================================================
-   TRIGGER
-========================================================= */
-
-function updateTriggers() {
-
-  const sides = [
-    "left",
-    "right"
-  ];
-
-
-  sides.forEach(
-    side => {
-
-      const controller =
-        side === "left"
-          ? hands.leftController
-          : hands.rightController;
-
-
-      if (
-        !controller ||
-        !controller.gamepad
-      ) {
-        return;
-      }
-
-
-      const buttons =
-        controller.gamepad.buttons || [];
-
-
-      const trigger =
-        buttons[0]?.value || 0;
-
-
-      hands.trigger[side] =
-        trigger;
-    }
-  );
-}
-
-
-/* =========================================================
-   VISIBILITY
-========================================================= */
-
-function updateHandVisibility() {
-
-  const inVR =
-    Boolean(
-      SurvivalVR.GAME?.state?.inVR
-    );
-
-
-  if (hands.left) {
-
-    hands.left.visible =
-      inVR;
-
-  }
-
-
-  if (hands.right) {
-
-    hands.right.visible =
-      inVR;
-
-  }
-}
-
-
-/* =========================================================
-   RECALIBRATION
-========================================================= */
-
-function recalibrate() {
 
   if (
-    !SurvivalVR.playerGroup
+    world &&
+    typeof world.getTerrainHeight ===
+      "function"
   ) {
+
+    try {
+
+      height =
+        Number(
+          world.getTerrainHeight(
+            S.playerGroup.position.x,
+            S.playerGroup.position.z
+          )
+        );
+
+      if (
+        !Number.isFinite(height)
+      ) {
+
+        height = 0;
+
+      }
+
+    } catch {
+
+      height = 0;
+
+    }
+
+  }
+
+
+  /*
+   * Keep the player's feet slightly above
+   * the generated terrain.
+   */
+
+  S.playerGroup.position.y =
+    height;
+
+}
+
+
+/* ============================================================
+   SNAP TURN
+   ============================================================ */
+
+function updateSnapTurn() {
+
+  if (!S.renderer) {
     return;
   }
 
 
-  const player =
-    SurvivalVR.playerGroup;
+  if (!S.renderer.xr.isPresenting) {
+    return;
+  }
 
 
-  player.rotation.y = 0;
+  if (!S.playerGroup) {
+    return;
+  }
+
+
+  const gamepad =
+    getGamepadForSide(
+      "right"
+    );
+
+
+  if (!gamepad) {
+    return;
+  }
+
+
+  const axes =
+    gamepad.axes || [];
+
+
+  let x =
+    axes.length >= 4
+      ? axes[2]
+      : axes[0] || 0;
+
+
+  x =
+    applyDeadzone(x);
 
 
   if (
-    SurvivalVR.camera
+    Math.abs(x) < 0.5
   ) {
 
-    const camera =
-      SurvivalVR.camera;
-
-    camera.rotation.set(
-      0,
-      0,
-      0
-    );
+    return;
 
   }
 
 
-  emitEvent(
-    "survival-recalibrated"
+  const now =
+    performance.now() /
+    1000;
+
+
+  if (
+    now -
+    state.lastSnapTime <
+    state.snapCooldown
+  ) {
+
+    return;
+
+  }
+
+
+  const direction =
+    x > 0
+      ? -1
+      : 1;
+
+
+  const radians =
+    THREE.MathUtils.degToRad(
+      state.snapAngle
+    );
+
+
+  S.playerGroup.rotation.y +=
+    direction * radians;
+
+
+  state.lastSnapTime =
+    now;
+
+
+  dispatch(
+    "survival-snap-turn",
+    {
+      angle:
+        direction *
+        state.snapAngle
+    }
   );
+
 }
 
 
-/* =========================================================
-   VR STATE
-========================================================= */
+/* ============================================================
+   CONTROLLER CONNECTION
+   ============================================================ */
 
-window.addEventListener(
-  "survival-vr-state",
-  event => {
+function setupControllers() {
 
-    const inVR =
-      Boolean(
-        event.detail?.inVR
-      );
+  if (!S.renderer) {
+    return;
+  }
 
 
-    if (
-      SurvivalVR.GAME?.state
-    ) {
-
-      SurvivalVR.GAME.state.inVR =
-        inVR;
-    }
+  const renderer =
+    S.renderer;
 
 
-    updateHandVisibility();
+  state.leftController =
+    renderer.xr.getController(0);
+
+
+  state.rightController =
+    renderer.xr.getController(1);
+
+
+  state.leftGrip =
+    renderer.xr.getControllerGrip(0);
+
+
+  state.rightGrip =
+    renderer.xr.getControllerGrip(1);
+
+
+  state.leftHand =
+    createHand("left");
+
+
+  state.rightHand =
+    createHand("right");
+
+
+  /*
+   * Position the hands relative to controllers.
+   */
+
+  state.leftHand.position.set(
+    -0.01,
+    -0.02,
+    -0.08
+  );
+
+
+  state.rightHand.position.set(
+    0.01,
+    -0.02,
+    -0.08
+  );
+
+
+  state.leftController.add(
+    state.leftHand
+  );
+
+
+  state.rightController.add(
+    state.rightHand
+  );
+
+
+  /*
+   * Add controllers to the player.
+   */
+
+  S.playerGroup.add(
+    state.leftController
+  );
+
+
+  S.playerGroup.add(
+    state.rightController
+  );
+
+
+  /*
+   * Controller events.
+   */
+
+  setupController(
+    state.leftController,
+    "left"
+  );
+
+
+  setupController(
+    state.rightController,
+    "right"
+  );
+
+
+  /*
+   * Store references globally.
+   */
+
+  S.leftController =
+    state.leftController;
+
+  S.rightController =
+    state.rightController;
+
+
+  S.leftHand =
+    state.leftHand;
+
+  S.rightHand =
+    state.rightHand;
+
+}
+
+
+/* ============================================================
+   HAND VISIBILITY
+   ============================================================ */
+
+function updateHandVisibility() {
+
+  const presenting =
+    S.renderer &&
+    S.renderer.xr &&
+    S.renderer.xr.isPresenting;
+
+
+  if (state.leftHand) {
+
+    state.leftHand.visible =
+      !!presenting;
 
   }
-);
 
 
-/* =========================================================
-   MENU BUTTON
-========================================================= */
+  if (state.rightHand) {
 
-window.addEventListener(
-  "survival-menu-button",
-  event => {
-
-    /*
-      The settings/home system will listen
-      for this event later.
-
-      We intentionally don't open a menu
-      here so hands.js stays independent.
-    */
-
-    console.log(
-      "VR menu button:",
-      event.detail?.side
-    );
+    state.rightHand.visible =
+      !!presenting;
 
   }
-);
+
+}
 
 
-/* =========================================================
-   KEYBOARD TEST CONTROLS
-========================================================= */
-
-window.addEventListener(
-  "keydown",
-  event => {
-
-    if (
-      event.code === "KeyR" &&
-      event.shiftKey
-    ) {
-
-      recalibrate();
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   FRAME LOOP
-========================================================= */
+/* ============================================================
+   UPDATE
+   ============================================================ */
 
 function update(
-  delta = 0
+  delta
 ) {
 
-  updateHands(delta);
+  if (!state.initialized) {
+    return;
+  }
 
-  updateTriggers();
 
-  checkMenuButton();
+  updateHandVisibility();
+
+
+  updateMovement(
+    delta
+  );
+
+
+  updateSnapTurn();
+
 }
 
 
-/* =========================================================
-   REGISTER SYSTEM
-========================================================= */
+/* ============================================================
+   SETUP
+   ============================================================ */
 
-SurvivalVR.hands = hands;
+function setupHands() {
 
-SurvivalVR.updateHands =
-  update;
-
-SurvivalVR.recalibrate =
-  recalibrate;
+  if (state.initialized) {
+    return state;
+  }
 
 
-/* =========================================================
+  if (!S.renderer) {
+
+    console.warn(
+      "Hands: renderer not ready."
+    );
+
+    return state;
+
+  }
+
+
+  if (!S.playerGroup) {
+
+    console.warn(
+      "Hands: player group not ready."
+    );
+
+    return state;
+
+  }
+
+
+  setupControllers();
+
+
+  state.initialized =
+    true;
+
+
+  /*
+   * Expose everything through SurvivalVR.
+   */
+
+  S.hands =
+    state;
+
+
+  S.updateHands =
+    update;
+
+
+  S.setupHands =
+    setupHands;
+
+
+  console.log(
+    "VR hands and locomotion initialized."
+  );
+
+
+  return state;
+
+}
+
+
+/* ============================================================
+   AUTO SETUP
+   ============================================================ */
+
+setupHands();
+
+
+/* ============================================================
    EXPORTS
-========================================================= */
+   ============================================================ */
 
 export {
-  attachHand,
-  setupGrip,
-  updateHand,
-  update,
-  recalibrate,
-  hands
+  setupHands,
+  update
 };
+
+export const updateHands =
+  update;
+
+export default state;
