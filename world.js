@@ -1,45 +1,54 @@
-// world.js
-// ============================================================
-// SURVIVAL VR — PROCEDURAL ISLAND WORLD v5
-// Seeded world generation + resources + lake + terrain
-// ============================================================
-
 import * as THREE from "three";
 
 const S = window.SurvivalVR;
 
+if (!S) {
+  throw new Error("SurvivalVR must exist before world.js loads.");
+}
+
+/* =========================================================
+   WORLD STATE
+========================================================= */
+
 const state = {
   seed: "",
   worldGroup: null,
-
   terrain: null,
   lake: null,
 
   resourceObjects: [],
   resourceRecords: [],
 
-  islandRadius: 70,
-  waterRadius: 22,
+  grassObjects: [],
+  treeObjects: [],
+  rockObjects: [],
+  logObjects: [],
 
-  generated: false
+  generated: false,
+
+  islandRadius: 70,
+  waterRadius: 23,
+
+  lakeCenter: {
+    x: 8,
+    z: -4
+  }
 };
 
-// ============================================================
-// SEEDED RANDOM
-// ============================================================
+/* =========================================================
+   DETERMINISTIC SEED SYSTEM
+========================================================= */
 
-function hashString(value) {
+function stringToSeed(value) {
+  const text =
+    String(value ?? "SURVIVAL");
+
   let hash = 2166136261;
-
-  const text = String(value);
 
   for (let i = 0; i < text.length; i++) {
     hash ^= text.charCodeAt(i);
     hash =
-      Math.imul(
-        hash,
-        16777619
-      );
+      Math.imul(hash, 16777619);
   }
 
   return hash >>> 0;
@@ -47,7 +56,7 @@ function hashString(value) {
 
 function seededRandom(seed) {
   let value =
-    hashString(seed) || 1;
+    seed >>> 0;
 
   return function () {
     value += 0x6D2B79F5;
@@ -68,101 +77,57 @@ function seededRandom(seed) {
       );
 
     return (
-      ((t ^
-        (t >>> 14)) >>>
-        0) /
+      ((t ^ (t >>> 14)) >>> 0) /
       4294967296
     );
   };
 }
 
-function generateReadableSeed() {
-  const words = [
-    "CEDAR",
-    "PINE",
-    "RIVER",
-    "STONE",
-    "WILLOW",
-    "MAPLE",
-    "OAK",
-    "EMBER",
-    "MOSS",
-    "FOREST",
-    "LAKE",
-    "CLIFF",
-    "CREEK",
-    "MEADOW",
-    "FROST",
-    "SUN",
-    "RAIN",
-    "WIND"
-  ];
+function createSeededGenerator(seedText) {
+  return seededRandom(
+    stringToSeed(seedText)
+  );
+}
 
-  const random =
-    seededRandom(
-      Date.now().toString()
+/* =========================================================
+   SEEDED NOISE
+========================================================= */
+
+function hash2D(x, z, seed) {
+  let h =
+    stringToSeed(seed);
+
+  h ^=
+    Math.imul(
+      Math.floor(x),
+      374761393
     );
 
-  const a =
-    words[
-      Math.floor(
-        random() *
-          words.length
-      )
-    ];
+  h ^=
+    Math.imul(
+      Math.floor(z),
+      668265263
+    );
 
-  const b =
-    words[
-      Math.floor(
-        random() *
-          words.length
-      )
-    ];
+  h =
+    Math.imul(
+      h ^ (h >>> 13),
+      1274126177
+    );
 
-  const number =
-    Math.floor(
-      random() * 9000
-    ) + 1000;
+  h ^=
+    h >>> 16;
 
-  return `${a}-${b}-${number}`;
+  return (
+    (h >>> 0) /
+    4294967295
+  );
 }
-
-// ============================================================
-// SEED
-// ============================================================
-
-function ensureSeed(seed = null) {
-  if (
-    seed !== null &&
-    seed !== undefined &&
-    String(seed).trim()
-  ) {
-    state.seed =
-      String(seed).trim();
-
-    return state.seed;
-  }
-
-  if (!state.seed) {
-    state.seed =
-      generateReadableSeed();
-  }
-
-  return state.seed;
-}
-
-export function getWorldSeed() {
-  return state.seed;
-}
-
-// ============================================================
-// TERRAIN HEIGHT
-// ============================================================
 
 function smoothNoise(
   x,
   z,
-  random
+  seed
 ) {
   const x0 =
     Math.floor(x);
@@ -170,242 +135,389 @@ function smoothNoise(
   const z0 =
     Math.floor(z);
 
-  const xf =
+  const x1 =
+    x0 + 1;
+
+  const z1 =
+    z0 + 1;
+
+  const tx =
     x - x0;
 
-  const zf =
+  const tz =
     z - z0;
 
-  function value(ix, iz) {
-    const localSeed =
-      `${state.seed}:${ix}:${iz}`;
+  const sx =
+    tx * tx *
+    (3 - 2 * tx);
 
-    return (
-      seededRandom(localSeed)() *
-        2 -
-      1
-    );
-  }
+  const sz =
+    tz * tz *
+    (3 - 2 * tz);
 
-  const a =
-    value(x0, z0);
-
-  const b =
-    value(x0 + 1, z0);
-
-  const c =
-    value(x0, z0 + 1);
-
-  const d =
-    value(
-      x0 + 1,
-      z0 + 1
+  const n00 =
+    hash2D(
+      x0,
+      z0,
+      seed
     );
 
-  const fadeX =
-    xf * xf *
-    (3 - 2 * xf);
+  const n10 =
+    hash2D(
+      x1,
+      z0,
+      seed
+    );
 
-  const fadeZ =
-    zf * zf *
-    (3 - 2 * zf);
+  const n01 =
+    hash2D(
+      x0,
+      z1,
+      seed
+    );
 
-  const top =
+  const n11 =
+    hash2D(
+      x1,
+      z1,
+      seed
+    );
+
+  const nx0 =
     THREE.MathUtils.lerp(
-      a,
-      b,
-      fadeX
+      n00,
+      n10,
+      sx
     );
 
-  const bottom =
+  const nx1 =
     THREE.MathUtils.lerp(
-      c,
-      d,
-      fadeX
+      n01,
+      n11,
+      sx
     );
 
   return THREE.MathUtils.lerp(
-    top,
-    bottom,
-    fadeZ
+    nx0,
+    nx1,
+    sz
   );
 }
 
-function getTerrainHeight(
+function terrainNoise(
+  x,
+  z,
+  seed
+) {
+  let value = 0;
+  let amplitude = 1;
+  let frequency = 0.035;
+  let total = 0;
+
+  for (
+    let octave = 0;
+    octave < 5;
+    octave++
+  ) {
+    value +=
+      smoothNoise(
+        x * frequency,
+        z * frequency,
+        `${seed}:${octave}`
+      ) *
+      amplitude;
+
+    total += amplitude;
+
+    amplitude *= 0.5;
+    frequency *= 2;
+  }
+
+  return value / total;
+}
+
+/* =========================================================
+   TERRAIN HEIGHT
+========================================================= */
+
+function getLakeDistance(
+  x,
+  z
+) {
+  const dx =
+    x -
+    state.lakeCenter.x;
+
+  const dz =
+    z -
+    state.lakeCenter.z;
+
+  return Math.sqrt(
+    dx * dx +
+    dz * dz
+  );
+}
+
+function getIslandFalloff(
   x,
   z
 ) {
   const distance =
     Math.sqrt(
       x * x +
-        z * z
+      z * z
     );
 
-  const edge =
-    THREE.MathUtils.clamp(
-      1 -
-        distance /
-          state.islandRadius,
-      0,
-      1
+  const normalized =
+    distance /
+    state.islandRadius;
+
+  if (normalized >= 1) {
+    return 0;
+  }
+
+  /*
+   * Smooth island coastline.
+   */
+  const value =
+    1 -
+    Math.pow(
+      normalized,
+      2.6
     );
 
+  return Math.max(
+    0,
+    value
+  );
+}
+
+function getTerrainHeightAt(
+  x,
+  z
+) {
+  const island =
+    getIslandFalloff(
+      x,
+      z
+    );
+
+  if (island <= 0) {
+    return -2;
+  }
+
+  /*
+   * Large hills.
+   */
   const large =
-    smoothNoise(
-      x * 0.045,
-      z * 0.045
+    terrainNoise(
+      x * 0.55,
+      z * 0.55,
+      state.seed
     );
 
-  const medium =
-    smoothNoise(
-      x * 0.11,
-      z * 0.11
-    );
-
-  const small =
-    smoothNoise(
-      x * 0.25,
-      z * 0.25
+  /*
+   * Smaller detail.
+   */
+  const detail =
+    terrainNoise(
+      x * 1.8,
+      z * 1.8,
+      `${state.seed}:DETAIL`
     );
 
   let height =
-    1.2 +
-    large * 4.5 +
-    medium * 1.4 +
-    small * 0.35;
+    1.0 +
+    large * 8.5 +
+    detail * 2.0;
 
+  /*
+   * Lower coastline.
+   */
   height *=
-    0.55 +
-    edge * 0.75;
+    0.35 +
+    island * 0.75;
 
+  /*
+   * Lake basin.
+   */
   const lakeDistance =
-    Math.sqrt(
-      (x - 8) *
-        (x - 8) +
-      (z + 4) *
-        (z + 4)
+    getLakeDistance(
+      x,
+      z
     );
+
+  const lakeEdge =
+    state.waterRadius;
 
   if (
     lakeDistance <
-    state.waterRadius
+    lakeEdge + 3
   ) {
+    const normalized =
+      lakeDistance /
+      (lakeEdge + 3);
+
+    const lakeBlend =
+      Math.max(
+        0,
+        Math.min(
+          1,
+          normalized
+        )
+      );
+
+    const basinHeight =
+      -0.8 +
+      terrainNoise(
+        x,
+        z,
+        `${state.seed}:LAKE`
+      ) *
+      0.35;
+
     height =
-      -0.25;
+      THREE.MathUtils.lerp(
+        basinHeight,
+        height,
+        lakeBlend
+      );
+  }
+
+  /*
+   * Keep spawn area around the origin
+   * reasonably flat.
+   */
+  const spawnDistance =
+    Math.sqrt(
+      x * x +
+      z * z
+    );
+
+  if (
+    spawnDistance < 8
+  ) {
+    const blend =
+      spawnDistance /
+      8;
+
+    height =
+      THREE.MathUtils.lerp(
+        1.8,
+        height,
+        blend
+      );
   }
 
   return height;
 }
 
-// ============================================================
-// LAND CHECK
-// ============================================================
+/* =========================================================
+   MATERIALS
+========================================================= */
 
-function isLandPosition(
-  x,
-  z
-) {
-  const distance =
-    Math.sqrt(
-      x * x +
-        z * z
-    );
+const materials = {
+  grass: new THREE.MeshStandardMaterial({
+    color: 0x3e6f3c,
+    roughness: 0.95
+  }),
 
-  if (
-    distance >
-    state.islandRadius - 1
-  ) {
-    return false;
-  }
+  dirt: new THREE.MeshStandardMaterial({
+    color: 0x76583b,
+    roughness: 1
+  }),
 
-  const lakeDistance =
-    Math.sqrt(
-      (x - 8) *
-        (x - 8) +
-      (z + 4) *
-        (z + 4)
-    );
+  sand: new THREE.MeshStandardMaterial({
+    color: 0xbca878,
+    roughness: 0.95
+  }),
 
-  if (
-    lakeDistance <
-    state.waterRadius
-  ) {
-    return false;
-  }
+  stone: new THREE.MeshStandardMaterial({
+    color: 0x6d6f6c,
+    roughness: 0.95
+  }),
 
-  return true;
-}
+  treeTrunk: new THREE.MeshStandardMaterial({
+    color: 0x5b3822,
+    roughness: 0.95
+  }),
 
-// ============================================================
-// CLEAR WORLD
-// ============================================================
+  treeLeaves: new THREE.MeshStandardMaterial({
+    color: 0x285c32,
+    roughness: 0.9
+  }),
 
-function disposeObject(
-  object
-) {
-  if (!object) return;
+  treeLeavesLight:
+    new THREE.MeshStandardMaterial({
+      color: 0x397c3c,
+      roughness: 0.9
+    }),
 
-  object.traverse(
-    child => {
-      if (child.geometry) {
-        child.geometry.dispose();
-      }
+  log: new THREE.MeshStandardMaterial({
+    color: 0x70472a,
+    roughness: 0.95
+  }),
 
-      if (child.material) {
-        if (
-          Array.isArray(
-            child.material
-          )
-        ) {
-          child.material.forEach(
-            material =>
-              material.dispose()
-          );
-        } else {
-          child.material.dispose();
-        }
-      }
-    }
-  );
-}
+  water: new THREE.MeshStandardMaterial({
+    color: 0x2f8fa3,
+    roughness: 0.15,
+    metalness: 0.05,
+    transparent: true,
+    opacity: 0.78
+  }),
+
+  grassBlade:
+    new THREE.MeshStandardMaterial({
+      color: 0x4c8240,
+      roughness: 1,
+      side: THREE.DoubleSide
+    })
+};
+
+/* =========================================================
+   CLEAR WORLD
+========================================================= */
 
 function clearWorld() {
   if (
-    state.worldGroup &&
-    S?.scene
+    state.worldGroup
   ) {
     S.scene.remove(
-      state.worldGroup
-    );
-
-    disposeObject(
       state.worldGroup
     );
   }
 
   state.worldGroup =
-    new THREE.Group();
+    null;
 
-  state.terrain = null;
-  state.lake = null;
+  state.terrain =
+    null;
+
+  state.lake =
+    null;
 
   state.resourceObjects = [];
   state.resourceRecords = [];
 
-  if (S) {
-    S.resources = [];
-    S.worldResources = [];
-  }
+  state.grassObjects = [];
+  state.treeObjects = [];
+  state.rockObjects = [];
+  state.logObjects = [];
+
+  state.generated =
+    false;
+
+  S.resources = [];
+  S.worldResources = [];
 }
 
-// ============================================================
-// TERRAIN
-// ============================================================
+/* =========================================================
+   TERRAIN
+========================================================= */
 
 function createTerrain() {
-  const segments = 120;
-  const size =
-    state.islandRadius * 2;
+  const size = 150;
+  const segments = 150;
 
   const geometry =
     new THREE.PlaneGeometry(
@@ -415,50 +527,27 @@ function createTerrain() {
       segments
     );
 
-  geometry.rotateX(
-    -Math.PI / 2
-  );
-
   const positions =
     geometry.attributes.position;
 
   for (
     let i = 0;
-    i <
-    positions.count;
+    i < positions.count;
     i++
   ) {
     const x =
       positions.getX(i);
 
     const z =
-      positions.getZ(i);
-
-    const distance =
-      Math.sqrt(
-        x * x +
-          z * z
-      );
-
-    if (
-      distance >
-      state.islandRadius
-    ) {
-      positions.setY(
-        i,
-        -2
-      );
-
-      continue;
-    }
+      -positions.getY(i);
 
     const y =
-      getTerrainHeight(
+      getTerrainHeightAt(
         x,
         z
       );
 
-    positions.setY(
+    positions.setZ(
       i,
       y
     );
@@ -466,131 +555,398 @@ function createTerrain() {
 
   geometry.computeVertexNormals();
 
-  const material =
-    new THREE.MeshStandardMaterial(
-      {
-        color: 0x3d6335,
-        roughness: 0.95,
-        metalness: 0
-      }
+  /*
+   * Vertex colors give the island
+   * some natural variation.
+   */
+  const colors = [];
+
+  for (
+    let i = 0;
+    i < positions.count;
+    i++
+  ) {
+    const x =
+      positions.getX(i);
+
+    const z =
+      -positions.getY(i);
+
+    const height =
+      positions.getZ(i);
+
+    const lakeDistance =
+      getLakeDistance(
+        x,
+        z
+      );
+
+    let color;
+
+    if (
+      lakeDistance <
+      state.waterRadius + 2
+    ) {
+      color =
+        new THREE.Color(
+          0xb49d70
+        );
+    } else if (
+      height < 1.5
+    ) {
+      color =
+        new THREE.Color(
+          0x8e754e
+        );
+    } else if (
+      height > 8
+    ) {
+      color =
+        new THREE.Color(
+          0x4b783f
+        );
+    } else {
+      color =
+        new THREE.Color(
+          0x47783e
+        );
+    }
+
+    /*
+     * Small deterministic variation.
+     */
+    const variation =
+      0.9 +
+      hash2D(
+        x,
+        z,
+        `${state.seed}:COLOR`
+      ) *
+      0.12;
+
+    color.multiplyScalar(
+      variation
     );
 
-  const mesh =
+    colors.push(
+      color.r,
+      color.g,
+      color.b
+    );
+  }
+
+  geometry.setAttribute(
+    "color",
+    new THREE.Float32BufferAttribute(
+      colors,
+      3
+    )
+  );
+
+  const material =
+    new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.95,
+      metalness: 0
+    });
+
+  const terrain =
     new THREE.Mesh(
       geometry,
       material
     );
 
-  mesh.receiveShadow =
+  terrain.rotation.x =
+    -Math.PI / 2;
+
+  terrain.receiveShadow =
     true;
 
-  mesh.name =
+  terrain.castShadow =
+    false;
+
+  terrain.name =
     "IslandTerrain";
 
-  state.terrain =
-    mesh;
-
   state.worldGroup.add(
-    mesh
+    terrain
   );
+
+  state.terrain =
+    terrain;
 }
 
-// ============================================================
-// LAKE
-// ============================================================
+/* =========================================================
+   LAKE
+========================================================= */
 
 function createLake() {
   const geometry =
     new THREE.CircleGeometry(
       state.waterRadius,
-      64
+      96
     );
 
-  const material =
-    new THREE.MeshStandardMaterial(
-      {
-        color: 0x3b7f8f,
-        transparent: true,
-        opacity: 0.78,
-        roughness: 0.12,
-        metalness: 0.05
-      }
-    );
-
-  const lake =
+  const water =
     new THREE.Mesh(
       geometry,
-      material
+      materials.water
     );
 
-  lake.rotation.x =
+  water.rotation.x =
     -Math.PI / 2;
 
-  lake.position.set(
-    8,
-    0.02,
-    -4
+  water.position.set(
+    state.lakeCenter.x,
+    0.35,
+    state.lakeCenter.z
   );
 
-  lake.receiveShadow =
-    true;
-
-  lake.name =
+  water.name =
     "IslandLake";
 
-  state.lake =
-    lake;
+  water.receiveShadow =
+    true;
 
   state.worldGroup.add(
-    lake
+    water
+  );
+
+  state.lake =
+    water;
+
+  /*
+   * Small shoreline ring.
+   */
+  const shoreGeometry =
+    new THREE.RingGeometry(
+      state.waterRadius - 0.2,
+      state.waterRadius + 1.6,
+      96
+    );
+
+  const shore =
+    new THREE.Mesh(
+      shoreGeometry,
+      materials.sand
+    );
+
+  shore.rotation.x =
+    -Math.PI / 2;
+
+  shore.position.set(
+    state.lakeCenter.x,
+    0.43,
+    state.lakeCenter.z
+  );
+
+  state.worldGroup.add(
+    shore
   );
 }
 
-// ============================================================
-// ROCK
-// ============================================================
+/* =========================================================
+   TREE
+========================================================= */
+
+function createTree(
+  x,
+  z,
+  scale,
+  random
+) {
+  const group =
+    new THREE.Group();
+
+  group.name =
+    "Tree";
+
+  const ground =
+    getTerrainHeightAt(
+      x,
+      z
+    );
+
+  /*
+   * Trunk.
+   */
+  const trunkHeight =
+    2.6 * scale;
+
+  const trunk =
+    new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        0.22 * scale,
+        0.34 * scale,
+        trunkHeight,
+        8
+      ),
+      materials.treeTrunk
+    );
+
+  trunk.position.y =
+    ground +
+    trunkHeight / 2;
+
+  trunk.castShadow =
+    true;
+
+  trunk.receiveShadow =
+    true;
+
+  group.add(
+    trunk
+  );
+
+  /*
+   * Main foliage.
+   */
+  const foliage =
+    new THREE.Mesh(
+      new THREE.ConeGeometry(
+        1.55 * scale,
+        3.8 * scale,
+        9
+      ),
+      random > 0.5
+        ? materials.treeLeaves
+        : materials.treeLeavesLight
+    );
+
+  foliage.position.y =
+    ground +
+    trunkHeight +
+    1.3 * scale;
+
+  foliage.castShadow =
+    true;
+
+  foliage.receiveShadow =
+    true;
+
+  group.add(
+    foliage
+  );
+
+  /*
+   * Second foliage layer.
+   */
+  const foliage2 =
+    new THREE.Mesh(
+      new THREE.ConeGeometry(
+        1.15 * scale,
+        2.6 * scale,
+        9
+      ),
+      materials.treeLeaves
+    );
+
+  foliage2.position.y =
+    ground +
+    trunkHeight +
+    2.4 * scale;
+
+  foliage2.castShadow =
+    true;
+
+  group.add(
+    foliage2
+  );
+
+  group.position.set(
+    x,
+    0,
+    z
+  );
+
+  group.rotation.y =
+    random *
+    Math.PI *
+    2;
+
+  state.worldGroup.add(
+    group
+  );
+
+  state.treeObjects.push(
+    group
+  );
+
+  const id =
+    `${state.seed}:tree:${state.treeObjects.length - 1}`;
+
+  const record = {
+    id,
+    type: "tree",
+    position: {
+      x,
+      y: ground,
+      z
+    },
+    health: 3,
+    active: true
+  };
+
+  group.userData.resourceId =
+    id;
+
+  group.userData.resourceType =
+    "tree";
+
+  state.resourceObjects.push(
+    group
+  );
+
+  state.resourceRecords.push(
+    record
+  );
+
+  return group;
+}
+
+/* =========================================================
+   ROCK
+========================================================= */
 
 function createRock(
   x,
-  y,
   z,
-  id
+  scale,
+  random
 ) {
-  const geometry =
-    new THREE.DodecahedronGeometry(
-      0.35 +
-        seededRandom(id)() *
-          0.35,
-      1
-    );
-
-  const material =
-    new THREE.MeshStandardMaterial(
-      {
-        color: 0x77736b,
-        roughness: 1
-      }
+  const ground =
+    getTerrainHeightAt(
+      x,
+      z
     );
 
   const rock =
     new THREE.Mesh(
-      geometry,
-      material
+      new THREE.DodecahedronGeometry(
+        0.55 * scale,
+        1
+      ),
+      materials.stone
     );
 
   rock.position.set(
     x,
-    y + 0.25,
+    ground +
+      0.35 * scale,
     z
   );
 
+  rock.scale.y =
+    randomRangeFromSeed(
+      random,
+      0.65,
+      1.15
+    );
+
   rock.rotation.set(
-    seededRandom(id + "x")() *
-      Math.PI,
-    seededRandom(id + "y")() *
-      Math.PI,
-    seededRandom(id + "z")() *
-      Math.PI
+    random * 2,
+    random * 3,
+    random * 2
   );
 
   rock.castShadow =
@@ -599,304 +955,374 @@ function createRock(
   rock.receiveShadow =
     true;
 
-  rock.userData.id =
-    id;
+  rock.name =
+    "RockResource";
 
-  rock.userData.type =
-    "rock";
+  state.worldGroup.add(
+    rock
+  );
+
+  state.rockObjects.push(
+    rock
+  );
+
+  const id =
+    `${state.seed}:rock:${state.rockObjects.length - 1}`;
+
+  rock.userData.resourceId =
+    id;
 
   rock.userData.resourceType =
     "rock";
 
+  state.resourceObjects.push(
+    rock
+  );
+
+  state.resourceRecords.push({
+    id,
+    type: "rock",
+    position: {
+      x,
+      y: ground,
+      z
+    },
+    health: 3,
+    active: true
+  });
+
   return rock;
 }
 
-// ============================================================
-// TREE
-// ============================================================
-
-function createTree(
-  x,
-  y,
-  z,
-  id
+function randomRangeFromSeed(
+  random,
+  min,
+  max
 ) {
-  const tree =
-    new THREE.Group();
-
-  tree.name =
-    "Tree";
-
-  tree.userData.id =
-    id;
-
-  tree.userData.type =
-    "tree";
-
-  tree.userData.resourceType =
-    "tree";
-
-  const trunkGeometry =
-    new THREE.CylinderGeometry(
-      0.22,
-      0.32,
-      2.8,
-      8
-    );
-
-  const trunkMaterial =
-    new THREE.MeshStandardMaterial(
-      {
-        color: 0x6e4227,
-        roughness: 1
-      }
-    );
-
-  const trunk =
-    new THREE.Mesh(
-      trunkGeometry,
-      trunkMaterial
-    );
-
-  trunk.position.y =
-    1.4;
-
-  trunk.castShadow =
-    true;
-
-  tree.add(
-    trunk
+  return (
+    min +
+    random *
+      (max - min)
   );
-
-  const leafGeometry =
-    new THREE.IcosahedronGeometry(
-      1.25,
-      1
-    );
-
-  const leafMaterial =
-    new THREE.MeshStandardMaterial(
-      {
-        color: 0x315c31,
-        roughness: 1
-      }
-    );
-
-  const leaves =
-    new THREE.Mesh(
-      leafGeometry,
-      leafMaterial
-    );
-
-  leaves.position.y =
-    3.05;
-
-  leaves.scale.set(
-    1,
-    1.15,
-    1
-  );
-
-  leaves.castShadow =
-    true;
-
-  tree.add(
-    leaves
-  );
-
-  tree.position.set(
-    x,
-    y,
-    z
-  );
-
-  return tree;
 }
 
-// ============================================================
-// LOG
-// ============================================================
+/* =========================================================
+   LOG
+========================================================= */
 
 function createLog(
   x,
-  y,
   z,
-  id
+  scale,
+  random
 ) {
-  const geometry =
-    new THREE.CylinderGeometry(
-      0.24,
-      0.28,
-      1.8,
-      8
+  const ground =
+    getTerrainHeightAt(
+      x,
+      z
     );
 
-  const material =
-    new THREE.MeshStandardMaterial(
-      {
-        color: 0x74492d,
-        roughness: 1
-      }
-    );
+  const group =
+    new THREE.Group();
+
+  const length =
+    1.6 * scale;
 
   const log =
     new THREE.Mesh(
-      geometry,
-      material
+      new THREE.CylinderGeometry(
+        0.20 * scale,
+        0.24 * scale,
+        length,
+        10
+      ),
+      materials.log
     );
-
-  log.position.set(
-    x,
-    y + 0.3,
-    z
-  );
 
   log.rotation.z =
     Math.PI / 2;
 
   log.rotation.y =
-    seededRandom(id)() *
+    random *
     Math.PI;
+
+  log.position.y =
+    ground +
+    0.25 * scale;
 
   log.castShadow =
     true;
 
-  log.userData.id =
+  group.add(
+    log
+  );
+
+  /*
+   * End caps.
+   */
+  const capMaterial =
+    new THREE.MeshStandardMaterial({
+      color: 0xb28a5d,
+      roughness: 0.95
+    });
+
+  for (const side of [-1, 1]) {
+    const cap =
+      new THREE.Mesh(
+        new THREE.CircleGeometry(
+          0.20 * scale,
+          12
+        ),
+        capMaterial
+      );
+
+    cap.rotation.y =
+      Math.PI / 2;
+
+    cap.position.x =
+      side *
+      length /
+      2;
+
+    cap.position.y =
+      ground +
+      0.25 * scale;
+
+    group.add(
+      cap
+    );
+  }
+
+  group.position.set(
+    x,
+    0,
+    z
+  );
+
+  group.rotation.y =
+    random *
+    Math.PI *
+    2;
+
+  state.worldGroup.add(
+    group
+  );
+
+  state.logObjects.push(
+    group
+  );
+
+  const id =
+    `${state.seed}:log:${state.logObjects.length - 1}`;
+
+  group.userData.resourceId =
     id;
 
-  log.userData.type =
+  group.userData.resourceType =
     "log";
 
-  log.userData.resourceType =
-    "log";
+  state.resourceObjects.push(
+    group
+  );
 
-  return log;
+  state.resourceRecords.push({
+    id,
+    type: "log",
+    position: {
+      x,
+      y: ground,
+      z
+    },
+    health: 1,
+    active: true
+  });
+
+  return group;
 }
 
-// ============================================================
-// GRASS
-// ============================================================
+/* =========================================================
+   GRASS
+========================================================= */
 
 function createGrass(
   x,
-  y,
   z,
-  id
+  scale,
+  random
 ) {
-  const geometry =
-    new THREE.ConeGeometry(
-      0.12,
-      0.55,
-      4
+  const ground =
+    getTerrainHeightAt(
+      x,
+      z
     );
 
-  const material =
-    new THREE.MeshStandardMaterial(
-      {
-        color: 0x47743c,
-        roughness: 1
-      }
-    );
+  const geometry =
+    new THREE.BufferGeometry();
+
+  const width =
+    0.06 * scale;
+
+  const height =
+    0.35 * scale;
+
+  const vertices = new Float32Array([
+    -width, 0, 0,
+    width, 0, 0,
+    width, height, 0,
+    -width, height, 0
+  ]);
+
+  const indices = [
+    0, 1, 2,
+    0, 2, 3
+  ];
+
+  geometry.setAttribute(
+    "position",
+    new THREE.BufferAttribute(
+      vertices,
+      3
+    )
+  );
+
+  geometry.setIndex(
+    indices
+  );
+
+  geometry.computeVertexNormals();
 
   const grass =
     new THREE.Mesh(
       geometry,
-      material
+      materials.grassBlade
     );
 
   grass.position.set(
     x,
-    y + 0.25,
+    ground,
     z
   );
 
   grass.rotation.y =
-    seededRandom(id)() *
+    random *
     Math.PI;
 
-  grass.userData.id =
-    id;
-
-  grass.userData.type =
-    "grass";
-
-  grass.userData.resourceType =
-    "grass";
-
-  return grass;
-}
-
-// ============================================================
-// RESOURCE RECORD
-// ============================================================
-
-function addResource(
-  object,
-  type,
-  x,
-  y,
-  z,
-  index
-) {
-  const id =
-    `${state.seed}:${type}:${index}`;
-
-  object.userData.id =
-    id;
-
-  object.userData.resourceType =
-    type;
-
-  object.userData.depleted =
+  grass.castShadow =
     false;
 
-  object.userData.gathered =
-    false;
-
-  const record = {
-    id,
-    type,
-    x,
-    y,
-    z,
-    depleted: false,
-    gathered: false
-  };
-
-  state.resourceObjects.push(
-    object
-  );
-
-  state.resourceRecords.push(
-    record
-  );
+  grass.receiveShadow =
+    true;
 
   state.worldGroup.add(
-    object
+    grass
+  );
+
+  state.grassObjects.push(
+    grass
   );
 }
 
-// ============================================================
-// RESOURCE GENERATION
-// ============================================================
+/* =========================================================
+   RESOURCE PLACEMENT
+========================================================= */
+
+function isGoodResourceLocation(
+  x,
+  z,
+  minDistance
+) {
+  /*
+   * Avoid lake.
+   */
+  if (
+    getLakeDistance(
+      x,
+      z
+    ) <
+    state.waterRadius + 2
+  ) {
+    return false;
+  }
+
+  /*
+   * Avoid center spawn.
+   */
+  if (
+    Math.sqrt(
+      x * x +
+      z * z
+    ) < 7
+  ) {
+    return false;
+  }
+
+  /*
+   * Avoid island edge.
+   */
+  if (
+    Math.sqrt(
+      x * x +
+      z * z
+    ) >
+    state.islandRadius -
+      4
+  ) {
+    return false;
+  }
+
+  /*
+   * Avoid previously created resources.
+   */
+  for (
+    const resource of
+      state.resourceRecords
+  ) {
+    if (
+      !resource.active
+    ) {
+      continue;
+    }
+
+    const dx =
+      x -
+      resource.position.x;
+
+    const dz =
+      z -
+      resource.position.z;
+
+    if (
+      Math.sqrt(
+        dx * dx +
+        dz * dz
+      ) < minDistance
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 function generateResources() {
   const random =
-    seededRandom(
-      `${state.seed}:resources`
+    createSeededGenerator(
+      `${state.seed}:RESOURCES`
     );
 
-  let treeIndex = 0;
-  let rockIndex = 0;
-  let logIndex = 0;
-  let grassIndex = 0;
+  /*
+   * Trees.
+   */
+  let treeAttempts = 0;
 
-  // Trees
-  for (
-    let i = 0;
-    i < 90;
-    i++
+  while (
+    state.treeObjects.length <
+      90 &&
+    treeAttempts <
+      3000
   ) {
+    treeAttempts++;
+
     const angle =
       random() *
       Math.PI *
@@ -904,8 +1330,10 @@ function generateResources() {
 
     const radius =
       8 +
-      random() *
-        (state.islandRadius - 12);
+      Math.sqrt(
+        random()
+      ) *
+      55;
 
     const x =
       Math.cos(angle) *
@@ -916,47 +1344,137 @@ function generateResources() {
       radius;
 
     if (
-      !isLandPosition(
+      !isGoodResourceLocation(
         x,
-        z
+        z,
+        3.2
       )
     ) {
       continue;
     }
 
-    const y =
-      getTerrainHeight(
-        x,
-        z
-      );
-
-    const id =
-      `${state.seed}:tree:${treeIndex}`;
-
-    const tree =
-      createTree(
-        x,
-        y,
-        z,
-        id
-      );
-
-    addResource(
-      tree,
-      "tree",
+    createTree(
       x,
-      y,
       z,
-      treeIndex
+      0.85 +
+        random() *
+          0.35,
+      random()
     );
-
-    treeIndex++;
   }
 
-  // Rocks
+  /*
+   * Rocks.
+   */
+  let rockAttempts = 0;
+
+  while (
+    state.rockObjects.length <
+      60 &&
+    rockAttempts <
+      2500
+  ) {
+    rockAttempts++;
+
+    const angle =
+      random() *
+      Math.PI *
+      2;
+
+    const radius =
+      6 +
+      Math.sqrt(
+        random()
+      ) *
+      57;
+
+    const x =
+      Math.cos(angle) *
+      radius;
+
+    const z =
+      Math.sin(angle) *
+      radius;
+
+    if (
+      !isGoodResourceLocation(
+        x,
+        z,
+        2
+      )
+    ) {
+      continue;
+    }
+
+    createRock(
+      x,
+      z,
+      0.75 +
+        random() *
+          0.65,
+      random()
+    );
+  }
+
+  /*
+   * Logs.
+   */
+  let logAttempts = 0;
+
+  while (
+    state.logObjects.length <
+      30 &&
+    logAttempts <
+      2000
+  ) {
+    logAttempts++;
+
+    const angle =
+      random() *
+      Math.PI *
+      2;
+
+    const radius =
+      8 +
+      Math.sqrt(
+        random()
+      ) *
+      55;
+
+    const x =
+      Math.cos(angle) *
+      radius;
+
+    const z =
+      Math.sin(angle) *
+      radius;
+
+    if (
+      !isGoodResourceLocation(
+        x,
+        z,
+        2.5
+      )
+    ) {
+      continue;
+    }
+
+    createLog(
+      x,
+      z,
+      0.8 +
+        random() *
+          0.4,
+      random()
+    );
+  }
+
+  /*
+   * Grass.
+   */
   for (
     let i = 0;
-    i < 55;
+    i < 500;
     i++
   ) {
     const angle =
@@ -965,9 +1483,10 @@ function generateResources() {
       2;
 
     const radius =
-      5 +
-      random() *
-        (state.islandRadius - 8);
+      Math.sqrt(
+        random()
+      ) *
+      60;
 
     const x =
       Math.cos(angle) *
@@ -978,176 +1497,49 @@ function generateResources() {
       radius;
 
     if (
-      !isLandPosition(
+      getLakeDistance(
         x,
         z
-      )
+      ) <
+      state.waterRadius + 1
     ) {
       continue;
     }
-
-    const y =
-      getTerrainHeight(
-        x,
-        z
-      );
-
-    const id =
-      `${state.seed}:rock:${rockIndex}`;
-
-    const rock =
-      createRock(
-        x,
-        y,
-        z,
-        id
-      );
-
-    addResource(
-      rock,
-      "rock",
-      x,
-      y,
-      z,
-      rockIndex
-    );
-
-    rockIndex++;
-  }
-
-  // Logs
-  for (
-    let i = 0;
-    i < 25;
-    i++
-  ) {
-    const angle =
-      random() *
-      Math.PI *
-      2;
-
-    const radius =
-      10 +
-      random() *
-        (state.islandRadius - 15);
-
-    const x =
-      Math.cos(angle) *
-      radius;
-
-    const z =
-      Math.sin(angle) *
-      radius;
 
     if (
-      !isLandPosition(
-        x,
-        z
-      )
+      Math.sqrt(
+        x * x +
+        z * z
+      ) >
+      state.islandRadius
     ) {
       continue;
     }
 
-    const y =
-      getTerrainHeight(
-        x,
-        z
-      );
-
-    const id =
-      `${state.seed}:log:${logIndex}`;
-
-    const log =
-      createLog(
-        x,
-        y,
-        z,
-        id
-      );
-
-    addResource(
-      log,
-      "log",
+    createGrass(
       x,
-      y,
       z,
-      logIndex
+      0.7 +
+        random() *
+          0.8,
+      random()
     );
-
-    logIndex++;
-  }
-
-  // Grass
-  for (
-    let i = 0;
-    i < 350;
-    i++
-  ) {
-    const angle =
-      random() *
-      Math.PI *
-      2;
-
-    const radius =
-      random() *
-        (state.islandRadius - 2);
-
-    const x =
-      Math.cos(angle) *
-      radius;
-
-    const z =
-      Math.sin(angle) *
-      radius;
-
-    if (
-      !isLandPosition(
-        x,
-        z
-      )
-    ) {
-      continue;
-    }
-
-    const y =
-      getTerrainHeight(
-        x,
-        z
-      );
-
-    const id =
-      `${state.seed}:grass:${grassIndex}`;
-
-    const grass =
-      createGrass(
-        x,
-        y,
-        z,
-        id
-      );
-
-    addResource(
-      grass,
-      "grass",
-      x,
-      y,
-      z,
-      grassIndex
-    );
-
-    grassIndex++;
   }
 }
 
-// ============================================================
-// LIGHTING
-// ============================================================
+/* =========================================================
+   LIGHTING
+========================================================= */
 
 function createWorldLighting() {
+  /*
+   * Don't create a giant amount of lights.
+   * Environment.js handles the day/night system.
+   */
   const ambient =
     new THREE.HemisphereLight(
-      0xb9d7d0,
-      0x28351f,
+      0xb9d7e6,
+      0x42513b,
       1.2
     );
 
@@ -1160,24 +1552,33 @@ function createWorldLighting() {
 
   const sun =
     new THREE.DirectionalLight(
-      0xfff1c2,
-      2
+      0xfff0c5,
+      2.2
     );
 
+  sun.name =
+    "WorldSunLight";
+
   sun.position.set(
-    35,
-    55,
-    20
+    -35,
+    60,
+    25
   );
 
   sun.castShadow =
     true;
 
   sun.shadow.mapSize.width =
-    2048;
+    1024;
 
   sun.shadow.mapSize.height =
-    2048;
+    1024;
+
+  sun.shadow.camera.near =
+    1;
+
+  sun.shadow.camera.far =
+    180;
 
   sun.shadow.camera.left =
     -80;
@@ -1195,169 +1596,237 @@ function createWorldLighting() {
     sun
   );
 
-  S.sun =
+  S.worldSun =
     sun;
 
-  S.ambientLight =
+  S.worldAmbient =
     ambient;
 }
 
-// ============================================================
-// GENERATE WORLD
-// ============================================================
+/* =========================================================
+   RESOURCE LOOKUP
+========================================================= */
 
-export async function generateWorld(
-  seed = null,
-  options = {}
+function getResourceRecord(
+  id
 ) {
-  const newSeed =
-    ensureSeed(seed);
+  return (
+    state.resourceRecords.find(
+      resource =>
+        resource.id === id
+    ) || null
+  );
+}
 
-  const preservePlayer =
-    options.preservePlayer === true;
+function getResourceObject(
+  id
+) {
+  return (
+    state.resourceObjects.find(
+      object =>
+        object.userData?.resourceId ===
+        id
+    ) || null
+  );
+}
 
-  clearWorld();
+/* =========================================================
+   RESOURCE GATHERING
+========================================================= */
 
-  state.generated =
-    false;
-
-  state.islandRadius =
-    70;
-
-  state.waterRadius =
-    22;
-
-  createTerrain();
-  createLake();
-  generateResources();
-  createWorldLighting();
-
+function gatherNearestResource(
+  type = null,
+  maxDistance = 3
+) {
   if (
-    S?.scene
+    !S.playerRig
   ) {
-    S.scene.add(
-      state.worldGroup
-    );
+    return null;
   }
 
-  S.worldData = {
-    seed:
-      state.seed,
+  const player =
+    S.playerRig.position;
 
-    islandRadius:
-      state.islandRadius,
+  let closest =
+    null;
 
-    waterRadius:
-      state.waterRadius,
+  let closestDistance =
+    maxDistance;
 
-    lake: {
-      x: 8,
-      z: -4,
-      radius:
-        state.waterRadius
-    },
-
-    generation: {
-      version: 5,
-      seeded: true,
-      procedural: true
-    }
-  };
-
-  S.resources =
-    state.resourceObjects;
-
-  S.worldResources =
-    state.resourceRecords;
-
-  state.generated =
-    true;
-
-  if (
-    !preservePlayer &&
-    S?.playerGroup
+  for (
+    const record of
+      state.resourceRecords
   ) {
-    S.playerGroup.position.set(
-      0,
-      1.65,
-      0
-    );
-
-    S.playerGroup.rotation.y =
-      0;
+    if (
+      !record.active
+    ) {
+      continue;
+    }
 
     if (
-      S?.GAME?.position
+      type &&
+      record.type !== type
     ) {
-      S.GAME.position.x =
-        0;
+      continue;
+    }
 
-      S.GAME.position.y =
-        1.65;
+    const dx =
+      player.x -
+      record.position.x;
 
-      S.GAME.position.z =
-        0;
+    const dz =
+      player.z -
+      record.position.z;
 
-      S.GAME.position.rotationY =
-        0;
+    const distance =
+      Math.sqrt(
+        dx * dx +
+        dz * dz
+      );
+
+    if (
+      distance <
+      closestDistance
+    ) {
+      closest =
+        record;
+
+      closestDistance =
+        distance;
+    }
+  }
+
+  if (!closest) {
+    return null;
+  }
+
+  /*
+   * Gather result.
+   */
+  let result;
+
+  if (
+    closest.type === "tree"
+  ) {
+    result = {
+      id: closest.id,
+      type: "tree",
+      wood: 2,
+      log: 1
+    };
+  } else if (
+    closest.type === "rock"
+  ) {
+    result = {
+      id: closest.id,
+      type: "rock",
+      stone: 2
+    };
+  } else if (
+    closest.type === "log"
+  ) {
+    result = {
+      id: closest.id,
+      type: "log",
+      log: 1
+    };
+  } else if (
+    closest.type === "grass"
+  ) {
+    result = {
+      id: closest.id,
+      type: "grass",
+      fiber: 2
+    };
+  }
+
+  /*
+   * Update record.
+   */
+  closest.active =
+    false;
+
+  const object =
+    getResourceObject(
+      closest.id
+    );
+
+  if (object) {
+    object.visible =
+      false;
+  }
+
+  /*
+   * Update resource statistics.
+   */
+  if (
+    closest.type === "tree"
+  ) {
+    if (
+      S.GAME?.resources
+    ) {
+      S.GAME.resources.treesCut++;
+      S.GAME.resources.logsCollected++;
+      S.GAME.resources.wood += 2;
     }
   }
 
   if (
-    typeof S?.gameEvent ===
-      "function"
+    closest.type === "rock"
+  ) {
+    if (
+      S.GAME?.resources
+    ) {
+      S.GAME.resources.rocksBroken++;
+      S.GAME.resources.stone += 2;
+    }
+  }
+
+  /*
+   * Add inventory.
+   */
+  if (
+    result
+  ) {
+    for (
+      const key of [
+        "wood",
+        "log",
+        "stone",
+        "fiber"
+      ]
+    ) {
+      if (
+        result[key] &&
+        typeof S.addItem ===
+          "function"
+      ) {
+        S.addItem(
+          key,
+          result[key]
+        );
+      }
+    }
+  }
+
+  if (
+    typeof S.gameEvent ===
+    "function"
   ) {
     S.gameEvent(
-      "world-generated",
-      {
-        seed:
-          state.seed
-      }
+      "resource-gathered",
+      result
     );
   }
 
-  return getWorldData();
+  return result;
 }
 
-// ============================================================
-// CREATE NEW WORLD
-// ============================================================
-//
-// IMPORTANT:
-// This function ONLY generates the world.
-// It does NOT call S.createNewWorld().
-// That prevents the old recursive loop.
-//
-// game.js owns the game-state reset.
-// world.js owns the actual world generation.
-// ============================================================
+/* =========================================================
+   RESTORE RESOURCES
+========================================================= */
 
-export async function createNewWorld(
-  seed = null
-) {
-  const newSeed =
-    ensureSeed(seed);
-
-  return generateWorld(
-    newSeed,
-    {
-      preservePlayer:
-        false
-    }
-  );
-}
-
-// ============================================================
-// RESOURCE STATE
-// ============================================================
-
-export function getResourceRecords() {
-  return clone(
-    state.resourceRecords
-  );
-}
-
-export function restoreResourceState(
+function restoreResourceState(
   savedResources
 ) {
   if (
@@ -1368,263 +1837,94 @@ export function restoreResourceState(
     return;
   }
 
-  const savedMap =
-    new Map();
-
   for (
-    const record
-    of savedResources
+    const saved of
+      savedResources
   ) {
-    if (
-      record?.id
-    ) {
-      savedMap.set(
-        record.id,
-        record
-      );
-    }
-  }
-
-  for (
-    const record
-    of state.resourceRecords
-  ) {
-    const saved =
-      savedMap.get(
-        record.id
-      );
-
-    if (!saved) {
-      continue;
-    }
-
-    record.depleted =
-      saved.depleted === true;
-
-    record.gathered =
-      saved.gathered === true;
-
-    const object =
-      state.resourceObjects.find(
-        item =>
-          item?.userData?.id ===
-          record.id
-      );
-
-    if (!object) {
-      continue;
-    }
-
-    object.userData.depleted =
-      record.depleted;
-
-    object.userData.gathered =
-      record.gathered;
-
-    object.visible =
-      !record.depleted;
-  }
-
-  S.resources =
-    state.resourceObjects;
-
-  S.worldResources =
-    state.resourceRecords;
-}
-
-// ============================================================
-// GATHER RESOURCE
-// ============================================================
-
-export function gatherNearestResource(
-  position,
-  maxDistance = 3
-) {
-  if (
-    !position
-  ) {
-    return null;
-  }
-
-  let nearest =
-    null;
-
-  let nearestDistance =
-    maxDistance;
-
-  for (
-    let i = 0;
-    i <
-    state.resourceObjects.length;
-    i++
-  ) {
-    const object =
-      state.resourceObjects[i];
-
-    if (
-      !object ||
-      !object.visible
-    ) {
-      continue;
-    }
-
     const record =
-      state.resourceRecords[i];
+      getResourceRecord(
+        saved.id
+      );
 
-    if (
-      record?.depleted
-    ) {
+    if (!record) {
       continue;
     }
 
-    const distance =
-      object.position.distanceTo(
-        position
+    record.active =
+      saved.active !== false;
+
+    const object =
+      getResourceObject(
+        saved.id
       );
 
-    if (
-      distance <
-      nearestDistance
-    ) {
-      nearest =
-        {
-          object,
-          record
-        };
-
-      nearestDistance =
-        distance;
+    if (object) {
+      object.visible =
+        record.active;
     }
   }
-
-  if (!nearest) {
-    return null;
-  }
-
-  nearest.record.depleted =
-    true;
-
-  nearest.record.gathered =
-    true;
-
-  nearest.object.userData.depleted =
-    true;
-
-  nearest.object.userData.gathered =
-    true;
-
-  nearest.object.visible =
-    false;
-
-  const type =
-    nearest.record.type;
-
-  if (
-    typeof S?.gatherResource ===
-      "function"
-  ) {
-    if (
-      type === "tree"
-    ) {
-      S.gatherResource(
-        "wood",
-        2
-      );
-
-      S.gatherResource(
-        "log",
-        1
-      );
-    }
-
-    if (
-      type === "rock"
-    ) {
-      S.gatherResource(
-        "stone",
-        2
-      );
-    }
-
-    if (
-      type === "log"
-    ) {
-      S.gatherResource(
-        "log",
-        1
-      );
-    }
-
-    if (
-      type === "grass"
-    ) {
-      S.gatherResource(
-        "fiber",
-        2
-      );
-    }
-  }
-
-  if (
-    typeof S?.gameEvent ===
-      "function"
-  ) {
-    S.gameEvent(
-      "resource-gathered",
-      {
-        id:
-          nearest.record.id,
-
-        type
-      }
-    );
-  }
-
-  return {
-    id:
-      nearest.record.id,
-
-    type,
-
-    object:
-      nearest.object,
-
-    record:
-      nearest.record
-  };
 }
 
-// ============================================================
-// TERRAIN HELPERS
-// ============================================================
+/* =========================================================
+   WORLD GENERATION
+========================================================= */
 
-export function getTerrainHeightAt(
-  x,
-  z
+function generateWorld(
+  seed,
+  options = {}
 ) {
-  return getTerrainHeight(
-    x,
-    z
+  const newSeed =
+    String(
+      seed ||
+      "SURVIVAL-1"
+    );
+
+  state.seed =
+    newSeed;
+
+  clearWorld();
+
+  /*
+   * World group.
+   */
+  state.worldGroup =
+    new THREE.Group();
+
+  state.worldGroup.name =
+    "ProceduralIslandWorld";
+
+  S.scene.add(
+    state.worldGroup
   );
-}
 
-export function getIslandRadius() {
-  return state.islandRadius;
-}
+  /*
+   * Terrain.
+   */
+  createTerrain();
 
-export function getLake() {
-  return {
-    x: 8,
-    z: -4,
-    radius:
-      state.waterRadius
-  };
-}
+  /*
+   * Lake.
+   */
+  createLake();
 
-export function getWorldData() {
-  return {
-    seed:
-      state.seed,
+  /*
+   * Resources.
+   */
+  generateResources();
+
+  /*
+   * Lighting.
+   */
+  createWorldLighting();
+
+  state.generated =
+    true;
+
+  /*
+   * Global world data.
+   */
+  S.worldData = {
+    seed: state.seed,
 
     islandRadius:
       state.islandRadius,
@@ -1632,27 +1932,130 @@ export function getWorldData() {
     waterRadius:
       state.waterRadius,
 
-    lake: {
-      x: 8,
-      z: -4,
-      radius:
-        state.waterRadius
+    lakeCenter: {
+      x:
+        state.lakeCenter.x,
+
+      z:
+        state.lakeCenter.z
     },
 
-    generation: {
-      version: 5,
-      seeded: true,
-      procedural: true
-    }
+    terrain:
+      state.terrain,
+
+    lake:
+      state.lake
   };
+
+  S.resources =
+    state.resourceRecords;
+
+  S.worldResources =
+    state.resourceRecords;
+
+  /*
+   * Position player.
+   */
+  if (
+    !options.preservePlayer &&
+    S.playerRig
+  ) {
+    const spawnY =
+      getTerrainHeightAt(
+        0,
+        0
+      );
+
+    S.playerRig.position.set(
+      0,
+      spawnY,
+      5
+    );
+
+    S.playerRig.rotation.y =
+      0;
+  }
+
+  /*
+   * Notify other systems.
+   */
+  if (
+    typeof S.gameEvent ===
+    "function"
+  ) {
+    S.gameEvent(
+      "world-generated",
+      {
+        seed:
+          state.seed,
+
+        islandRadius:
+          state.islandRadius,
+
+        waterRadius:
+          state.waterRadius
+      }
+    );
+  }
+
+  return S.worldData;
 }
 
-// ============================================================
-// UPDATE
-// ============================================================
+/* =========================================================
+   NEW WORLD
+========================================================= */
 
-export function update(
-  delta
+function createNewWorld(
+  seed
+) {
+  const newSeed =
+    seed ||
+    createRandomSeed();
+
+  if (
+    S.GAME?.world
+  ) {
+    S.GAME.world.seed =
+      newSeed;
+  }
+
+  return generateWorld(
+    newSeed,
+    {
+      preservePlayer: false
+    }
+  );
+}
+
+function createRandomSeed() {
+  const characters =
+    "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+  let result = "";
+
+  for (
+    let i = 0;
+    i < 10;
+    i++
+  ) {
+    result +=
+      characters[
+        Math.floor(
+          Math.random() *
+          characters.length
+        )
+      ];
+  }
+
+  return result;
+}
+
+/* =========================================================
+   WORLD UPDATE
+========================================================= */
+
+function update(
+  delta = 0.016
 ) {
   if (
     !state.generated
@@ -1660,84 +2063,172 @@ export function update(
     return;
   }
 
-  // Very subtle water movement.
-  if (state.lake) {
-    const time =
-      performance.now() *
-      0.001;
+  /*
+   * Small water movement.
+   */
+  if (
+    state.lake
+  ) {
+    state.lake.position.y =
+      0.35 +
+      Math.sin(
+        performance.now() *
+          0.0008
+      ) *
+      0.025;
+  }
 
-    state.lake.material.opacity =
-      0.74 +
-      Math.sin(time * 0.8) *
-        0.035;
+  /*
+   * Gentle grass/tree sway.
+   */
+  const time =
+    performance.now() *
+    0.001;
+
+  for (
+    let i = 0;
+    i <
+    state.grassObjects.length;
+    i++
+  ) {
+    const grass =
+      state.grassObjects[i];
+
+    grass.rotation.z =
+      Math.sin(
+        time * 1.3 +
+        i
+      ) *
+      0.045;
   }
 }
 
-// ============================================================
-// SYSTEM REGISTRATION
-// ============================================================
+/* =========================================================
+   INITIAL SETUP
+========================================================= */
 
-S.systems =
-  S.systems || {};
+function setupWorld() {
+  if (
+    !S.scene
+  ) {
+    console.error(
+      "World system requires S.scene."
+    );
 
-S.systems.world = {
+    return;
+  }
+
+  /*
+   * Don't automatically generate an
+   * old world before the launch menu.
+   *
+   * The home system will call generateWorld()
+   * when New Game or Continue is selected.
+   */
+  console.log(
+    "Procedural world system ready."
+  );
+}
+
+/* =========================================================
+   GETTERS
+========================================================= */
+
+function getSeed() {
+  return state.seed;
+}
+
+function getWorldGroup() {
+  return state.worldGroup;
+}
+
+function getTerrainHeight(
+  x,
+  z
+) {
+  return getTerrainHeightAt(
+    x,
+    z
+  );
+}
+
+function getLakeInfo() {
+  return {
+    x:
+      state.lakeCenter.x,
+
+    z:
+      state.lakeCenter.z,
+
+    radius:
+      state.waterRadius
+  };
+}
+
+function getResourceRecords() {
+  return state.resourceRecords;
+}
+
+function isGenerated() {
+  return state.generated;
+}
+
+/* =========================================================
+   EXPORTS
+========================================================= */
+
+export {
+  setupWorld,
+  update,
+
   generateWorld,
   createNewWorld,
-  getWorldSeed,
-  getWorldData,
+
+  clearWorld,
+
+  getSeed,
+  getWorldGroup,
+
+  getTerrainHeight,
+  getTerrainHeightAt,
+
+  getLakeInfo,
+
   getResourceRecords,
-  restoreResourceState,
+
   gatherNearestResource,
-  getTerrainHeight:
-    getTerrainHeightAt,
-  getIslandRadius,
-  getLake,
-  isLandPosition,
-  update,
-  clearWorld
+  restoreResourceState,
+
+  getResourceRecord,
+  getResourceObject,
+
+  isGenerated
 };
 
-// Compatibility methods.
-
-S.generateWorld =
-  generateWorld;
-
-S.createWorld =
-  createNewWorld;
-
-S.getWorldSeed =
-  getWorldSeed;
-
-S.getWorldData =
-  getWorldData;
-
-S.getTerrainHeight =
-  getTerrainHeightAt;
-
-S.getIslandRadius =
-  getIslandRadius;
-
-S.getLake =
-  getLake;
-
-S.gatherNearestResource =
-  gatherNearestResource;
-
-console.log(
-  "Survival VR procedural world v5 loaded."
-);
-
 export default {
+  setupWorld,
+  update,
+
   generateWorld,
   createNewWorld,
-  getWorldSeed,
-  getWorldData,
-  getResourceRecords,
-  restoreResourceState,
-  gatherNearestResource,
+
+  clearWorld,
+
+  getSeed,
+  getWorldGroup,
+
+  getTerrainHeight,
   getTerrainHeightAt,
-  getIslandRadius,
-  getLake,
-  isLandPosition,
-  update
+
+  getLakeInfo,
+
+  getResourceRecords,
+
+  gatherNearestResource,
+  restoreResourceState,
+
+  getResourceRecord,
+  getResourceObject,
+
+  isGenerated
 };
