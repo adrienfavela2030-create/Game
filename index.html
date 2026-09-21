@@ -5,26 +5,19 @@
 
   <meta
     name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
   >
 
   <meta
-    name="theme-color"
-    content="#07150f"
+    name="description"
+    content="Survival VR — explore, craft, build, and survive."
   >
 
   <title>Survival VR</title>
 
-  <link
-    rel="stylesheet"
-    href="./style.css"
-  >
+  <link rel="stylesheet" href="./style.css">
 
-  <!--
-    Three.js
-    The importmap lets all of our JavaScript files use:
-    import * as THREE from "three";
-  -->
+  <!-- Three.js -->
   <script type="importmap">
   {
     "imports": {
@@ -37,34 +30,70 @@
 
 <body>
 
-  <!-- ========================================================
+  <!-- =========================================================
        START SCREEN
-       ======================================================== -->
+       ========================================================= -->
 
-  <div id="startScreen">
+  <div id="startScreen" class="start-screen">
 
-    <div class="startPanel">
+    <div class="start-background"></div>
 
-      <div class="gameLogo">
-        SURVIVAL
-        <span>VR</span>
+    <div class="start-card">
+
+      <div class="game-logo">
+        <div class="logo-mark">△</div>
+
+        <h1>
+          SURVIVAL <span>VR</span>
+        </h1>
+
+        <p>
+          EXPLORE • CRAFT • BUILD • SURVIVE
+        </p>
       </div>
 
-      <p class="startDescription">
-        Explore a procedurally generated island,
-        gather resources, craft tools, build shelter,
-        and survive.
-      </p>
+      <div class="start-info">
 
-      <button
-        id="startButton"
-        type="button"
-      >
+        <div class="start-feature">
+          <span>🌲</span>
+          <strong>EXPLORE</strong>
+          <small>Discover a procedurally generated island.</small>
+        </div>
+
+        <div class="start-feature">
+          <span>🪨</span>
+          <strong>CRAFT</strong>
+          <small>Gather resources and create tools.</small>
+        </div>
+
+        <div class="start-feature">
+          <span>🏠</span>
+          <strong>BUILD</strong>
+          <small>Build your own shelter and base.</small>
+        </div>
+
+        <div class="start-feature">
+          <span>❤️</span>
+          <strong>SURVIVE</strong>
+          <small>Manage hunger, thirst, health, and stamina.</small>
+        </div>
+
+      </div>
+
+      <button id="startButton" class="start-button">
         START SURVIVAL
       </button>
 
-      <div id="vrStatus">
-        Checking VR...
+      <button id="continueButton" class="secondary-button hidden">
+        CONTINUE
+      </button>
+
+      <div id="startStatus" class="start-status">
+        Ready to explore.
+      </div>
+
+      <div class="start-version">
+        Survival VR • WebXR Edition
       </div>
 
     </div>
@@ -72,224 +101,484 @@
   </div>
 
 
-  <!-- ========================================================
-       GAME HUD
-       ======================================================== -->
+  <!-- =========================================================
+       LOADING SCREEN
+       ========================================================= -->
 
-  <div
-    id="hud"
-    class="hidden"
-  >
+  <div id="loadingScreen" class="loading-screen hidden">
 
-    <div class="hudStats">
+    <div class="loading-card">
 
-      <div class="stat">
-        <span class="statLabel">
-          HEALTH
-        </span>
+      <div class="loading-spinner"></div>
 
-        <span id="healthDisplay">
-          100
-        </span>
-      </div>
-
-      <div class="stat">
-        <span class="statLabel">
-          HUNGER
-        </span>
-
-        <span id="hungerDisplay">
-          100
-        </span>
-      </div>
-
-      <div class="stat">
-        <span class="statLabel">
-          THIRST
-        </span>
-
-        <span id="thirstDisplay">
-          100
-        </span>
-      </div>
-
-      <div class="stat">
-        <span class="statLabel">
-          STAMINA
-        </span>
-
-        <span id="staminaDisplay">
-          100
-        </span>
-      </div>
-
-    </div>
-
-
-    <div id="worldInfo">
-
-      <div>
-        DAY
-        <span id="dayDisplay">
-          1
-        </span>
-      </div>
-
-      <div>
-        TIME
-        <span id="timeDisplay">
-          08:00
-        </span>
-      </div>
-
-    </div>
-
-  </div>
-
-
-  <!-- ========================================================
-       MESSAGE TOAST
-       ======================================================== -->
-
-  <div
-    id="message"
-    class="hidden"
-  ></div>
-
-
-  <!-- ========================================================
-       SYSTEM UI CONTAINERS
-       ======================================================== -->
-
-  <!-- Inventory creates its own contents here. -->
-  <div
-    id="inventoryContainer"
-    class="systemContainer"
-  ></div>
-
-  <!-- Crafting creates its own contents here. -->
-  <div
-    id="craftingContainer"
-    class="systemContainer"
-  ></div>
-
-  <!-- Building creates its own contents here. -->
-  <div
-    id="buildingContainer"
-    class="systemContainer"
-  ></div>
-
-  <!-- Guide creates its own contents here. -->
-  <div
-    id="guideContainer"
-    class="systemContainer"
-  ></div>
-
-  <!-- Save system creates its own contents here. -->
-  <div
-    id="saveContainer"
-    class="systemContainer"
-  ></div>
-
-  <!-- Home system creates its own contents here. -->
-  <div
-    id="homeContainer"
-    class="systemContainer"
-  ></div>
-
-  <!-- Settings system creates its own contents here. -->
-  <div
-    id="settingsContainer"
-    class="systemContainer"
-  ></div>
-
-
-  <!-- ========================================================
-       LOADING
-       ======================================================== -->
-
-  <div
-    id="loadingScreen"
-    class="hidden"
-  >
-
-    <div class="loadingPanel">
-
-      <div class="loadingTitle">
+      <h2 id="loadingTitle">
         GENERATING ISLAND
-      </div>
+      </h2>
 
-      <div class="loadingBar">
+      <p id="loadingText">
+        Creating your world...
+      </p>
+
+      <div class="loading-bar">
         <div
           id="loadingProgress"
-          class="loadingProgress"
+          class="loading-progress"
         ></div>
       </div>
 
-      <div id="loadingText">
-        Preparing world...
-      </div>
-
     </div>
 
   </div>
 
 
-  <!-- ========================================================
-       PAUSE
-       ======================================================== -->
+  <!-- =========================================================
+       GAME HUD
+       ========================================================= -->
+
+  <div id="gameUI" class="game-ui hidden">
+
+    <!-- TOP LEFT -->
+    <div id="gameBrand" class="game-brand">
+
+      <div class="game-brand-title">
+        SURVIVAL <span>VR</span>
+      </div>
+
+      <div class="game-brand-subtitle">
+        EXPLORE • CRAFT • BUILD • SURVIVE
+      </div>
+
+    </div>
+
+
+    <!-- QUEST / OBJECTIVE -->
+    <div id="objectivePanel" class="objective-panel">
+
+      <div class="objective-title">
+        <span>!</span>
+        <strong>Gather Resources</strong>
+      </div>
+
+      <div id="objectiveList" class="objective-list">
+        <div>○ Collect Wood</div>
+        <div>○ Collect Stone</div>
+        <div>○ Collect Fiber</div>
+      </div>
+
+    </div>
+
+
+    <!-- TOP CENTER COMPASS -->
+    <div id="compass" class="compass">
+
+      <div class="compass-direction">
+        W
+      </div>
+
+      <div class="compass-tick"></div>
+
+      <div class="compass-direction">
+        N
+      </div>
+
+      <div class="compass-tick"></div>
+
+      <div class="compass-direction">
+        E
+      </div>
+
+    </div>
+
+
+    <!-- WORLD SEED -->
+    <div id="seedDisplay" class="seed-display">
+      <span>🌐</span>
+      <span id="seedText">Seed: —</span>
+    </div>
+
+
+    <!-- =======================================================
+         DESKTOP / NON-VR MENU
+         This is NOT shown inside VR.
+         ======================================================= -->
+
+    <div id="desktopMenu" class="desktop-menu">
+
+      <button
+        class="menu-button"
+        data-menu="inventory"
+        title="Inventory"
+      >
+        <span class="menu-icon">🎒</span>
+        <span>Inventory</span>
+      </button>
+
+      <button
+        class="menu-button"
+        data-menu="crafting"
+        title="Crafting"
+      >
+        <span class="menu-icon">🛠</span>
+        <span>Crafting</span>
+      </button>
+
+      <button
+        class="menu-button"
+        data-menu="building"
+        title="Building"
+      >
+        <span class="menu-icon">🏠</span>
+        <span>Building</span>
+      </button>
+
+      <button
+        class="menu-button"
+        data-menu="guide"
+        title="Guide"
+      >
+        <span class="menu-icon">📖</span>
+        <span>Guide</span>
+      </button>
+
+      <button
+        class="menu-button"
+        data-menu="settings"
+        title="Settings"
+      >
+        <span class="menu-icon">⚙️</span>
+        <span>Settings</span>
+      </button>
+
+      <button
+        class="menu-button"
+        data-menu="save"
+        title="Save"
+      >
+        <span class="menu-icon">💾</span>
+        <span>Save</span>
+      </button>
+
+    </div>
+
+
+    <!-- =======================================================
+         SURVIVAL BARS
+         ======================================================= -->
+
+    <div id="survivalHUD" class="survival-hud">
+
+      <div class="survival-stat">
+
+        <div class="survival-icon health-icon">
+          ♥
+        </div>
+
+        <div class="survival-bar">
+          <div
+            id="healthBar"
+            class="survival-fill health-fill"
+            style="width:100%"
+          ></div>
+        </div>
+
+      </div>
+
+
+      <div class="survival-stat">
+
+        <div class="survival-icon thirst-icon">
+          💧
+        </div>
+
+        <div class="survival-bar">
+          <div
+            id="thirstBar"
+            class="survival-fill thirst-fill"
+            style="width:100%"
+          ></div>
+        </div>
+
+      </div>
+
+
+      <div class="survival-stat">
+
+        <div class="survival-icon hunger-icon">
+          🍃
+        </div>
+
+        <div class="survival-bar">
+          <div
+            id="hungerBar"
+            class="survival-fill hunger-fill"
+            style="width:100%"
+          ></div>
+        </div>
+
+      </div>
+
+
+      <div class="survival-stat">
+
+        <div class="survival-icon stamina-icon">
+          ⚡
+        </div>
+
+        <div class="survival-bar">
+          <div
+            id="staminaBar"
+            class="survival-fill stamina-fill"
+            style="width:100%"
+          ></div>
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- =======================================================
+         SIDE INVENTORY
+         ======================================================= -->
+
+    <div id="sideInventory" class="side-inventory">
+
+      <div
+        id="leftSideSlot"
+        class="side-slot left-side-slot"
+      >
+        <span class="side-slot-label">LEFT</span>
+      </div>
+
+      <div
+        id="rightSideSlot"
+        class="side-slot right-side-slot"
+      >
+        <span class="side-slot-label">RIGHT</span>
+      </div>
+
+    </div>
+
+
+    <!-- =======================================================
+         QUICK INVENTORY
+         ======================================================= -->
+
+    <div id="quickInventory" class="quick-inventory">
+
+      <div
+        class="quick-slot selected"
+        data-slot="0"
+      ></div>
+
+      <div
+        class="quick-slot"
+        data-slot="1"
+      ></div>
+
+      <div
+        class="quick-slot"
+        data-slot="2"
+      ></div>
+
+      <div
+        class="quick-slot"
+        data-slot="3"
+      ></div>
+
+      <div
+        class="quick-slot"
+        data-slot="4"
+      ></div>
+
+      <div
+        class="quick-slot"
+        data-slot="5"
+      ></div>
+
+    </div>
+
+
+    <!-- =======================================================
+         INTERACTION MESSAGE
+         ======================================================= -->
+
+    <div
+      id="interactionPrompt"
+      class="interaction-prompt hidden"
+    >
+      <div id="interactionIcon">
+        ○
+      </div>
+
+      <div>
+        <strong id="interactionTitle">
+          Interaction
+        </strong>
+
+        <small id="interactionText">
+          Press to interact
+        </small>
+      </div>
+    </div>
+
+
+    <!-- =======================================================
+         CENTER CROSSHAIR
+         ======================================================= -->
+
+    <div
+      id="crosshair"
+      class="crosshair"
+    >
+      <div></div>
+    </div>
+
+
+    <!-- =======================================================
+         MESSAGE
+         ======================================================= -->
+
+    <div
+      id="gameMessage"
+      class="game-message hidden"
+    ></div>
+
+
+    <!-- =======================================================
+         VR STATUS
+         ======================================================= -->
+
+    <div
+      id="vrStatus"
+      class="vr-status hidden"
+    >
+      VR ACTIVE
+    </div>
+
+  </div>
+
+
+  <!-- =========================================================
+       PAUSE SCREEN
+       ========================================================= -->
 
   <div
     id="pauseScreen"
-    class="hidden"
+    class="pause-screen hidden"
   >
 
-    <div class="pausePanel">
+    <div class="pause-card">
 
-      <div class="pauseTitle">
+      <div class="pause-title">
         PAUSED
       </div>
 
-      <p>
-        Open the survival menu to continue.
-      </p>
-
       <button
         id="resumeButton"
-        type="button"
+        class="pause-button"
       >
         RESUME
       </button>
 
+      <button
+        id="pauseInventoryButton"
+        class="pause-button"
+      >
+        INVENTORY
+      </button>
+
+      <button
+        id="pauseCraftingButton"
+        class="pause-button"
+      >
+        CRAFTING
+      </button>
+
+      <button
+        id="pauseSettingsButton"
+        class="pause-button"
+      >
+        SETTINGS
+      </button>
+
+      <button
+        id="pauseSaveButton"
+        class="pause-button"
+      >
+        SAVE GAME
+      </button>
+
+      <button
+        id="pauseHomeButton"
+        class="pause-button danger"
+      >
+        MAIN MENU
+      </button>
+
     </div>
 
   </div>
 
 
-  <!-- ========================================================
-       VR BUTTON
-       ======================================================== -->
+  <!-- =========================================================
+       SYSTEM ERROR
+       ========================================================= -->
 
-  <div id="vrButton"></div>
+  <div
+    id="errorScreen"
+    class="error-screen hidden"
+  >
+
+    <div class="error-card">
+
+      <div class="error-icon">
+        !
+      </div>
+
+      <h2>
+        GAME FAILED TO START
+      </h2>
+
+      <p id="errorText">
+        Something went wrong while starting Survival VR.
+      </p>
+
+      <button
+        id="errorReloadButton"
+        class="start-button"
+      >
+        TRY AGAIN
+      </button>
+
+    </div>
+
+  </div>
 
 
-  <!-- ========================================================
-       MAIN GAME SCRIPT
-       ======================================================== -->
+  <!-- =========================================================
+       MAIN GAME
+       ========================================================= -->
 
   <script type="module">
 
     /*
+     * ==========================================================
+     * SURVIVAL VR
+     * Main application bootstrap
+     *
      * IMPORTANT:
      *
-     * game.js and hands.js are loaded first.
+     * We intentionally DO NOT statically import hands.js or
+     * the other game systems at the top of this file.
      *
-     * SurvivalVR is created before the rest of the
-     * systems are dynamically imported.
+     * window.SurvivalVR is created FIRST.
      *
-     * This prevents the ES-module initialization
-     * problem where a system tries to access
-     * window.SurvivalVR before it exists.
+     * Then all systems are loaded.
+     *
+     * This prevents systems such as hands.js from trying to
+     * access window.SurvivalVR before it exists.
+     * ==========================================================
      */
 
     import * as THREE from "three";
@@ -298,914 +587,1515 @@
       VRButton
     } from "three/addons/webxr/VRButton.js";
 
-    import {
-      GAME,
-      player,
-      gameEvent,
-      updateSurvival,
-      setPaused,
-      setVRState,
-      setSprinting
-    } from "./game.js";
 
-    import {
-      setupHands,
-      updateHands
-    } from "./hands.js";
+    // ==========================================================
+    // GLOBAL SYSTEM OBJECT
+    // ==========================================================
 
-
-    // ========================================================
-    // SURVIVAL VR CORE
-    // ========================================================
-
-    window.SurvivalVR = {
+    const S = {
 
       THREE,
 
-      GAME,
-
-      player,
-
       scene: null,
-
       camera: null,
-
       renderer: null,
 
       playerGroup: null,
 
-      controllers: [],
+      systems: {},
 
-      objects: [],
+      GAME: null,
+      player: null,
 
-      resources: [],
+      started: false,
+      loading: false,
+      initialized: false,
 
-      buildings: [],
+      vrButton: null,
 
-      heldItems: {
-        left: null,
-        right: null
-      },
+      ui: {},
 
-      systems: {
+      clock: new THREE.Clock(),
 
-        inventory: null,
+      lastFrameTime: 0,
 
-        crafting: null,
-
-        building: null,
-
-        guide: null,
-
-        world: null,
-
-        home: null,
-
-        settings: null,
-
-        save: null,
-
-        audio: null,
-
-        environment: null,
-
-        animals: null
-
-      },
-
-      ready: false,
-
-      worldData: null,
-
-      world: null,
-
-      hands: null,
-
-      updateHands: null,
-
-      rendererInitialized: false
+      modulesLoaded: false
 
     };
 
 
-    // ========================================================
-    // DOM
-    // ========================================================
-
-    const startScreen =
-      document.getElementById(
-        "startScreen"
-      );
-
-    const startButton =
-      document.getElementById(
-        "startButton"
-      );
-
-    const vrStatus =
-      document.getElementById(
-        "vrStatus"
-      );
-
-    const hud =
-      document.getElementById(
-        "hud"
-      );
-
-    const message =
-      document.getElementById(
-        "message"
-      );
-
-    const vrButton =
-      document.getElementById(
-        "vrButton"
-      );
-
-    const loadingScreen =
-      document.getElementById(
-        "loadingScreen"
-      );
-
-    const loadingProgress =
-      document.getElementById(
-        "loadingProgress"
-      );
-
-    const loadingText =
-      document.getElementById(
-        "loadingText"
-      );
-
-    const pauseScreen =
-      document.getElementById(
-        "pauseScreen"
-      );
-
-    const resumeButton =
-      document.getElementById(
-        "resumeButton"
-      );
+    // Make available BEFORE loading any systems.
+    window.SurvivalVR = S;
 
 
-    // ========================================================
-    // GAME STATE
-    // ========================================================
+    // ==========================================================
+    // DOM REFERENCES
+    // ==========================================================
 
-    let initialized =
-      false;
+    S.ui = {
 
-    let systemsLoaded =
-      false;
+      startScreen:
+        document.getElementById("startScreen"),
 
-    let lastFrameTime =
-      performance.now();
+      startButton:
+        document.getElementById("startButton"),
 
-    let messageTimer =
-      null;
+      continueButton:
+        document.getElementById("continueButton"),
+
+      startStatus:
+        document.getElementById("startStatus"),
+
+      loadingScreen:
+        document.getElementById("loadingScreen"),
+
+      loadingTitle:
+        document.getElementById("loadingTitle"),
+
+      loadingText:
+        document.getElementById("loadingText"),
+
+      loadingProgress:
+        document.getElementById("loadingProgress"),
+
+      gameUI:
+        document.getElementById("gameUI"),
+
+      pauseScreen:
+        document.getElementById("pauseScreen"),
+
+      resumeButton:
+        document.getElementById("resumeButton"),
+
+      gameMessage:
+        document.getElementById("gameMessage"),
+
+      healthBar:
+        document.getElementById("healthBar"),
+
+      hungerBar:
+        document.getElementById("hungerBar"),
+
+      thirstBar:
+        document.getElementById("thirstBar"),
+
+      staminaBar:
+        document.getElementById("staminaBar"),
+
+      seedText:
+        document.getElementById("seedText"),
+
+      vrStatus:
+        document.getElementById("vrStatus"),
+
+      errorScreen:
+        document.getElementById("errorScreen"),
+
+      errorText:
+        document.getElementById("errorText"),
+
+      errorReloadButton:
+        document.getElementById("errorReloadButton")
+
+    };
 
 
-    // ========================================================
-    // MESSAGE
-    // ========================================================
-
-    function showMessage(
-      text,
-      duration = 2500
-    ) {
-
-      if (!message) {
-        return;
-      }
-
-      message.textContent =
-        text;
-
-      message.classList.remove(
-        "hidden"
-      );
-
-      clearTimeout(
-        messageTimer
-      );
-
-      messageTimer =
-        setTimeout(
-          () => {
-            message.classList.add(
-              "hidden"
-            );
-          },
-          duration
-        );
-
-    }
-
-
-    window.SurvivalVR.showMessage =
-      showMessage;
-
-
-    // ========================================================
-    // LOADING
-    // ========================================================
+    // ==========================================================
+    // BASIC UI HELPERS
+    // ==========================================================
 
     function setLoading(
-      percent,
-      text
+      title,
+      text,
+      progress = 0
     ) {
 
-      if (
-        loadingProgress
-      ) {
-        loadingProgress.style.width =
-          `${percent}%`;
-      }
+      S.ui.loadingTitle.textContent =
+        title || "LOADING";
 
-      if (
-        loadingText &&
-        text
-      ) {
-        loadingText.textContent =
-          text;
-      }
+      S.ui.loadingText.textContent =
+        text || "";
+
+      S.ui.loadingProgress.style.width =
+        `${Math.max(0, Math.min(100, progress))}%`;
 
     }
 
 
     function showLoading(
-      text =
-        "Preparing world..."
+      title = "LOADING",
+      text = "Please wait...",
+      progress = 0
     ) {
 
-      if (!loadingScreen) {
-        return;
-      }
+      setLoading(title, text, progress);
 
-      loadingScreen.classList.remove(
-        "hidden"
-      );
-
-      setLoading(
-        0,
-        text
-      );
+      S.ui.loadingScreen.classList.remove("hidden");
 
     }
 
 
     function hideLoading() {
 
-      if (!loadingScreen) {
-        return;
-      }
+      S.ui.loadingScreen.classList.add("hidden");
 
-      setLoading(
-        100,
-        "Ready!"
+    }
+
+
+    function showError(error) {
+
+      console.error(
+        "SURVIVAL VR ERROR:",
+        error
       );
 
-      setTimeout(
-        () => {
-          loadingScreen.classList.add(
-            "hidden"
-          );
-        },
-        250
+      S.loading = false;
+
+      hideLoading();
+
+      let message =
+        "Something went wrong while starting the game.";
+
+      if (error) {
+
+        if (
+          typeof error === "string"
+        ) {
+
+          message = error;
+
+        } else if (
+          error.message
+        ) {
+
+          message = error.message;
+
+        }
+
+      }
+
+      S.ui.errorText.textContent =
+        message;
+
+      S.ui.errorScreen.classList.remove(
+        "hidden"
       );
 
     }
 
 
-    // ========================================================
-    // RENDERER
-    // ========================================================
+    function hideError() {
+
+      S.ui.errorScreen.classList.add(
+        "hidden"
+      );
+
+    }
+
+
+    function showMessage(
+      message,
+      duration = 2500
+    ) {
+
+      const element =
+        S.ui.gameMessage;
+
+      if (!element) return;
+
+      element.textContent =
+        message;
+
+      element.classList.remove(
+        "hidden"
+      );
+
+      clearTimeout(
+        showMessage.timer
+      );
+
+      showMessage.timer =
+        setTimeout(() => {
+
+          element.classList.add(
+            "hidden"
+          );
+
+        }, duration);
+
+    }
+
+
+    // ==========================================================
+    // THREE.JS SETUP
+    // ==========================================================
 
     function createRenderer() {
 
-      if (
-        window.SurvivalVR.renderer
-      ) {
-        return window.SurvivalVR.renderer;
-      }
-
       const renderer =
         new THREE.WebGLRenderer({
+
           antialias: true,
+
           alpha: false,
+
           powerPreference:
             "high-performance"
+
         });
+
 
       renderer.setPixelRatio(
         Math.min(
-          window.devicePixelRatio ||
-            1,
-          1.5
+          window.devicePixelRatio || 1,
+          2
         )
       );
+
 
       renderer.setSize(
         window.innerWidth,
         window.innerHeight
       );
 
-      renderer.xr.enabled =
-        true;
 
-      renderer.shadowMap.enabled =
-        true;
+      renderer.xr.enabled = true;
 
-      renderer.shadowMap.type =
-        THREE.PCFSoftShadowMap;
 
       renderer.outputColorSpace =
         THREE.SRGBColorSpace;
 
+
       renderer.toneMapping =
         THREE.ACESFilmicToneMapping;
 
+
       renderer.toneMappingExposure =
-        1;
+        1.05;
+
+
+      renderer.shadowMap.enabled =
+        true;
+
+
+      renderer.shadowMap.type =
+        THREE.PCFSoftShadowMap;
+
+
+      renderer.domElement.id =
+        "gameCanvas";
+
 
       document.body.appendChild(
         renderer.domElement
       );
 
-      window.SurvivalVR.renderer =
-        renderer;
-
-      window.SurvivalVR.rendererInitialized =
-        true;
 
       return renderer;
 
     }
 
 
-    // ========================================================
-    // SCENE
-    // ========================================================
-
     function createScene() {
-
-      if (
-        window.SurvivalVR.scene
-      ) {
-        return window.SurvivalVR.scene;
-      }
 
       const scene =
         new THREE.Scene();
 
+
       scene.background =
         new THREE.Color(
-          0x78bde0
+          0x78c9ff
         );
 
-      scene.fog =
-        new THREE.Fog(
-          0x78bde0,
-          45,
-          100
-        );
-
-      window.SurvivalVR.scene =
-        scene;
 
       return scene;
 
     }
 
 
-    // ========================================================
-    // CAMERA
-    // ========================================================
-
     function createCamera() {
-
-      if (
-        window.SurvivalVR.camera
-      ) {
-        return window.SurvivalVR.camera;
-      }
 
       const camera =
         new THREE.PerspectiveCamera(
+
           70,
+
           window.innerWidth /
             window.innerHeight,
-          0.03,
-          150
+
+          0.05,
+
+          500
+
         );
+
 
       camera.position.set(
         0,
         1.65,
-        0
+        5
       );
 
-      window.SurvivalVR.camera =
-        camera;
 
       return camera;
 
     }
 
 
-    // ========================================================
-    // PLAYER GROUP
-    // ========================================================
-
     function createPlayerGroup() {
 
-      if (
-        window.SurvivalVR.playerGroup
-      ) {
-        return window.SurvivalVR.playerGroup;
-      }
-
-      const playerGroup =
+      const group =
         new THREE.Group();
 
-      playerGroup.name =
+
+      group.name =
         "Player";
 
-      playerGroup.add(
-        window.SurvivalVR.camera
+
+      group.position.set(
+        0,
+        0,
+        0
       );
 
-      window.SurvivalVR.scene.add(
-        playerGroup
+
+      group.add(
+        S.camera
       );
 
-      window.SurvivalVR.playerGroup =
-        playerGroup;
 
-      return playerGroup;
+      S.scene.add(
+        group
+      );
+
+
+      return group;
 
     }
 
 
-    // ========================================================
-    // VR BUTTON
-    // ========================================================
+    // ==========================================================
+    // WEBXR
+    // ==========================================================
 
-    function createVRButton() {
+    function setupWebXR() {
 
-      if (
-        !window.SurvivalVR.renderer
-      ) {
+      if (!S.renderer) {
         return;
       }
 
-      if (
-        !vrButton
-      ) {
-        return;
-      }
-
-      vrButton.innerHTML =
-        "";
 
       const button =
         VRButton.createButton(
-          window.SurvivalVR.renderer
+          S.renderer
         );
 
-      button.id =
-        "survivalVRButton";
 
-      vrButton.appendChild(
+      /*
+       * VRButton normally appears at the bottom-right.
+       *
+       * It is intentionally hidden until the game has started.
+       */
+
+      button.style.display =
+        "none";
+
+
+      button.id =
+        "vrButton";
+
+
+      document.body.appendChild(
         button
       );
 
-      window.SurvivalVR.renderer.xr
-        .addEventListener(
-          "sessionstart",
-          () => {
 
-            setVRState(
-              true
+      S.vrButton =
+        button;
+
+
+      S.renderer.xr.addEventListener(
+        "sessionstart",
+        () => {
+
+          console.log(
+            "WebXR session started."
+          );
+
+          S.GAME &&
+            S.GAME.state &&
+            (
+              S.GAME.state.inVR = true
             );
 
-            if (
-              vrStatus
-            ) {
-              vrStatus.textContent =
-                "VR ACTIVE";
-            }
 
-            gameEvent(
-              "survival-vr-started"
+          S.ui.vrStatus
+            .classList.remove(
+              "hidden"
             );
 
-          }
-        );
-
-      window.SurvivalVR.renderer.xr
-        .addEventListener(
-          "sessionend",
-          () => {
-
-            setVRState(
-              false
-            );
-
-            if (
-              vrStatus
-            ) {
-              vrStatus.textContent =
-                "VR READY";
-            }
-
-            gameEvent(
-              "survival-vr-ended"
-            );
-
-          }
-        );
-
-    }
-
-
-    // ========================================================
-    // SYSTEM LOADER
-    // ========================================================
-
-    async function loadSystems() {
-
-      if (
-        systemsLoaded
-      ) {
-        return;
-      }
-
-      setLoading(
-        10,
-        "Loading survival systems..."
-      );
-
-      /*
-       * These are intentionally dynamic imports.
-       *
-       * SurvivalVR already exists at this point.
-       */
-
-      await import(
-        "./inventory.js"
-      );
-
-      setLoading(
-        20,
-        "Loading inventory..."
-      );
-
-      await import(
-        "./crafting.js"
-      );
-
-      setLoading(
-        28,
-        "Loading crafting..."
-      );
-
-      await import(
-        "./building.js"
-      );
-
-      setLoading(
-        36,
-        "Loading building..."
-      );
-
-      await import(
-        "./guide.js"
-      );
-
-      setLoading(
-        44,
-        "Loading guide..."
-      );
-
-      await import(
-        "./world.js"
-      );
-
-      setLoading(
-        54,
-        "Generating world system..."
-      );
-
-      await import(
-        "./save.js"
-      );
-
-      setLoading(
-        62,
-        "Loading save system..."
-      );
-
-      await import(
-        "./home.js"
-      );
-
-      setLoading(
-        69,
-        "Loading home..."
-      );
-
-      await import(
-        "./settings.js"
-      );
-
-      setLoading(
-        76,
-        "Loading settings..."
-      );
-
-      await import(
-        "./audio.js"
-      );
-
-      setLoading(
-        82,
-        "Loading audio..."
-      );
-
-      await import(
-        "./environment.js"
-      );
-
-      setLoading(
-        88,
-        "Loading environment..."
-      );
-
-      await import(
-        "./animals.js"
-      );
-
-      setLoading(
-        94,
-        "Loading animals..."
-      );
-
-
-      systemsLoaded =
-        true;
-
-      window.SurvivalVR.ready =
-        true;
-
-      gameEvent(
-        "survival-systems-loaded"
-      );
-
-      setLoading(
-        100,
-        "Systems ready."
-      );
-
-    }
-
-
-    // ========================================================
-    // HANDS
-    // ========================================================
-
-    function initializeHands() {
-
-      if (
-        typeof setupHands !==
-        "function"
-      ) {
-        return;
-      }
-
-      setupHands(
-        window.SurvivalVR.renderer,
-        window.SurvivalVR.camera,
-        window.SurvivalVR.scene
-      );
-
-    }
-
-
-    // ========================================================
-    // START GAME
-    // ========================================================
-
-    async function startGame() {
-
-      if (
-        initialized
-      ) {
-        return;
-      }
-
-      initialized =
-        true;
-
-      startButton.disabled =
-        true;
-
-      showLoading(
-        "Starting Survival VR..."
-      );
-
-      try {
-
-        setLoading(
-          5,
-          "Creating renderer..."
-        );
-
-        createRenderer();
-
-        setLoading(
-          8,
-          "Creating scene..."
-        );
-
-        createScene();
-
-        setLoading(
-          12,
-          "Creating camera..."
-        );
-
-        createCamera();
-
-        setLoading(
-          15,
-          "Creating player..."
-        );
-
-        createPlayerGroup();
-
-        setLoading(
-          18,
-          "Connecting VR..."
-        );
-
-        createVRButton();
-
-        setLoading(
-          20,
-          "Connecting systems..."
-        );
-
-        initializeHands();
-
-        await loadSystems();
-
-        setLoading(
-          96,
-          "Preparing island..."
-        );
-
-
-        // ----------------------------------------------------
-        // GENERATE WORLD
-        // ----------------------------------------------------
-
-        if (
-          window.SurvivalVR.systems.world
-        ) {
-
-          const worldSystem =
-            window.SurvivalVR.systems.world;
+          showMessage(
+            "VR ACTIVE",
+            1800
+          );
 
           if (
-            typeof worldSystem.generateWorld ===
+            typeof window.SurvivalVR
+              .setVRState ===
             "function"
           ) {
 
-            worldSystem.generateWorld();
+            window.SurvivalVR
+              .setVRState(true);
+
+          }
+
+        }
+      );
+
+
+      S.renderer.xr.addEventListener(
+        "sessionend",
+        () => {
+
+          console.log(
+            "WebXR session ended."
+          );
+
+          S.GAME &&
+            S.GAME.state &&
+            (
+              S.GAME.state.inVR = false
+            );
+
+
+          S.ui.vrStatus
+            .classList.add(
+              "hidden"
+            );
+
+          if (
+            typeof window.SurvivalVR
+              .setVRState ===
+            "function"
+          ) {
+
+            window.SurvivalVR
+              .setVRState(false);
+
+          }
+
+        }
+      );
+
+    }
+
+
+    function showVRButton() {
+
+      if (!S.vrButton) {
+        return;
+      }
+
+      /*
+       * WebXR support is detected by VRButton itself.
+       * We only display it once the actual game has started.
+       */
+
+      S.vrButton.style.display =
+        "";
+
+    }
+
+
+    // ==========================================================
+    // SYSTEM LOADER
+    // ==========================================================
+
+    async function loadSystems() {
+
+      if (S.modulesLoaded) {
+        return;
+      }
+
+
+      showLoading(
+        "LOADING SYSTEMS",
+        "Preparing Survival VR...",
+        5
+      );
+
+
+      /*
+       * IMPORTANT:
+       *
+       * hands.js comes AFTER window.SurvivalVR exists.
+       *
+       * Every other module also loads after S has been created.
+       */
+
+      const modules = [
+
+        {
+          name: "hands",
+          path: "./hands.js"
+        },
+
+        {
+          name: "inventory",
+          path: "./inventory.js"
+        },
+
+        {
+          name: "crafting",
+          path: "./crafting.js"
+        },
+
+        {
+          name: "building",
+          path: "./building.js"
+        },
+
+        {
+          name: "guide",
+          path: "./guide.js"
+        },
+
+        {
+          name: "world",
+          path: "./world.js"
+        },
+
+        {
+          name: "save",
+          path: "./save.js"
+        },
+
+        {
+          name: "home",
+          path: "./home.js"
+        },
+
+        {
+          name: "settings",
+          path: "./settings.js"
+        },
+
+        {
+          name: "audio",
+          path: "./audio.js"
+        },
+
+        {
+          name: "environment",
+          path: "./environment.js"
+        },
+
+        {
+          name: "animals",
+          path: "./animals.js"
+        }
+
+      ];
+
+
+      for (
+        let i = 0;
+        i < modules.length;
+        i++
+      ) {
+
+        const moduleInfo =
+          modules[i];
+
+
+        setLoading(
+
+          "LOADING SYSTEMS",
+
+          `Loading ${moduleInfo.name}...`,
+
+          5 +
+            (
+              (i + 1) /
+              modules.length
+            ) * 75
+
+        );
+
+
+        try {
+
+          const module =
+            await import(
+              moduleInfo.path
+            );
+
+
+          /*
+           * Some systems register themselves
+           * directly on window.SurvivalVR.
+           *
+           * Some may also have a default export.
+           */
+
+          if (
+            module &&
+            module.default
+          ) {
+
+            S.systems[
+              moduleInfo.name
+            ] =
+              module.default;
+
+          }
+
+
+          /*
+           * If the module has a named setup
+           * function, try to register it.
+           */
+
+          if (
+            module &&
+            typeof module.setup ===
+              "function"
+          ) {
+
+            const system =
+              await module.setup(
+                S
+              );
+
+
+            if (system) {
+
+              S.systems[
+                moduleInfo.name
+              ] =
+                system;
+
+            }
+
+          }
+
+
+          /*
+           * If a module registered itself,
+           * preserve that registration.
+           */
+
+          if (
+            !S.systems[
+              moduleInfo.name
+            ] &&
+            S[
+              moduleInfo.name
+            ]
+          ) {
+
+            S.systems[
+              moduleInfo.name
+            ] =
+              S[
+                moduleInfo.name
+              ];
+
+          }
+
+        } catch (error) {
+
+          console.error(
+            `Failed loading ${moduleInfo.name}:`,
+            error
+          );
+
+          throw new Error(
+            `Could not load ${moduleInfo.name}.js: ${
+              error.message || error
+            }`
+          );
+
+        }
+
+      }
+
+
+      S.modulesLoaded =
+        true;
+
+
+      setLoading(
+        "SYSTEMS READY",
+        "Preparing the island...",
+        90
+      );
+
+
+      await new Promise(
+        resolve =>
+          setTimeout(
+            resolve,
+            150
+          )
+      );
+
+    }
+
+
+    // ==========================================================
+    // SYSTEM COMPATIBILITY
+    // ==========================================================
+
+    function connectSystems() {
+
+      /*
+       * Some of our modules register functions directly
+       * on window.SurvivalVR.
+       *
+       * Make sure those functions remain available.
+       */
+
+      if (
+        !S.GAME &&
+        S.systems.game
+      ) {
+
+        S.GAME =
+          S.systems.game;
+
+      }
+
+
+      /*
+       * Game.js should have been loaded through the
+       * normal module graph by the page's systems.
+       *
+       * If GAME is not available, dynamically load it.
+       */
+
+      if (!S.GAME) {
+
+        return import(
+          "./game.js"
+        ).then(module => {
+
+          S.GAME =
+            module.GAME;
+
+          S.player =
+            module.player;
+
+          S.gameEvent =
+            module.gameEvent;
+
+          S.setVRState =
+            module.setVRState;
+
+          S.setPaused =
+            module.setPaused;
+
+          S.updateSurvival =
+            module.updateSurvival;
+
+          S.setSprinting =
+            module.setSprinting;
+
+          S.createNewWorld =
+            module.createNewWorld;
+
+          S.getGameData =
+            module.getGameData;
+
+          S.loadGameData =
+            module.loadGameData;
+
+        });
+
+      }
+
+    }
+
+
+    // ==========================================================
+    // GAME INITIALIZATION
+    // ==========================================================
+
+    async function initializeGame() {
+
+      if (S.initialized) {
+        return;
+      }
+
+
+      showLoading(
+        "INITIALIZING",
+        "Starting the game engine...",
+        20
+      );
+
+
+      S.scene =
+        createScene();
+
+
+      S.camera =
+        createCamera();
+
+
+      S.renderer =
+        createRenderer();
+
+
+      S.playerGroup =
+        createPlayerGroup();
+
+
+      /*
+       * Expose the objects to every system.
+       */
+
+      S.scene =
+        S.scene;
+
+      S.camera =
+        S.camera;
+
+      S.renderer =
+        S.renderer;
+
+      S.playerGroup =
+        S.playerGroup;
+
+
+      setupWebXR();
+
+
+      setLoading(
+        "INITIALIZING",
+        "Loading game systems...",
+        30
+      );
+
+
+      await loadSystems();
+
+
+      await connectSystems();
+
+
+      /*
+       * Game.js exports a stable player reference.
+       */
+
+      if (
+        !S.player &&
+        S.GAME
+      ) {
+
+        S.player =
+          S.GAME.player;
+
+      }
+
+
+      /*
+       * Make sure systems can access the game state.
+       */
+
+      if (S.GAME) {
+
+        S.GAME.scene =
+          S.scene;
+
+        S.GAME.camera =
+          S.camera;
+
+        S.GAME.renderer =
+          S.renderer;
+
+        S.GAME.playerGroup =
+          S.playerGroup;
+
+      }
+
+
+      S.initialized =
+        true;
+
+
+      setLoading(
+        "READY",
+        "Survival VR is ready.",
+        100
+      );
+
+
+      await new Promise(
+        resolve =>
+          setTimeout(
+            resolve,
+            250
+          )
+      );
+
+
+      hideLoading();
+
+
+      updateStartScreen();
+
+
+      console.log(
+        "Survival VR initialized successfully."
+      );
+
+    }
+
+
+    // ==========================================================
+    // SAVE DETECTION
+    // ==========================================================
+
+    function hasSaveGame() {
+
+      try {
+
+        const keys = [
+
+          "survival_vr_save_v5",
+          "survival_vr_save_v4",
+          "survival_vr_save_v3",
+          "survival_vr_save_v2"
+
+        ];
+
+
+        for (
+          const key of keys
+        ) {
+
+          if (
+            localStorage.getItem(
+              key
+            )
+          ) {
+
+            return true;
 
           }
 
         }
 
+      } catch (error) {
 
-        // ----------------------------------------------------
-        // START AUDIO
-        // ----------------------------------------------------
+        console.warn(
+          "Could not check save data.",
+          error
+        );
 
-        if (
-          window.SurvivalVR.systems.audio
-        ) {
+      }
 
-          await window.SurvivalVR
-            .systems
-            .audio
-            .start();
+
+      return false;
+
+    }
+
+
+    function updateStartScreen() {
+
+      const hasSave =
+        hasSaveGame();
+
+
+      if (hasSave) {
+
+        S.ui.continueButton
+          .classList.remove(
+            "hidden"
+          );
+
+        S.ui.startStatus.textContent =
+          "A saved survival world was found.";
+
+      } else {
+
+        S.ui.continueButton
+          .classList.add(
+            "hidden"
+          );
+
+        S.ui.startStatus.textContent =
+          "Ready to explore.";
+
+      }
+
+    }
+
+
+    // ==========================================================
+    // START NEW WORLD
+    // ==========================================================
+
+    async function startNewWorld() {
+
+      if (S.loading) {
+        return;
+      }
+
+
+      S.loading =
+        true;
+
+
+      hideError();
+
+
+      S.ui.startButton.disabled =
+        true;
+
+
+      S.ui.continueButton.disabled =
+        true;
+
+
+      try {
+
+        showLoading(
+          "CREATING WORLD",
+          "Generating your island...",
+          5
+        );
+
+
+        /*
+         * Wait for all systems.
+         */
+
+        if (!S.initialized) {
+
+          await initializeGame();
 
         }
 
 
-        // ----------------------------------------------------
-        // INITIALIZE ENVIRONMENT
-        // ----------------------------------------------------
+        setLoading(
+          "CREATING WORLD",
+          "Choosing your world seed...",
+          20
+        );
+
+
+        /*
+         * Use the game core's world creation function.
+         *
+         * This resets the gameplay state AND generates
+         * the procedural world.
+         */
 
         if (
-          window.SurvivalVR.systems
-            .environment
+          S.createNewWorld
         ) {
 
-          window.SurvivalVR.systems
-            .environment
-            .initialize();
+          await S.createNewWorld();
+
+        } else if (
+          S.GAME &&
+          typeof S.GAME.createNewWorld ===
+            "function"
+        ) {
+
+          await S.GAME.createNewWorld();
+
+        } else if (
+          S.systems.world &&
+          typeof S.systems.world.createNewWorld ===
+            "function"
+        ) {
+
+          await S.systems.world.createNewWorld();
+
+        } else {
+
+          throw new Error(
+            "World system is not available."
+          );
 
         }
 
 
-        // ----------------------------------------------------
-        // INITIALIZE ANIMALS
-        // ----------------------------------------------------
+        setLoading(
+          "CREATING WORLD",
+          "Building terrain, trees, rocks, and lake...",
+          50
+        );
+
+
+        /*
+         * The world generator may be synchronous,
+         * so give the browser a frame to render it.
+         */
+
+        await new Promise(
+          resolve =>
+            requestAnimationFrame(
+              resolve
+            )
+        );
+
 
         if (
-          window.SurvivalVR.systems
-            .animals
+          S.systems.environment &&
+          typeof S.systems.environment.start ===
+            "function"
         ) {
 
-          window.SurvivalVR.systems
-            .animals
-            .initialize();
+          S.systems.environment.start();
 
         }
 
 
-        // ----------------------------------------------------
-        // GAME STARTED
-        // ----------------------------------------------------
+        if (
+          S.systems.animals &&
+          typeof S.systems.animals.start ===
+            "function"
+        ) {
 
-        GAME.state.started =
+          S.systems.animals.start();
+
+        }
+
+
+        if (
+          S.systems.audio &&
+          typeof S.systems.audio.startWind ===
+            "function"
+        ) {
+
+          S.systems.audio.startWind();
+
+        }
+
+
+        setLoading(
+          "CREATING WORLD",
+          "Placing wildlife and environment...",
+          75
+        );
+
+
+        await new Promise(
+          resolve =>
+            requestAnimationFrame(
+              resolve
+            )
+        );
+
+
+        /*
+         * Mark the game as started.
+         */
+
+        if (S.GAME) {
+
+          S.GAME.state.started =
+            true;
+
+          S.GAME.state.paused =
+            false;
+
+          S.GAME.state.gameOver =
+            false;
+
+        }
+
+
+        S.started =
           true;
 
-        GAME.state.paused =
-          false;
 
-        GAME.state.gameOver =
-          false;
-
-        setPaused(
-          false
+        setLoading(
+          "WORLD READY",
+          "Entering your island...",
+          100
         );
 
 
-        startScreen.classList.add(
-          "hidden"
-        );
-
-        hud.classList.remove(
-          "hidden"
-        );
-
-
-        gameEvent(
-          "survival-game-started"
+        await new Promise(
+          resolve =>
+            setTimeout(
+              resolve,
+              300
+            )
         );
 
 
         hideLoading();
 
+
+        S.ui.startScreen
+          .classList.add(
+            "hidden"
+          );
+
+
+        S.ui.gameUI
+          .classList.remove(
+            "hidden"
+          );
+
+
+        showVRButton();
+
+
+        updateHUD();
+
+
         showMessage(
           "Welcome to your island.",
-          3500
+          3000
         );
 
-        lastFrameTime =
-          performance.now();
 
-        requestAnimationFrame(
-          firstFrame
+        S.loading =
+          false;
+
+
+        S.ui.startButton.disabled =
+          false;
+
+
+        S.ui.continueButton.disabled =
+          false;
+
+
+        console.log(
+          "New Survival VR world started."
         );
 
-      } catch (
-        error
-      ) {
 
-        console.error(
-          "[SurvivalVR] Failed to start:",
+      } catch (error) {
+
+        S.loading =
+          false;
+
+
+        S.ui.startButton.disabled =
+          false;
+
+
+        S.ui.continueButton.disabled =
+          false;
+
+
+        showError(
           error
         );
 
-        initialized =
-          false;
+      }
 
-        startButton.disabled =
-          false;
+    }
+
+
+    // ==========================================================
+    // CONTINUE SAVED WORLD
+    // ==========================================================
+
+    async function continueGame() {
+
+      if (S.loading) {
+        return;
+      }
+
+
+      S.loading =
+        true;
+
+
+      hideError();
+
+
+      S.ui.startButton.disabled =
+        true;
+
+
+      S.ui.continueButton.disabled =
+        true;
+
+
+      try {
+
+        showLoading(
+          "LOADING WORLD",
+          "Loading your saved survival...",
+          10
+        );
+
+
+        if (!S.initialized) {
+
+          await initializeGame();
+
+        }
+
 
         setLoading(
-          100,
-          "Startup failed."
+          "LOADING WORLD",
+          "Restoring island...",
+          35
         );
+
+
+        if (
+          S.systems.save &&
+          typeof S.systems.save.loadGame ===
+            "function"
+        ) {
+
+          await S.systems.save.loadGame();
+
+        } else if (
+          S.loadGame
+        ) {
+
+          await S.loadGame();
+
+        } else {
+
+          throw new Error(
+            "Save system is not available."
+          );
+
+        }
+
+
+        setLoading(
+          "LOADING WORLD",
+          "Restoring environment...",
+          70
+        );
+
+
+        if (
+          S.systems.environment &&
+          typeof S.systems.environment.start ===
+            "function"
+        ) {
+
+          S.systems.environment.start();
+
+        }
+
+
+        if (
+          S.systems.animals &&
+          typeof S.systems.animals.start ===
+            "function"
+        ) {
+
+          S.systems.animals.start();
+
+        }
+
+
+        if (
+          S.systems.audio &&
+          typeof S.systems.audio.startWind ===
+            "function"
+        ) {
+
+          S.systems.audio.startWind();
+
+        }
+
+
+        if (S.GAME) {
+
+          S.GAME.state.started =
+            true;
+
+          S.GAME.state.paused =
+            false;
+
+        }
+
+
+        S.started =
+          true;
+
+
+        setLoading(
+          "WORLD READY",
+          "Welcome back.",
+          100
+        );
+
+
+        await new Promise(
+          resolve =>
+            setTimeout(
+              resolve,
+              250
+            )
+        );
+
+
+        hideLoading();
+
+
+        S.ui.startScreen
+          .classList.add(
+            "hidden"
+          );
+
+
+        S.ui.gameUI
+          .classList.remove(
+            "hidden"
+          );
+
+
+        showVRButton();
+
+
+        updateHUD();
+
 
         showMessage(
-          "The game could not start. Check the console.",
-          5000
+          "Welcome back.",
+          2500
+        );
+
+
+        S.loading =
+          false;
+
+
+        S.ui.startButton.disabled =
+          false;
+
+
+        S.ui.continueButton.disabled =
+          false;
+
+
+      } catch (error) {
+
+        S.loading =
+          false;
+
+
+        S.ui.startButton.disabled =
+          false;
+
+
+        S.ui.continueButton.disabled =
+          false;
+
+
+        showError(
+          error
         );
 
       }
@@ -1213,490 +2103,421 @@
     }
 
 
-    function firstFrame(
-      time
-    ) {
-
-      lastFrameTime =
-        time;
-
-      requestAnimationFrame(
-        animate
-      );
-
-    }
-
-
-    // ========================================================
-    // MAIN GAME LOOP
-    // ========================================================
-
-    function animate(
-      time
-    ) {
-
-      const delta =
-        Math.min(
-          (time -
-            lastFrameTime) /
-            1000,
-          0.1
-        );
-
-      lastFrameTime =
-        time;
-
-
-      // ------------------------------------------------------
-      // SURVIVAL
-      // ------------------------------------------------------
-
-      if (
-        GAME.state.started &&
-        !GAME.state.paused &&
-        !GAME.state.gameOver
-      ) {
-
-        updateSurvival(
-          delta
-        );
-
-      }
-
-
-      // ------------------------------------------------------
-      // HANDS
-      // ------------------------------------------------------
-
-      if (
-        typeof updateHands ===
-        "function"
-      ) {
-
-        updateHands(
-          delta
-        );
-
-      } else if (
-        typeof window.SurvivalVR
-          .updateHands ===
-        "function"
-      ) {
-
-        window.SurvivalVR
-          .updateHands(
-            delta
-          );
-
-      }
-
-
-      // ------------------------------------------------------
-      // WORLD
-      // ------------------------------------------------------
-
-      if (
-        window.SurvivalVR.systems
-          .world?.update
-      ) {
-
-        window.SurvivalVR.systems
-          .world
-          .update(
-            delta
-          );
-
-      }
-
-
-      // ------------------------------------------------------
-      // ENVIRONMENT
-      // ------------------------------------------------------
-
-      if (
-        window.SurvivalVR.systems
-          .environment?.update
-      ) {
-
-        window.SurvivalVR.systems
-          .environment
-          .update(
-            delta
-          );
-
-      }
-
-
-      // ------------------------------------------------------
-      // ANIMALS
-      // ------------------------------------------------------
-
-      if (
-        window.SurvivalVR.systems
-          .animals?.update
-      ) {
-
-        window.SurvivalVR.systems
-          .animals
-          .update(
-            delta
-          );
-
-      }
-
-
-      // ------------------------------------------------------
-      // BUILDING
-      // ------------------------------------------------------
-
-      if (
-        window.SurvivalVR.systems
-          .building?.update
-      ) {
-
-        window.SurvivalVR.systems
-          .building
-          .update(
-            delta
-          );
-
-      }
-
-
-      // ------------------------------------------------------
-      // RENDER
-      // ------------------------------------------------------
-
-      if (
-        window.SurvivalVR.renderer &&
-        window.SurvivalVR.scene &&
-        window.SurvivalVR.camera
-      ) {
-
-        window.SurvivalVR.renderer.render(
-          window.SurvivalVR.scene,
-          window.SurvivalVR.camera
-        );
-
-      }
-
-    }
-
-
-    // ========================================================
+    // ==========================================================
     // HUD
-    // ========================================================
+    // ==========================================================
 
     function updateHUD() {
 
-      if (!hud) {
+      if (!S.GAME) {
         return;
       }
 
-      const playerState =
-        GAME.player ||
-        {};
+
+      const player =
+        S.GAME.player;
+
+
+      if (!player) {
+        return;
+      }
+
 
       const health =
-        document.getElementById(
-          "healthDisplay"
+        Number(
+          player.health ?? 100
         );
+
 
       const hunger =
-        document.getElementById(
-          "hungerDisplay"
+        Number(
+          player.hunger ?? 100
         );
+
 
       const thirst =
-        document.getElementById(
-          "thirstDisplay"
+        Number(
+          player.thirst ?? 100
         );
+
 
       const stamina =
-        document.getElementById(
-          "staminaDisplay"
-        );
-
-      const day =
-        document.getElementById(
-          "dayDisplay"
-        );
-
-      const time =
-        document.getElementById(
-          "timeDisplay"
+        Number(
+          player.stamina ?? 100
         );
 
 
-      if (health) {
-        health.textContent =
-          Math.round(
-            playerState.health ??
-            100
-          );
-      }
-
-      if (hunger) {
-        hunger.textContent =
-          Math.round(
-            playerState.hunger ??
-            100
-          );
-      }
-
-      if (thirst) {
-        thirst.textContent =
-          Math.round(
-            playerState.thirst ??
-            100
-          );
-      }
-
-      if (stamina) {
-        stamina.textContent =
-          Math.round(
-            playerState.stamina ??
-            100
-          );
-      }
+      S.ui.healthBar.style.width =
+        `${Math.max(0, Math.min(100, health))}%`;
 
 
-      if (day) {
-        day.textContent =
-          GAME.world?.day ??
-          1;
-      }
+      S.ui.hungerBar.style.width =
+        `${Math.max(0, Math.min(100, hunger))}%`;
 
 
-      if (time) {
+      S.ui.thirstBar.style.width =
+        `${Math.max(0, Math.min(100, thirst))}%`;
 
-        const worldTime =
-          Number(
-            GAME.world?.time
-          ) || 0;
 
-        const hours =
-          Math.floor(
-            worldTime
-          );
+      S.ui.staminaBar.style.width =
+        `${Math.max(0, Math.min(100, stamina))}%`;
 
-        const minutes =
-          Math.floor(
-            (worldTime -
-              hours) *
-              60
-          );
 
-        time.textContent =
-          `${String(
-            hours
-          ).padStart(
-            2,
-            "0"
-          )}:${String(
-            minutes
-          ).padStart(
-            2,
-            "0"
-          )}`;
+      if (
+        S.GAME.world &&
+        S.GAME.world.seed
+      ) {
+
+        S.ui.seedText.textContent =
+          `Seed: ${S.GAME.world.seed}`;
 
       }
 
     }
 
 
-    // ========================================================
-    // HUD UPDATE TIMER
-    // ========================================================
+    // ==========================================================
+    // PAUSE
+    // ==========================================================
 
-    setInterval(
+    function pauseGame() {
+
+      if (!S.started) {
+        return;
+      }
+
+
+      S.ui.pauseScreen
+        .classList.remove(
+          "hidden"
+        );
+
+
+      if (
+        S.setPaused
+      ) {
+
+        S.setPaused(true);
+
+      } else if (
+        S.GAME
+      ) {
+
+        S.GAME.state.paused =
+          true;
+
+      }
+
+    }
+
+
+    function resumeGame() {
+
+      S.ui.pauseScreen
+        .classList.add(
+          "hidden"
+        );
+
+
+      if (
+        S.setPaused
+      ) {
+
+        S.setPaused(false);
+
+      } else if (
+        S.GAME
+      ) {
+
+        S.GAME.state.paused =
+          false;
+
+      }
+
+    }
+
+
+    // ==========================================================
+    // MENU BUTTONS
+    // ==========================================================
+
+    function openSystemMenu(
+      name
+    ) {
+
+      /*
+       * First try the system's public function.
+       */
+
+      const system =
+        S.systems[name];
+
+
+      if (
+        system &&
+        typeof system.open ===
+          "function"
+      ) {
+
+        system.open();
+
+        return;
+
+      }
+
+
+      /*
+       * Fallback events.
+       */
+
+      window.dispatchEvent(
+        new CustomEvent(
+          `survival-open-${name}`
+        )
+      );
+
+    }
+
+
+    // ==========================================================
+    // EVENT LISTENERS
+    // ==========================================================
+
+    S.ui.startButton.addEventListener(
+      "click",
       () => {
 
-        if (
-          GAME.state.started
-        ) {
+        startNewWorld();
 
-          updateHUD();
-
-        }
-
-      },
-      200
+      }
     );
 
 
-    // ========================================================
-    // PAUSE
-    // ========================================================
+    S.ui.continueButton.addEventListener(
+      "click",
+      () => {
 
-    function showPause() {
+        continueGame();
 
-      if (
-        pauseScreen
-      ) {
+      }
+    );
 
-        pauseScreen.classList.remove(
-          "hidden"
+
+    S.ui.errorReloadButton.addEventListener(
+      "click",
+      () => {
+
+        hideError();
+
+        startNewWorld();
+
+      }
+    );
+
+
+    S.ui.resumeButton.addEventListener(
+      "click",
+      () => {
+
+        resumeGame();
+
+      }
+    );
+
+
+    document
+      .querySelectorAll(
+        ".menu-button"
+      )
+      .forEach(button => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            const menu =
+              button.dataset.menu;
+
+            if (menu) {
+
+              openSystemMenu(
+                menu
+              );
+
+            }
+
+          }
         );
 
-      }
-
-    }
+      });
 
 
-    function hidePause() {
-
-      if (
-        pauseScreen
-      ) {
-
-        pauseScreen.classList.add(
-          "hidden"
-        );
-
-      }
-
-    }
-
-
-    function togglePause() {
-
-      if (
-        !GAME.state.started ||
-        GAME.state.gameOver
-      ) {
-        return;
-      }
-
-      const paused =
-        !GAME.state.paused;
-
-      setPaused(
-        paused
-      );
-
-      if (paused) {
-        showPause();
-      } else {
-        hidePause();
-      }
-
-    }
-
-
-    // ========================================================
-    // RESUME
-    // ========================================================
-
-    if (
-      resumeButton
-    ) {
-
-      resumeButton.addEventListener(
+    document
+      .getElementById(
+        "pauseInventoryButton"
+      )
+      .addEventListener(
         "click",
         () => {
 
-          setPaused(
-            false
+          openSystemMenu(
+            "inventory"
           );
-
-          hidePause();
 
         }
       );
 
-    }
+
+    document
+      .getElementById(
+        "pauseCraftingButton"
+      )
+      .addEventListener(
+        "click",
+        () => {
+
+          openSystemMenu(
+            "crafting"
+          );
+
+        }
+      );
 
 
-    // ========================================================
-    // KEYBOARD
-    // ========================================================
+    document
+      .getElementById(
+        "pauseSettingsButton"
+      )
+      .addEventListener(
+        "click",
+        () => {
+
+          openSystemMenu(
+            "settings"
+          );
+
+        }
+      );
+
+
+    document
+      .getElementById(
+        "pauseSaveButton"
+      )
+      .addEventListener(
+        "click",
+        () => {
+
+          if (
+            S.systems.save &&
+            typeof S.systems.save.saveGame ===
+              "function"
+          ) {
+
+            S.systems.save.saveGame();
+
+            showMessage(
+              "Game saved.",
+              1800
+            );
+
+          }
+
+        }
+      );
+
+
+    document
+      .getElementById(
+        "pauseHomeButton"
+      )
+      .addEventListener(
+        "click",
+        () => {
+
+          resumeGame();
+
+          S.ui.gameUI
+            .classList.add(
+              "hidden"
+            );
+
+          S.ui.startScreen
+            .classList.remove(
+              "hidden"
+            );
+
+          S.started =
+            false;
+
+          updateStartScreen();
+
+        }
+      );
+
+
+    // ==========================================================
+    // KEYBOARD FALLBACK
+    // ==========================================================
 
     window.addEventListener(
       "keydown",
       event => {
 
         if (
-          event.key ===
-          "Escape"
+          event.key === "Escape"
         ) {
 
+          if (!S.started) {
+            return;
+          }
+
+
           if (
-            GAME.state.started &&
-            !GAME.state.gameOver
+            S.ui.pauseScreen
+              .classList.contains(
+                "hidden"
+              )
           ) {
 
-            togglePause();
+            pauseGame();
+
+          } else {
+
+            resumeGame();
 
           }
 
         }
 
-        if (
-          event.key ===
-          "Shift"
-        ) {
-
-          setSprinting(
-            true
-          );
-
-        }
-
       }
     );
 
 
-    window.addEventListener(
-      "keyup",
-      event => {
-
-        if (
-          event.key ===
-          "Shift"
-        ) {
-
-          setSprinting(
-            false
-          );
-
-        }
-
-      }
-    );
-
-
-    // ========================================================
+    // ==========================================================
     // RESIZE
-    // ========================================================
+    // ==========================================================
 
     window.addEventListener(
       "resize",
       () => {
 
-        const camera =
-          window.SurvivalVR.camera;
-
-        const renderer =
-          window.SurvivalVR.renderer;
-
-        if (
-          camera
-        ) {
-
-          camera.aspect =
-            window.innerWidth /
-            window.innerHeight;
-
-          camera.updateProjectionMatrix();
-
+        if (!S.camera) {
+          return;
         }
 
-        if (
-          renderer
-        ) {
 
-          renderer.setSize(
+        S.camera.aspect =
+          window.innerWidth /
+          window.innerHeight;
+
+
+        S.camera.updateProjectionMatrix();
+
+
+        if (S.renderer) {
+
+          S.renderer.setSize(
             window.innerWidth,
             window.innerHeight
           );
@@ -1707,161 +2528,228 @@
     );
 
 
-    // ========================================================
-    // START BUTTON
-    // ========================================================
+    // ==========================================================
+    // GAME LOOP
+    // ==========================================================
 
-    if (
-      startButton
-    ) {
+    function gameLoop() {
 
-      startButton.addEventListener(
-        "click",
-        startGame
+      const delta =
+        Math.min(
+          S.clock.getDelta(),
+          0.1
+        );
+
+
+      try {
+
+        /*
+         * Survival system
+         */
+
+        if (
+          S.started &&
+          !S.GAME?.state?.paused &&
+          typeof S.updateSurvival ===
+            "function"
+        ) {
+
+          S.updateSurvival(
+            delta
+          );
+
+        }
+
+
+        /*
+         * VR hands
+         */
+
+        if (
+          S.started &&
+          S.systems.hands &&
+          typeof S.systems.hands.update ===
+            "function"
+        ) {
+
+          S.systems.hands.update(
+            delta
+          );
+
+        } else if (
+          S.started &&
+          typeof S.updateHands ===
+            "function"
+        ) {
+
+          S.updateHands(
+            delta
+          );
+
+        }
+
+
+        /*
+         * World
+         */
+
+        if (
+          S.started &&
+          S.systems.world &&
+          typeof S.systems.world.update ===
+            "function"
+        ) {
+
+          S.systems.world.update(
+            delta
+          );
+
+        }
+
+
+        /*
+         * Environment
+         */
+
+        if (
+          S.started &&
+          S.systems.environment &&
+          typeof S.systems.environment.update ===
+            "function"
+        ) {
+
+          S.systems.environment.update(
+            delta
+          );
+
+        }
+
+
+        /*
+         * Animals
+         */
+
+        if (
+          S.started &&
+          S.systems.animals &&
+          typeof S.systems.animals.update ===
+            "function"
+        ) {
+
+          S.systems.animals.update(
+            delta
+          );
+
+        }
+
+
+        /*
+         * Building
+         */
+
+        if (
+          S.started &&
+          S.systems.building &&
+          typeof S.systems.building.update ===
+            "function"
+        ) {
+
+          S.systems.building.update(
+            delta
+          );
+
+        }
+
+
+        /*
+         * HUD
+         */
+
+        if (S.started) {
+
+          updateHUD();
+
+        }
+
+
+        /*
+         * Render
+         */
+
+        if (S.renderer) {
+
+          S.renderer.render(
+            S.scene,
+            S.camera
+          );
+
+        }
+
+      } catch (error) {
+
+        console.error(
+          "Game loop error:",
+          error
+        );
+
+      }
+
+
+      /*
+       * XR animation loop is used automatically when
+       * WebXR is active.
+       */
+
+      requestAnimationFrame(
+        gameLoop
       );
 
     }
 
 
-    // ========================================================
-    // CHECK VR
-    // ========================================================
+    // ==========================================================
+    // STARTUP
+    // ==========================================================
 
-    async function checkVR() {
-
-      if (
-        !vrStatus
-      ) {
-        return;
-      }
-
-      if (
-        !navigator.xr
-      ) {
-
-        vrStatus.textContent =
-          "WebXR not available";
-
-        return;
-
-      }
+    async function boot() {
 
       try {
 
-        const supported =
-          await navigator.xr
-            .isSessionSupported(
-              "immersive-vr"
-            );
+        /*
+         * Initialize the engine immediately.
+         *
+         * The actual survival world does NOT start until
+         * the player presses START SURVIVAL.
+         */
 
-        if (
-          supported
-        ) {
+        await initializeGame();
 
-          vrStatus.textContent =
-            "VR READY";
 
-        } else {
+        updateStartScreen();
 
-          vrStatus.textContent =
-            "VR NOT AVAILABLE";
 
-        }
+        /*
+         * Start the normal browser render loop.
+         */
 
-      } catch (
-        error
-      ) {
+        gameLoop();
 
-        console.warn(
-          "[SurvivalVR] VR check failed:",
+      } catch (error) {
+
+        showError(
           error
         );
-
-        vrStatus.textContent =
-          "VR CHECK FAILED";
 
       }
 
     }
 
 
-    // ========================================================
-    // SYSTEM EVENTS
-    // ========================================================
+    /*
+     * Start everything.
+     */
 
-    window.addEventListener(
-      "survival-game-over",
-      () => {
-
-        GAME.state.gameOver =
-          true;
-
-        GAME.state.paused =
-          false;
-
-        hidePause();
-
-        showMessage(
-          "You did not survive.",
-          5000
-        );
-
-      }
-    );
-
-
-    window.addEventListener(
-      "survival-new-day",
-      () => {
-
-        showMessage(
-          `Day ${
-            GAME.world?.day ||
-            1
-          } has begun.`,
-          3000
-        );
-
-      }
-    );
-
-
-    window.addEventListener(
-      "survival-night-started",
-      () => {
-
-        showMessage(
-          "Night is falling.",
-          3000
-        );
-
-      }
-    );
-
-
-    window.addEventListener(
-      "survival-world-generated",
-      event => {
-
-        const seed =
-          event.detail?.seed ||
-          GAME.world?.seed ||
-          "Unknown";
-
-        console.log(
-          "[SurvivalVR] World generated:",
-          seed
-        );
-
-      }
-    );
-
-
-    // ========================================================
-    // INITIAL VR CHECK
-    // ========================================================
-
-    checkVR();
+    boot();
 
   </script>
 
