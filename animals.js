@@ -1,89 +1,108 @@
-const {
-  THREE,
-  GAME,
-  gameEvent,
-  addItem
-} = window.SurvivalVR;
+import * as THREE from "three";
 
-// ============================================================
-// SURVIVAL VR — ANIMALS SYSTEM
-// ============================================================
+const S = window.SurvivalVR;
 
-const animalState = {
-  initialized: false,
+if (!S) {
+  throw new Error("SurvivalVR must exist before animals.js loads.");
+}
+
+const state = {
+  group: null,
   animals: [],
+  initialized: false,
   nextId: 1,
-  spawnTimer: 0,
-  birdTimer: 0,
-  maxAnimals: 18,
-  maxRabbits: 8,
-  maxDeer: 5,
-  maxBirds: 12,
-  spawnRadius: 23,
-  despawnRadius: 48,
-  playerDetectionRadius: 7,
-  attackDistance: 2.2
+  spawnTimer: 0
 };
-
-// ============================================================
-// ANIMAL DEFINITIONS
-// ============================================================
 
 const ANIMAL_TYPES = {
   rabbit: {
-    name: "Rabbit",
-    speed: 1.4,
-    runSpeed: 3.2,
+    count: 14,
+    scale: 0.75,
+    speed: 1.15,
     health: 20,
-    size: 0.65,
-    food: 1,
-    meat: 1,
-    color: 0x8c8175,
-    secondaryColor: 0xd8c9b8
+    fleeDistance: 7,
+    wanderDistance: 8,
+    meat: 1
   },
 
   deer: {
-    name: "Deer",
-    speed: 1.15,
-    runSpeed: 4.8,
+    count: 5,
+    scale: 1.35,
+    speed: 1.45,
     health: 45,
-    size: 1.15,
-    food: 2,
-    meat: 3,
-    color: 0x8b5e3c,
-    secondaryColor: 0xd2aa7b
+    fleeDistance: 13,
+    wanderDistance: 14,
+    meat: 3
   },
 
   bird: {
-    name: "Bird",
-    speed: 3.5,
-    runSpeed: 5,
-    health: 8,
-    size: 0.35,
-    food: 0,
-    meat: 0,
-    color: 0x38434b,
-    secondaryColor: 0xe6e6df
+    count: 10,
+    scale: 0.45,
+    speed: 2.0,
+    health: 10,
+    fleeDistance: 5,
+    wanderDistance: 18,
+    meat: 1
   }
 };
 
-// ============================================================
-// HELPERS
-// ============================================================
+/* ---------------------------------------------------------
+   MATERIALS
+--------------------------------------------------------- */
 
-function getScene() {
-  return window.SurvivalVR.scene;
-}
+const materials = {
+  rabbitBody: new THREE.MeshStandardMaterial({
+    color: 0xb9b0a4,
+    roughness: 0.9
+  }),
 
-function getPlayerPosition() {
-  const player =
-    window.SurvivalVR.playerGroup;
+  rabbitEar: new THREE.MeshStandardMaterial({
+    color: 0xc9bdb0,
+    roughness: 0.9
+  }),
 
-  if (!player) {
-    return new THREE.Vector3();
-  }
+  rabbitEye: new THREE.MeshStandardMaterial({
+    color: 0x111111,
+    roughness: 0.3
+  }),
 
-  return player.position;
+  deerBody: new THREE.MeshStandardMaterial({
+    color: 0x8b5a35,
+    roughness: 0.9
+  }),
+
+  deerChest: new THREE.MeshStandardMaterial({
+    color: 0x6e4429,
+    roughness: 0.9
+  }),
+
+  deerAntler: new THREE.MeshStandardMaterial({
+    color: 0x5a3924,
+    roughness: 0.9
+  }),
+
+  birdBody: new THREE.MeshStandardMaterial({
+    color: 0x46505b,
+    roughness: 0.8
+  }),
+
+  birdWing: new THREE.MeshStandardMaterial({
+    color: 0x2f3740,
+    roughness: 0.8
+  }),
+
+  eye: new THREE.MeshStandardMaterial({
+    color: 0x050505,
+    roughness: 0.25
+  })
+};
+
+/* ---------------------------------------------------------
+   HELPERS
+--------------------------------------------------------- */
+
+function randomRange(min, max) {
+  return min + Math.random() * (max - min);
 }
 
 function distanceXZ(a, b) {
@@ -96,1512 +115,1415 @@ function distanceXZ(a, b) {
   );
 }
 
-function randomDirection() {
-  return Math.random() * Math.PI * 2;
-}
-
-function randomPosition() {
-  const world =
-    window.SurvivalVR.worldData;
-
-  const radius =
-    Math.min(
-      animalState.spawnRadius,
-      (world?.islandRadius || 27) - 3
-    );
-
-  const angle =
-    randomDirection();
-
-  const distance =
-    4 +
-    Math.random() *
-      Math.max(1, radius - 4);
-
-  const x =
-    Math.cos(angle) *
-    distance;
-
-  const z =
-    Math.sin(angle) *
-    distance;
-
-  return new THREE.Vector3(
-    x,
-    0,
-    z
-  );
-}
-
-function isValidLandPosition(position) {
-  const world =
-    window.SurvivalVR.worldData;
-
-  if (!world) {
-    return true;
+function getPlayerPosition() {
+  if (S.playerRig) {
+    return S.playerRig.position;
   }
 
-  const distance =
-    Math.sqrt(
-      position.x * position.x +
-      position.z * position.z
-    );
+  return new THREE.Vector3();
+}
 
+function getGroundY(x, z) {
   if (
-    distance >
-    world.islandRadius - 2
-  ) {
-    return false;
-  }
-
-  const lake =
-    world.lake;
-
-  if (lake) {
-    const dx =
-      position.x - lake.x;
-
-    const dz =
-      position.z - lake.z;
-
-    const lakeDistance =
-      Math.sqrt(
-        dx * dx +
-        dz * dz
-      );
-
-    if (
-      lakeDistance <
-      lake.radius + 1
-    ) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function getTerrainY(
-  x,
-  z
-) {
-  if (
-    window.SurvivalVR.world &&
-    typeof window.SurvivalVR.world
-      .getTerrainHeight ===
+    S.systems?.world &&
+    typeof S.systems.world.getTerrainHeight ===
       "function"
   ) {
-    return window.SurvivalVR.world
-      .getTerrainHeight(
+    const y =
+      S.systems.world.getTerrainHeight(
         x,
         z
       );
+
+    if (Number.isFinite(y)) {
+      return y;
+    }
   }
 
   return 0;
 }
 
-// ============================================================
-// MATERIAL HELPERS
-// ============================================================
+function randomIslandPosition(minDistance = 8) {
+  const lakeX = 8;
+  const lakeZ = -4;
+  const lakeRadius = 25;
 
-function material(
-  color
-) {
-  return new THREE.MeshStandardMaterial({
-    color,
-    roughness: 0.82
-  });
+  const islandRadius = 57;
+
+  for (let i = 0; i < 100; i++) {
+    const angle =
+      Math.random() *
+      Math.PI *
+      2;
+
+    const radius =
+      Math.sqrt(Math.random()) *
+      islandRadius;
+
+    const x =
+      Math.cos(angle) *
+      radius;
+
+    const z =
+      Math.sin(angle) *
+      radius;
+
+    /*
+     * Don't spawn inside the lake.
+     */
+    const dx = x - lakeX;
+    const dz = z - lakeZ;
+
+    if (
+      Math.sqrt(dx * dx + dz * dz) <
+      lakeRadius
+    ) {
+      continue;
+    }
+
+    /*
+     * Don't spawn directly on the player.
+     */
+    const player =
+      getPlayerPosition();
+
+    const pdx =
+      x - player.x;
+
+    const pdz =
+      z - player.z;
+
+    if (
+      Math.sqrt(
+        pdx * pdx +
+        pdz * pdz
+      ) < minDistance
+    ) {
+      continue;
+    }
+
+    return {
+      x,
+      z
+    };
+  }
+
+  return {
+    x: randomRange(-35, 35),
+    z: randomRange(-35, 35)
+  };
 }
 
-// ============================================================
-// RABBIT MODEL
-// ============================================================
+/* ---------------------------------------------------------
+   RABBIT
+--------------------------------------------------------- */
 
-function createRabbitMesh() {
-  const group =
-    new THREE.Group();
+function createRabbit() {
+  const group = new THREE.Group();
 
-  group.name =
-    "Rabbit";
+  group.name = "Rabbit";
 
-  const body =
-    new THREE.Mesh(
-      new THREE.SphereGeometry(
-        0.42,
-        12,
-        8
-      ),
-      material(
-        ANIMAL_TYPES.rabbit.color
-      )
-    );
+  /*
+   * Body
+   */
+  const body = new THREE.Mesh(
+    new THREE.SphereGeometry(
+      0.35,
+      14,
+      10
+    ),
+    materials.rabbitBody
+  );
 
   body.scale.set(
     1.15,
-    0.9,
-    1.45
+    0.85,
+    1.35
   );
 
   body.position.y =
-    0.48;
+    0.40;
+
+  body.castShadow = true;
 
   group.add(body);
 
-  const head =
-    new THREE.Mesh(
-      new THREE.SphereGeometry(
-        0.29,
-        12,
-        8
-      ),
-      material(
-        ANIMAL_TYPES.rabbit.secondaryColor
-      )
-    );
+  /*
+   * Head
+   */
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(
+      0.27,
+      14,
+      10
+    ),
+    materials.rabbitBody
+  );
 
   head.position.set(
     0,
-    0.73,
-    0.46
+    0.60,
+    -0.30
   );
+
+  head.castShadow = true;
 
   group.add(head);
 
-  for (
-    const x of [-0.12, 0.12]
-  ) {
-    const ear =
-      new THREE.Mesh(
-        new THREE.CapsuleGeometry(
-          0.065,
-          0.32,
-          4,
-          8
-        ),
-        material(
-          ANIMAL_TYPES.rabbit.secondaryColor
-        )
-      );
+  /*
+   * Ears
+   */
+  for (const side of [-1, 1]) {
+    const ear = new THREE.Mesh(
+      new THREE.CapsuleGeometry(
+        0.07,
+        0.25,
+        4,
+        8
+      ),
+      materials.rabbitEar
+    );
 
     ear.position.set(
-      x,
-      1.08,
-      0.43
+      side * 0.10,
+      0.91,
+      -0.30
     );
+
+    ear.rotation.z =
+      side * 0.10;
+
+    ear.castShadow = true;
 
     group.add(ear);
   }
 
-  for (
-    const x of [-0.2, 0.2]
-  ) {
-    const eye =
-      new THREE.Mesh(
-        new THREE.SphereGeometry(
-          0.035,
-          8,
-          8
-        ),
-        material(0x111111)
-      );
+  /*
+   * Eyes
+   */
+  for (const side of [-1, 1]) {
+    const eye = new THREE.Mesh(
+      new THREE.SphereGeometry(
+        0.035,
+        8,
+        8
+      ),
+      materials.rabbitEye
+    );
 
     eye.position.set(
-      x,
-      0.77,
-      0.71
+      side * 0.12,
+      0.66,
+      -0.53
     );
 
     group.add(eye);
   }
 
-  const tail =
-    new THREE.Mesh(
-      new THREE.SphereGeometry(
-        0.16,
-        10,
-        8
-      ),
-      material(0xf1e6d9)
-    );
+  /*
+   * Tail
+   */
+  const tail = new THREE.Mesh(
+    new THREE.SphereGeometry(
+      0.14,
+      10,
+      8
+    ),
+    materials.rabbitBody
+  );
 
   tail.position.set(
     0,
-    0.55,
-    -0.58
+    0.48,
+    0.43
   );
 
   group.add(tail);
 
+  /*
+   * Legs
+   */
+  for (const x of [-0.17, 0.17]) {
+    for (const z of [-0.20, 0.20]) {
+      const leg = new THREE.Mesh(
+        new THREE.CapsuleGeometry(
+          0.06,
+          0.18,
+          4,
+          8
+        ),
+        materials.rabbitBody
+      );
+
+      leg.position.set(
+        x,
+        0.20,
+        z
+      );
+
+      leg.castShadow = true;
+
+      group.add(leg);
+    }
+  }
+
   return group;
 }
 
-// ============================================================
-// DEER MODEL
-// ============================================================
+/* ---------------------------------------------------------
+   DEER
+--------------------------------------------------------- */
 
-function createDeerMesh() {
-  const group =
-    new THREE.Group();
+function createDeer() {
+  const group = new THREE.Group();
 
-  group.name =
-    "Deer";
+  group.name = "Deer";
 
-  const body =
-    new THREE.Mesh(
-      new THREE.SphereGeometry(
-        0.62,
-        14,
-        10
-      ),
-      material(
-        ANIMAL_TYPES.deer.color
-      )
-    );
+  /*
+   * Body
+   */
+  const body = new THREE.Mesh(
+    new THREE.SphereGeometry(
+      0.65,
+      16,
+      12
+    ),
+    materials.deerBody
+  );
 
   body.scale.set(
-    1.05,
-    0.95,
+    1.25,
+    0.90,
     1.65
   );
 
   body.position.y =
     1.05;
 
+  body.castShadow = true;
+
   group.add(body);
 
-  const neck =
-    new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        0.22,
-        0.32,
-        1.05,
-        10
-      ),
-      material(
-        ANIMAL_TYPES.deer.color
-      )
-    );
+  /*
+   * Chest
+   */
+  const chest = new THREE.Mesh(
+    new THREE.SphereGeometry(
+      0.42,
+      14,
+      10
+    ),
+    materials.deerChest
+  );
+
+  chest.scale.set(
+    0.85,
+    1.15,
+    0.85
+  );
+
+  chest.position.set(
+    0,
+    1.02,
+    -0.62
+  );
+
+  chest.castShadow = true;
+
+  group.add(chest);
+
+  /*
+   * Neck
+   */
+  const neck = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      0.22,
+      0.32,
+      0.90,
+      12
+    ),
+    materials.deerBody
+  );
 
   neck.position.set(
     0,
-    1.55,
-    0.45
+    1.42,
+    -0.55
   );
 
   neck.rotation.x =
-    -0.35;
+    -0.25;
+
+  neck.castShadow = true;
 
   group.add(neck);
 
-  const head =
-    new THREE.Mesh(
-      new THREE.SphereGeometry(
-        0.32,
-        12,
-        8
-      ),
-      material(
-        ANIMAL_TYPES.deer.secondaryColor
-      )
-    );
+  /*
+   * Head
+   */
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(
+      0.30,
+      14,
+      10
+    ),
+    materials.deerBody
+  );
+
+  head.scale.set(
+    0.85,
+    1,
+    1.25
+  );
 
   head.position.set(
     0,
-    1.9,
-    0.78
+    1.75,
+    -0.78
   );
+
+  head.castShadow = true;
 
   group.add(head);
 
-  const snout =
-    new THREE.Mesh(
-      new THREE.SphereGeometry(
-        0.18,
-        10,
+  /*
+   * Ears
+   */
+  for (const side of [-1, 1]) {
+    const ear = new THREE.Mesh(
+      new THREE.ConeGeometry(
+        0.10,
+        0.28,
         8
       ),
-      material(0x59463a)
+      materials.deerBody
     );
 
-  snout.position.set(
-    0,
-    1.84,
-    1.04
-  );
-
-  group.add(snout);
-
-  for (
-    const x of [-0.18, 0.18]
-  ) {
-    const leg =
-      new THREE.Mesh(
-        new THREE.CylinderGeometry(
-          0.075,
-          0.095,
-          0.85,
-          8
-        ),
-        material(
-          ANIMAL_TYPES.deer.color
-        )
-      );
-
-    leg.position.set(
-      x,
-      0.52,
-      x < 0 ? 0.32 : -0.32
+    ear.position.set(
+      side * 0.20,
+      1.92,
+      -0.72
     );
 
-    group.add(leg);
+    ear.rotation.z =
+      side * 0.55;
+
+    group.add(ear);
   }
 
-  for (
-    const x of [-0.13, 0.13]
-  ) {
-    const eye =
-      new THREE.Mesh(
-        new THREE.SphereGeometry(
-          0.04,
-          8,
-          8
-        ),
-        material(0x111111)
-      );
+  /*
+   * Eyes
+   */
+  for (const side of [-1, 1]) {
+    const eye = new THREE.Mesh(
+      new THREE.SphereGeometry(
+        0.04,
+        8,
+        8
+      ),
+      materials.eye
+    );
 
     eye.position.set(
-      x,
-      1.98,
-      0.94
+      side * 0.18,
+      1.80,
+      -1.03
     );
 
     group.add(eye);
   }
 
+  /*
+   * Legs
+   */
+  const legPositions = [
+    [-0.35, 0.58],
+    [0.35, 0.58],
+    [-0.35, -0.52],
+    [0.35, -0.52]
+  ];
+
+  for (const [x, z] of legPositions) {
+    const leg = new THREE.Mesh(
+      new THREE.CapsuleGeometry(
+        0.075,
+        0.75,
+        5,
+        8
+      ),
+      materials.deerBody
+    );
+
+    leg.position.set(
+      x,
+      0.53,
+      z
+    );
+
+    leg.castShadow = true;
+
+    group.add(leg);
+  }
+
+  /*
+   * Antlers
+   */
+  for (const side of [-1, 1]) {
+    const antler = new THREE.Group();
+
+    antler.position.set(
+      side * 0.15,
+      1.96,
+      -0.73
+    );
+
+    const main = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        0.025,
+        0.035,
+        0.35,
+        7
+      ),
+      materials.deerAntler
+    );
+
+    main.rotation.z =
+      side * 0.18;
+
+    antler.add(main);
+
+    for (let i = 0; i < 2; i++) {
+      const branch = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.018,
+          0.025,
+          0.16,
+          7
+        ),
+        materials.deerAntler
+      );
+
+      branch.position.y =
+        -0.04 + i * 0.12;
+
+      branch.rotation.z =
+        side * 0.75;
+
+      antler.add(branch);
+    }
+
+    group.add(antler);
+  }
+
   return group;
 }
 
-// ============================================================
-// BIRD MODEL
-// ============================================================
+/* ---------------------------------------------------------
+   BIRD
+--------------------------------------------------------- */
 
-function createBirdMesh() {
-  const group =
-    new THREE.Group();
+function createBird() {
+  const group = new THREE.Group();
 
-  group.name =
-    "Bird";
+  group.name = "Bird";
 
-  const body =
-    new THREE.Mesh(
-      new THREE.SphereGeometry(
-        0.2,
-        10,
-        8
-      ),
-      material(
-        ANIMAL_TYPES.bird.color
-      )
-    );
+  const body = new THREE.Mesh(
+    new THREE.SphereGeometry(
+      0.18,
+      12,
+      8
+    ),
+    materials.birdBody
+  );
 
   body.scale.set(
-    0.8,
-    0.8,
-    1.3
+    1,
+    0.75,
+    1.35
   );
+
+  body.castShadow = true;
 
   group.add(body);
 
-  const head =
-    new THREE.Mesh(
-      new THREE.SphereGeometry(
-        0.15,
-        10,
-        8
-      ),
-      material(
-        ANIMAL_TYPES.bird.secondaryColor
-      )
-    );
+  /*
+   * Head
+   */
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(
+      0.13,
+      10,
+      8
+    ),
+    materials.birdBody
+  );
 
   head.position.z =
-    0.2;
+    -0.16;
 
   group.add(head);
 
-  const wingMaterial =
-    material(
-      ANIMAL_TYPES.bird.color
-    );
+  /*
+   * Beak
+   */
+  const beakMaterial =
+    new THREE.MeshStandardMaterial({
+      color: 0xc88a32,
+      roughness: 0.8
+    });
 
-  for (
-    const side of [-1, 1]
-  ) {
-    const wing =
-      new THREE.Mesh(
-        new THREE.BoxGeometry(
-          0.55,
-          0.06,
-          0.25
-        ),
-        wingMaterial
-      );
+  const beak = new THREE.Mesh(
+    new THREE.ConeGeometry(
+      0.05,
+      0.16,
+      6
+    ),
+    beakMaterial
+  );
 
-    wing.position.set(
-      side * 0.3,
-      0,
-      0
-    );
+  beak.rotation.x =
+    -Math.PI / 2;
 
-    wing.rotation.z =
-      side * 0.25;
+  beak.position.set(
+    0,
+    0,
+    -0.30
+  );
 
-    wing.userData.isWing =
-      true;
+  group.add(beak);
 
-    group.add(wing);
-  }
+  /*
+   * Wings
+   */
+  const leftWing = new THREE.Mesh(
+    new THREE.SphereGeometry(
+      0.20,
+      10,
+      8
+    ),
+    materials.birdWing
+  );
+
+  leftWing.scale.set(
+    1.3,
+    0.15,
+    0.75
+  );
+
+  leftWing.position.set(
+    -0.17,
+    0,
+    0
+  );
+
+  group.add(leftWing);
+
+  const rightWing =
+    leftWing.clone();
+
+  rightWing.position.x =
+    0.17;
+
+  group.add(rightWing);
 
   return group;
 }
 
-// ============================================================
-// CREATE ANIMAL
-// ============================================================
+/* ---------------------------------------------------------
+   ANIMAL CREATION
+--------------------------------------------------------- */
 
-function createAnimal(
-  type,
-  position
-) {
-  const definition =
+function createAnimal(type) {
+  let mesh;
+
+  if (type === "rabbit") {
+    mesh = createRabbit();
+  } else if (type === "deer") {
+    mesh = createDeer();
+  } else {
+    mesh = createBird();
+  }
+
+  const config =
     ANIMAL_TYPES[type];
 
-  if (!definition) {
-    return null;
-  }
-
-  const mesh =
-    type === "rabbit"
-      ? createRabbitMesh()
-      : type === "deer"
-        ? createDeerMesh()
-        : createBirdMesh();
-
-  mesh.position.copy(
-    position
-  );
-
-  mesh.position.y +=
-    getTerrainY(
-      position.x,
-      position.z
-    );
-
-  mesh.rotation.y =
-    randomDirection();
-
-  mesh.scale.setScalar(
-    definition.size
-  );
+  const spawn =
+    randomIslandPosition();
 
   const animal = {
-    id:
-      animalState.nextId++,
-
+    id: `animal_${state.nextId++}`,
     type,
-
-    name:
-      definition.name,
-
     mesh,
 
-    health:
-      definition.health,
+    health: config.health,
+    maxHealth: config.health,
 
-    maxHealth:
-      definition.health,
+    speed: config.speed,
+    baseSpeed: config.speed,
 
-    speed:
-      definition.speed,
-
-    runSpeed:
-      definition.runSpeed,
-
-    state:
-      "wandering",
+    state: "wander",
 
     direction:
-      mesh.rotation.y,
+      Math.random() *
+      Math.PI *
+      2,
 
     targetDirection:
-      mesh.rotation.y,
+      Math.random() *
+      Math.PI *
+      2,
 
-    stateTimer:
-      1 +
-      Math.random() * 4,
+    targetX: spawn.x,
+    targetZ: spawn.z,
 
-    animationTime:
-      Math.random() * 10,
+    wanderTimer:
+      randomRange(1, 4),
 
-    detectionTimer:
-      0,
+    idleTimer: 0,
 
-    fleeTimer:
-      0,
+    fleeTimer: 0,
 
-    attackTimer:
-      0,
+    hitTimer: 0,
 
-    alive:
-      true,
+    age: Math.random() * 100,
 
-    discovered:
-      false,
+    wingPhase:
+      Math.random() *
+      Math.PI *
+      2,
 
-    userData: {}
+    stepPhase:
+      Math.random() *
+      Math.PI *
+      2
   };
 
-  mesh.userData.animal =
-    animal;
+  const scale =
+    config.scale *
+    randomRange(0.92, 1.08);
 
-  mesh.userData.isAnimal =
-    true;
+  mesh.scale.setScalar(scale);
 
-  getScene().add(
-    mesh
+  mesh.position.set(
+    spawn.x,
+    getGroundY(
+      spawn.x,
+      spawn.z
+    ),
+    spawn.z
   );
 
-  animalState.animals.push(
-    animal
-  );
+  mesh.rotation.y =
+    animal.direction;
 
-  if (
-    GAME.animals
-  ) {
-    GAME.animals.total =
-      animalState.animals.length;
-  }
+  state.group.add(mesh);
+
+  state.animals.push(animal);
 
   return animal;
 }
 
-// ============================================================
-// SPAWN
-// ============================================================
-
-function countType(
-  type
-) {
-  return animalState.animals
-    .filter(
-      animal =>
-        animal.alive &&
-        animal.type === type
-    )
-    .length;
-}
-
-function canSpawnType(
-  type
-) {
-  if (
-    animalState.animals.length >=
-    animalState.maxAnimals
-  ) {
-    return false;
-  }
-
-  if (
-    type === "rabbit"
-  ) {
-    return (
-      countType("rabbit") <
-      animalState.maxRabbits
-    );
-  }
-
-  if (
-    type === "deer"
-  ) {
-    return (
-      countType("deer") <
-      animalState.maxDeer
-    );
-  }
-
-  if (
-    type === "bird"
-  ) {
-    return (
-      countType("bird") <
-      animalState.maxBirds
-    );
-  }
-
-  return false;
-}
-
-function spawnAnimal(
-  type,
-  position = null
-) {
-  if (
-    !canSpawnType(type)
-  ) {
-    return null;
-  }
-
-  let spawnPosition =
-    position;
-
-  if (!spawnPosition) {
-    for (
-      let attempt = 0;
-      attempt < 15;
-      attempt++
-    ) {
-      const candidate =
-        randomPosition();
-
-      if (
-        isValidLandPosition(
-          candidate
-        )
-      ) {
-        spawnPosition =
-          candidate;
-
-        break;
-      }
-    }
-  }
-
-  if (!spawnPosition) {
-    return null;
-  }
-
-  return createAnimal(
-    type,
-    spawnPosition
-  );
-}
-
 function spawnInitialAnimals() {
+  /*
+   * Remove old animals.
+   */
+  clearAnimals();
+
+  /*
+   * Rabbits.
+   */
   for (
     let i = 0;
-    i < 5;
+    i < ANIMAL_TYPES.rabbit.count;
     i++
   ) {
-    spawnAnimal(
-      "rabbit"
-    );
+    createAnimal("rabbit");
   }
 
+  /*
+   * Deer.
+   */
   for (
     let i = 0;
-    i < 3;
+    i < ANIMAL_TYPES.deer.count;
     i++
   ) {
-    spawnAnimal(
-      "deer"
-    );
+    createAnimal("deer");
   }
 
+  /*
+   * Birds.
+   */
   for (
     let i = 0;
-    i < 5;
+    i < ANIMAL_TYPES.bird.count;
     i++
   ) {
-    spawnAnimal(
-      "bird"
-    );
+    createAnimal("bird");
   }
+
+  updateGameAnimalState();
 }
 
-// ============================================================
-// WANDERING
-// ============================================================
+/* ---------------------------------------------------------
+   WANDERING
+--------------------------------------------------------- */
 
-function chooseNewDirection(
-  animal
-) {
+function chooseNewDestination(animal) {
+  const config =
+    ANIMAL_TYPES[
+      animal.type
+    ];
+
+  const angle =
+    Math.random() *
+    Math.PI *
+    2;
+
+  const distance =
+    randomRange(
+      4,
+      config.wanderDistance
+    );
+
+  animal.targetX =
+    animal.mesh.position.x +
+    Math.cos(angle) *
+    distance;
+
+  animal.targetZ =
+    animal.mesh.position.z +
+    Math.sin(angle) *
+    distance;
+
   animal.targetDirection =
-    randomDirection();
+    Math.atan2(
+      animal.targetX -
+        animal.mesh.position.x,
+      animal.targetZ -
+        animal.mesh.position.z
+    );
 
-  animal.stateTimer =
-    2 +
-    Math.random() * 5;
+  animal.wanderTimer =
+    randomRange(2, 6);
 }
 
 function moveAnimal(
   animal,
-  delta,
-  speed
-) {
-  const direction =
-    new THREE.Vector3(
-      Math.sin(
-        animal.direction
-      ),
-      0,
-      Math.cos(
-        animal.direction
-      )
-    );
-
-  animal.mesh.position.add(
-    direction.multiplyScalar(
-      speed * delta
-    )
-  );
-
-  const terrainY =
-    getTerrainY(
-      animal.mesh.position.x,
-      animal.mesh.position.z
-    );
-
-  animal.mesh.position.y =
-    terrainY;
-
-  animal.mesh.rotation.y =
-    animal.direction;
-}
-
-function updateDirection(
-  animal,
   delta
 ) {
-  let difference =
-    animal.targetDirection -
-    animal.direction;
+  const config =
+    ANIMAL_TYPES[
+      animal.type
+    ];
 
-  while (
-    difference >
-    Math.PI
-  ) {
-    difference -=
-      Math.PI * 2;
-  }
+  const position =
+    animal.mesh.position;
 
-  while (
-    difference <
-    -Math.PI
-  ) {
-    difference +=
-      Math.PI * 2;
-  }
+  let targetX =
+    animal.targetX;
 
-  const turnSpeed =
-    2.5;
+  let targetZ =
+    animal.targetZ;
 
-  animal.direction +=
-    difference *
-    Math.min(
-      1,
-      delta * turnSpeed
-    );
-}
+  /*
+   * Flee from player.
+   */
+  const player =
+    getPlayerPosition();
 
-// ============================================================
-// FLEEING
-// ============================================================
-
-function fleeFromPlayer(
-  animal,
-  playerPosition
-) {
   const dx =
-    animal.mesh.position.x -
-    playerPosition.x;
+    position.x -
+    player.x;
 
   const dz =
-    animal.mesh.position.z -
-    playerPosition.z;
+    position.z -
+    player.z;
 
-  animal.targetDirection =
+  const distance =
+    Math.sqrt(
+      dx * dx +
+      dz * dz
+    );
+
+  if (
+    animal.state !== "flee" &&
+    distance <
+      config.fleeDistance
+  ) {
+    animal.state = "flee";
+
+    animal.fleeTimer = 2.5;
+
+    const length =
+      Math.sqrt(
+        dx * dx +
+        dz * dz
+      ) || 1;
+
+    animal.targetX =
+      position.x +
+      (dx / length) *
+      12;
+
+    animal.targetZ =
+      position.z +
+      (dz / length) *
+      12;
+  }
+
+  if (
+    animal.state === "flee"
+  ) {
+    animal.fleeTimer -=
+      delta;
+
+    targetX =
+      animal.targetX;
+
+    targetZ =
+      animal.targetZ;
+
+    animal.speed =
+      config.speed *
+      2.2;
+
+    if (
+      animal.fleeTimer <= 0 &&
+      distance >
+        config.fleeDistance *
+          1.5
+    ) {
+      animal.state =
+        "wander";
+
+      animal.speed =
+        config.speed;
+
+      chooseNewDestination(
+        animal
+      );
+    }
+  } else {
+    animal.speed =
+      config.speed;
+
+    animal.wanderTimer -=
+      delta;
+
+    if (
+      animal.wanderTimer <= 0
+    ) {
+      chooseNewDestination(
+        animal
+      );
+    }
+  }
+
+  const directionX =
+    targetX -
+    position.x;
+
+  const directionZ =
+    targetZ -
+    position.z;
+
+  const length =
+    Math.sqrt(
+      directionX *
+        directionX +
+      directionZ *
+        directionZ
+    );
+
+  if (
+    length < 0.35
+  ) {
+    return;
+  }
+
+  const normalizedX =
+    directionX /
+    length;
+
+  const normalizedZ =
+    directionZ /
+    length;
+
+  /*
+   * Smooth turning.
+   */
+  const targetRotation =
     Math.atan2(
-      dx,
-      dz
+      normalizedX,
+      normalizedZ
     );
 
-  animal.state =
-    "fleeing";
+  let rotationDifference =
+    targetRotation -
+    animal.mesh.rotation.y;
 
-  animal.fleeTimer =
-    2.5;
-}
-
-// ============================================================
-// ANIMAL AI
-// ============================================================
-
-function updateRabbit(
-  animal,
-  delta,
-  playerPosition
-) {
-  const distance =
-    distanceXZ(
-      animal.mesh.position,
-      playerPosition
-    );
-
-  if (
-    distance <
-    animalState.playerDetectionRadius
+  while (
+    rotationDifference >
+    Math.PI
   ) {
-    fleeFromPlayer(
-      animal,
-      playerPosition
-    );
+    rotationDifference -=
+      Math.PI * 2;
   }
 
-  if (
-    animal.state ===
-    "fleeing"
+  while (
+    rotationDifference <
+    -Math.PI
   ) {
-    animal.fleeTimer -=
-      delta;
-
-    updateDirection(
-      animal,
-      delta
-    );
-
-    moveAnimal(
-      animal,
-      delta,
-      animal.runSpeed
-    );
-
-    if (
-      animal.fleeTimer <=
-      0
-    ) {
-      animal.state =
-        "wandering";
-
-      chooseNewDirection(
-        animal
-      );
-    }
-
-    return;
+    rotationDifference +=
+      Math.PI * 2;
   }
 
-  animal.stateTimer -=
+  animal.mesh.rotation.y +=
+    rotationDifference *
+    Math.min(
+      1,
+      delta * 6
+    );
+
+  /*
+   * Move.
+   */
+  position.x +=
+    normalizedX *
+    animal.speed *
     delta;
 
-  if (
-    animal.stateTimer <=
-    0
-  ) {
-    chooseNewDirection(
-      animal
-    );
-  }
-
-  updateDirection(
-    animal,
-    delta
-  );
-
-  moveAnimal(
-    animal,
-    delta,
-    animal.speed
-  );
-
-  animal.animationTime +=
+  position.z +=
+    normalizedZ *
+    animal.speed *
     delta;
 
-  const hop =
-    Math.abs(
-      Math.sin(
-        animal.animationTime *
-          5
-      )
+  /*
+   * Stay on ground.
+   */
+  position.y =
+    getGroundY(
+      position.x,
+      position.z
+    );
+
+  /*
+   * Walking animation.
+   */
+  animal.stepPhase +=
+    delta *
+    animal.speed *
+    7;
+
+  const bob =
+    Math.sin(
+      animal.stepPhase
     ) *
-    0.04;
-
-  animal.mesh.position.y +=
-    hop;
-}
-
-// ============================================================
-// DEER AI
-// ============================================================
-
-function updateDeer(
-  animal,
-  delta,
-  playerPosition
-) {
-  const distance =
-    distanceXZ(
-      animal.mesh.position,
-      playerPosition
-    );
+    0.018;
 
   if (
-    distance <
-    animalState.playerDetectionRadius +
-      2
+    animal.type === "rabbit"
   ) {
-    fleeFromPlayer(
-      animal,
-      playerPosition
-    );
-  }
-
-  if (
-    animal.state ===
-    "fleeing"
-  ) {
-    animal.fleeTimer -=
-      delta;
-
-    updateDirection(
-      animal,
-      delta
-    );
-
-    moveAnimal(
-      animal,
-      delta,
-      animal.runSpeed
-    );
-
-    if (
-      animal.fleeTimer <=
-      0
-    ) {
-      animal.state =
-        "wandering";
-
-      chooseNewDirection(
-        animal
+    animal.mesh.position.y +=
+      Math.max(
+        0,
+        bob * 2
       );
-    }
-
-    return;
   }
-
-  animal.stateTimer -=
-    delta;
 
   if (
-    animal.stateTimer <=
-    0
+    animal.type === "deer"
   ) {
-    chooseNewDirection(
-      animal
-    );
+    animal.mesh.position.y +=
+      bob;
   }
-
-  updateDirection(
-    animal,
-    delta
-  );
-
-  moveAnimal(
-    animal,
-    delta,
-    animal.speed
-  );
 }
 
-// ============================================================
-// BIRD AI
-// ============================================================
+/* ---------------------------------------------------------
+   BIRD FLIGHT
+--------------------------------------------------------- */
 
 function updateBird(
   animal,
-  delta,
-  playerPosition
-) {
-  animal.animationTime +=
-    delta;
-
-  const wingSpeed =
-    9;
-
-  for (
-    const child
-    of animal.mesh.children
-  ) {
-    if (
-      child.userData.isWing
-    ) {
-      const side =
-        child.position.x < 0
-          ? -1
-          : 1;
-
-      child.rotation.z =
-        side *
-        (
-          0.25 +
-          Math.sin(
-            animal.animationTime *
-              wingSpeed
-          ) *
-          0.35
-        );
-    }
-  }
-
-  animal.stateTimer -=
-    delta;
-
-  if (
-    animal.stateTimer <=
-    0
-  ) {
-    animal.targetDirection =
-      randomDirection();
-
-    animal.stateTimer =
-      2 +
-      Math.random() * 4;
-  }
-
-  updateDirection(
-    animal,
-    delta
-  );
-
-  moveAnimal(
-    animal,
-    delta,
-    animal.speed
-  );
-
-  animal.mesh.position.y =
-    5 +
-    Math.sin(
-      animal.animationTime *
-        1.5
-    ) *
-    0.7;
-
-  const distance =
-    distanceXZ(
-      animal.mesh.position,
-      playerPosition
-    );
-
-  if (
-    distance <
-    animalState.playerDetectionRadius
-  ) {
-    animal.targetDirection =
-      Math.atan2(
-        animal.mesh.position.x -
-          playerPosition.x,
-        animal.mesh.position.z -
-          playerPosition.z
-      );
-  }
-}
-
-// ============================================================
-// ANIMAL UPDATE
-// ============================================================
-
-function updateAnimals(
   delta
 ) {
-  const playerPosition =
-    getPlayerPosition();
+  animal.age += delta;
 
-  for (
-    const animal
-    of animalState.animals
-  ) {
-    if (
-      !animal.alive
-    ) {
-      continue;
-    }
+  const position =
+    animal.mesh.position;
 
-    if (
-      animal.type ===
-      "rabbit"
-    ) {
-      updateRabbit(
-        animal,
-        delta,
-        playerPosition
-      );
-    } else if (
-      animal.type ===
-      "deer"
-    ) {
-      updateDeer(
-        animal,
-        delta,
-        playerPosition
-      );
-    } else if (
-      animal.type ===
-      "bird"
-    ) {
-      updateBird(
-        animal,
-        delta,
-        playerPosition
-      );
-    }
+  /*
+   * Birds stay above the island.
+   */
+  const targetHeight =
+    getGroundY(
+      position.x,
+      position.z
+    ) +
+    3.5;
 
-    animal.detectionTimer -=
-      delta;
+  position.y +=
+    (targetHeight -
+      position.y) *
+    Math.min(
+      1,
+      delta * 2
+    );
 
-    if (
-      animal.detectionTimer <=
-      0
-    ) {
-      animal.detectionTimer =
-        1;
+  /*
+   * Wing animation.
+   */
+  animal.wingPhase +=
+    delta * 12;
 
-      const distance =
-        distanceXZ(
-          animal.mesh.position,
-          playerPosition
-        );
+  const flap =
+    Math.sin(
+      animal.wingPhase
+    ) *
+    0.45;
 
-      if (
-        distance <
-        8 &&
-        !animal.discovered
-      ) {
-        animal.discovered =
-          true;
+  const wings =
+    animal.mesh.children.filter(
+      child =>
+        child.isMesh
+    );
 
-        if (
-          GAME.animals
-        ) {
-          GAME.statistics.animalsSeen =
-            (
-              GAME.statistics
-                .animalsSeen || 0
-            ) + 1;
-        }
+  if (wings.length >= 3) {
+    wings[2].rotation.z =
+      flap;
 
-        gameEvent(
-          "animal-discovered",
-          {
-            type:
-              animal.type
-          }
-        );
-      }
-    }
+    wings[3].rotation.z =
+      -flap;
   }
 
-  cleanupAnimals();
+  /*
+   * Gentle flight movement.
+   */
+  animal.targetDirection +=
+    Math.sin(
+      animal.age * 0.35
+    ) *
+    delta *
+    0.3;
+
+  animal.mesh.position.x +=
+    Math.sin(
+      animal.targetDirection
+    ) *
+    animal.speed *
+    delta;
+
+  animal.mesh.position.z +=
+    Math.cos(
+      animal.targetDirection
+    ) *
+    animal.speed *
+    delta;
+
+  animal.mesh.rotation.y =
+    animal.targetDirection;
 }
 
-// ============================================================
-// CLEANUP
-// ============================================================
+/* ---------------------------------------------------------
+   HIT SYSTEM
+--------------------------------------------------------- */
 
-function cleanupAnimals() {
-  const playerPosition =
+function findNearestAnimal(
+  maxDistance = 3
+) {
+  const player =
     getPlayerPosition();
 
-  const remaining = [];
+  let closest = null;
+  let closestDistance =
+    maxDistance;
 
   for (
-    const animal
-    of animalState.animals
+    const animal of state.animals
   ) {
     if (
-      !animal.alive
+      animal.health <= 0
     ) {
-      if (
-        animal.mesh.parent
-      ) {
-        animal.mesh.parent.remove(
-          animal.mesh
-        );
-      }
-
       continue;
     }
 
     const distance =
       distanceXZ(
         animal.mesh.position,
-        playerPosition
+        player
       );
 
     if (
-      distance >
-      animalState.despawnRadius
+      distance <
+      closestDistance
     ) {
-      if (
-        animal.mesh.parent
-      ) {
-        animal.mesh.parent.remove(
-          animal.mesh
-        );
-      }
+      closest =
+        animal;
 
-      continue;
+      closestDistance =
+        distance;
     }
-
-    remaining.push(
-      animal
-    );
   }
 
-  animalState.animals =
-    remaining;
-
-  if (
-    GAME.animals
-  ) {
-    GAME.animals.total =
-      remaining.length;
-  }
+  return closest;
 }
 
-// ============================================================
-// RESPAWNING
-// ============================================================
-
-function spawnMissingAnimals(
-  delta
-) {
-  animalState.spawnTimer +=
-    delta;
-
-  if (
-    animalState.spawnTimer <
-    8
-  ) {
-    return;
-  }
-
-  animalState.spawnTimer =
-    0;
-
-  if (
-    !GAME.state?.started ||
-    GAME.state?.gameOver
-  ) {
-    return;
-  }
-
-  const rabbitCount =
-    countType("rabbit");
-
-  const deerCount =
-    countType("deer");
-
-  const birdCount =
-    countType("bird");
-
-  if (
-    rabbitCount <
-    animalState.maxRabbits &&
-    Math.random() < 0.7
-  ) {
-    spawnAnimal(
-      "rabbit"
-    );
-  }
-
-  if (
-    deerCount <
-    animalState.maxDeer &&
-    Math.random() < 0.35
-  ) {
-    spawnAnimal(
-      "deer"
-    );
-  }
-
-  if (
-    birdCount <
-    animalState.maxBirds
-  ) {
-    spawnAnimal(
-      "bird"
-    );
-  }
-}
-
-// ============================================================
-// HUNTING / DAMAGE
-// ============================================================
-
-function damageAnimal(
+function hitAnimal(
   animal,
-  amount
+  damage = 10
 ) {
   if (
     !animal ||
-    !animal.alive
+    animal.health <= 0
   ) {
     return false;
   }
 
   animal.health -=
-    Number(amount) || 1;
+    damage;
 
+  animal.hitTimer =
+    0.25;
+
+  /*
+   * Immediately flee.
+   */
   animal.state =
-    "fleeing";
+    "flee";
 
   animal.fleeTimer =
-    3;
+    2.5;
 
-  if (
-    animal.health <=
-    0
-  ) {
-    killAnimal(
-      animal
-    );
-  }
-
-  return true;
-}
-
-function killAnimal(
-  animal
-) {
-  if (
-    !animal ||
-    !animal.alive
-  ) {
-    return false;
-  }
-
-  animal.alive =
-    false;
-
-  const definition =
-    ANIMAL_TYPES[
-      animal.type
-    ];
-
-  if (
-    definition &&
-    definition.meat > 0
-  ) {
-    addItem(
-      "rawMeat",
-      definition.meat
-    );
-  }
-
-  if (
-    definition &&
-    definition.food > 0
-  ) {
-    addItem(
-      "food",
-      definition.food
-    );
-  }
-
-  gameEvent(
-    "animal-killed",
-    {
-      type:
-        animal.type,
-      meat:
-        definition?.meat || 0
-    }
-  );
-
-  return true;
-}
-
-// ============================================================
-// FIND ANIMAL
-// ============================================================
-
-function getNearestAnimal(
-  maxDistance = 4
-) {
-  const playerPosition =
+  const player =
     getPlayerPosition();
 
-  let nearest =
-    null;
+  const dx =
+    animal.mesh.position.x -
+    player.x;
 
-  let nearestDistance =
-    maxDistance;
+  const dz =
+    animal.mesh.position.z -
+    player.z;
 
-  for (
-    const animal
-    of animalState.animals
-  ) {
+  const length =
+    Math.sqrt(
+      dx * dx +
+      dz * dz
+    ) || 1;
+
+  animal.targetX =
+    animal.mesh.position.x +
+    (dx / length) * 12;
+
+  animal.targetZ =
+    animal.mesh.position.z +
+    (dz / length) * 12;
+
+  /*
+   * Small non-graphic hit reaction.
+   */
+  animal.mesh.scale.multiplyScalar(
+    1.06
+  );
+
+  setTimeout(() => {
     if (
-      !animal.alive
+      animal.mesh &&
+      animal.health > 0
     ) {
-      continue;
-    }
-
-    const distance =
-      distanceXZ(
-        animal.mesh.position,
-        playerPosition
+      animal.mesh.scale.multiplyScalar(
+        1 / 1.06
       );
-
-    if (
-      distance <
-      nearestDistance
-    ) {
-      nearest =
-        animal;
-
-      nearestDistance =
-        distance;
     }
+  }, 100);
+
+  /*
+   * Death.
+   */
+  if (
+    animal.health <= 0
+  ) {
+    killAnimal(animal);
   }
 
-  return nearest;
+  if (
+    typeof S.gameEvent ===
+    "function"
+  ) {
+    S.gameEvent(
+      "animal-hit",
+      {
+        id: animal.id,
+        type: animal.type,
+        damage
+      }
+    );
+  }
+
+  return true;
 }
 
-// ============================================================
-// ATTACK / HIT NEAREST
-// ============================================================
-
 function hitNearestAnimal(
-  amount = 10
+  damage = 10
 ) {
   const animal =
-    getNearestAnimal(
-      animalState.attackDistance
-    );
+    findNearestAnimal(3.2);
 
   if (!animal) {
     return false;
   }
 
-  return damageAnimal(
+  return hitAnimal(
     animal,
-    amount
+    damage
   );
 }
 
-// ============================================================
-// CLEAR ALL
-// ============================================================
+/* ---------------------------------------------------------
+   KILL
+--------------------------------------------------------- */
+
+function killAnimal(animal) {
+  if (
+    !animal ||
+    animal.health > 0
+  ) {
+    return;
+  }
+
+  /*
+   * Give player food.
+   */
+  const config =
+    ANIMAL_TYPES[
+      animal.type
+    ];
+
+  const meat =
+    config.meat || 1;
+
+  if (
+    typeof S.addItem ===
+    "function"
+  ) {
+    S.addItem(
+      "rawMeat",
+      meat
+    );
+  } else if (
+    S.GAME?.inventory
+  ) {
+    S.GAME.inventory.rawMeat =
+      (S.GAME.inventory.rawMeat || 0) +
+      meat;
+  }
+
+  /*
+   * Remove from scene.
+   */
+  if (
+    animal.mesh.parent
+  ) {
+    animal.mesh.parent.remove(
+      animal.mesh
+    );
+  }
+
+  const index =
+    state.animals.indexOf(
+      animal
+    );
+
+  if (index !== -1) {
+    state.animals.splice(
+      index,
+      1
+    );
+  }
+
+  updateGameAnimalState();
+
+  if (
+    typeof S.gameEvent ===
+    "function"
+  ) {
+    S.gameEvent(
+      "animal-killed",
+      {
+        id: animal.id,
+        type: animal.type,
+        meat
+      }
+    );
+  }
+}
+
+/* ---------------------------------------------------------
+   ANIMATION
+--------------------------------------------------------- */
+
+function update(
+  delta = 0.016
+) {
+  if (
+    !state.initialized
+  ) {
+    return;
+  }
+
+  if (
+    !S.GAME?.state?.started
+  ) {
+    return;
+  }
+
+  for (
+    const animal of [
+      ...state.animals
+    ]
+  ) {
+    if (
+      !animal.mesh.parent
+    ) {
+      continue;
+    }
+
+    if (
+      animal.hitTimer > 0
+    ) {
+      animal.hitTimer -=
+        delta;
+    }
+
+    if (
+      animal.type === "bird"
+    ) {
+      updateBird(
+        animal,
+        delta
+      );
+    } else {
+      moveAnimal(
+        animal,
+        delta
+      );
+    }
+  }
+
+  updateGameAnimalState();
+}
+
+/* ---------------------------------------------------------
+   CLEAR / WORLD RESET
+--------------------------------------------------------- */
 
 function clearAnimals() {
   for (
-    const animal
-    of animalState.animals
+    const animal of state.animals
   ) {
     if (
-      animal.mesh.parent
+      animal.mesh?.parent
     ) {
       animal.mesh.parent.remove(
         animal.mesh
@@ -1609,219 +1531,207 @@ function clearAnimals() {
     }
   }
 
-  animalState.animals =
-    [];
+  state.animals.length = 0;
 
-  if (
-    GAME.animals
-  ) {
-    GAME.animals.total =
-      0;
-  }
+  updateGameAnimalState();
 }
 
-// ============================================================
-// WORLD RESET
-// ============================================================
-
-function rebuildAnimals() {
-  clearAnimals();
-
-  if (
-    !animalState.initialized
-  ) {
+function handleWorldGenerated() {
+  if (!state.group) {
     return;
   }
 
   spawnInitialAnimals();
 }
 
-// ============================================================
-// INITIALIZE
-// ============================================================
+function handleNewWorld() {
+  spawnInitialAnimals();
+}
 
-function initializeAnimals() {
+/* ---------------------------------------------------------
+   GAME STATE
+--------------------------------------------------------- */
+
+function updateGameAnimalState() {
   if (
-    animalState.initialized
+    !S.GAME ||
+    !S.GAME.animals
   ) {
     return;
   }
 
-  if (!getScene()) {
+  S.GAME.animals.total =
+    state.animals.length;
+
+  S.GAME.animals.rabbits =
+    state.animals
+      .filter(
+        animal =>
+          animal.type ===
+          "rabbit"
+      )
+      .map(
+        animal => ({
+          id: animal.id,
+          health: animal.health,
+          x:
+            animal.mesh.position.x,
+          y:
+            animal.mesh.position.y,
+          z:
+            animal.mesh.position.z
+        })
+      );
+
+  S.GAME.animals.deer =
+    state.animals
+      .filter(
+        animal =>
+          animal.type ===
+          "deer"
+      )
+      .map(
+        animal => ({
+          id: animal.id,
+          health: animal.health,
+          x:
+            animal.mesh.position.x,
+          y:
+            animal.mesh.position.y,
+          z:
+            animal.mesh.position.z
+        })
+      );
+
+  S.GAME.animals.birds =
+    state.animals
+      .filter(
+        animal =>
+          animal.type ===
+          "bird"
+      )
+      .map(
+        animal => ({
+          id: animal.id,
+          x:
+            animal.mesh.position.x,
+          y:
+            animal.mesh.position.y,
+          z:
+            animal.mesh.position.z
+        })
+      );
+}
+
+/* ---------------------------------------------------------
+   SETUP
+--------------------------------------------------------- */
+
+function setupAnimals() {
+  if (
+    state.initialized
+  ) {
     return;
   }
 
-  animalState.initialized =
+  state.initialized =
     true;
 
-  spawnInitialAnimals();
+  state.group =
+    new THREE.Group();
+
+  state.group.name =
+    "Animals";
+
+  S.scene.add(
+    state.group
+  );
+
+  /*
+   * Listen for new worlds.
+   */
+  if (
+    typeof S.gameEvent ===
+    "function"
+  ) {
+    window.addEventListener(
+      "survival-world-generated",
+      handleWorldGenerated
+    );
+
+    window.addEventListener(
+      "survival-new-world-created",
+      handleNewWorld
+    );
+  }
+
+  /*
+   * If the world already exists,
+   * spawn animals immediately.
+   */
+  if (
+    S.GAME?.state?.started ||
+    S.worldData
+  ) {
+    spawnInitialAnimals();
+  }
 
   console.log(
-    "[SurvivalVR] Animals initialized"
+    "Animals system initialized."
   );
 }
 
-// ============================================================
-// UPDATE
-// ============================================================
+/* ---------------------------------------------------------
+   EXPORTED API
+--------------------------------------------------------- */
 
-function update(
-  delta
+function getAnimals() {
+  return state.animals;
+}
+
+function getAnimalCount() {
+  return state.animals.length;
+}
+
+function getAnimalById(id) {
+  return (
+    state.animals.find(
+      animal =>
+        animal.id === id
+    ) || null
+  );
+}
+
+function damageNearestAnimal(
+  damage = 10
 ) {
-  if (
-    !animalState.initialized
-  ) {
-    initializeAnimals();
-  }
-
-  if (
-    !GAME.state?.started ||
-    GAME.state?.paused ||
-    GAME.state?.gameOver
-  ) {
-    return;
-  }
-
-  updateAnimals(
-    delta
-  );
-
-  spawnMissingAnimals(
-    delta
+  return hitNearestAnimal(
+    damage
   );
 }
-
-// ============================================================
-// EVENTS
-// ============================================================
-
-function setupEvents() {
-  window.addEventListener(
-    "survival-world-generated",
-    () => {
-      rebuildAnimals();
-    }
-  );
-
-  window.addEventListener(
-    "survival-new-world-created",
-    () => {
-      rebuildAnimals();
-    }
-  );
-
-  window.addEventListener(
-    "survival-grab",
-    () => {
-      /*
-       * Grabbing is handled by
-       * inventory/building systems.
-       */
-    }
-  );
-
-  window.addEventListener(
-    "survival-animal-hit",
-    event => {
-      const detail =
-        event.detail || {};
-
-      if (
-        detail.animal
-      ) {
-        damageAnimal(
-          detail.animal,
-          detail.amount ||
-            10
-        );
-      } else {
-        hitNearestAnimal(
-          detail.amount ||
-            10
-        );
-      }
-    }
-  );
-
-  window.addEventListener(
-    "survival-game-over",
-    () => {
-      /*
-       * Animals remain in the world
-       * while the player is on the
-       * game-over screen.
-       */
-    }
-  );
-}
-
-// ============================================================
-// SYSTEM
-// ============================================================
-
-const animalsSystem = {
-  state:
-    animalState,
-
-  types:
-    ANIMAL_TYPES,
-
-  initialize:
-    initializeAnimals,
-
-  update,
-
-  rebuild:
-    rebuildAnimals,
-
-  clear:
-    clearAnimals,
-
-  spawn:
-    spawnAnimal,
-
-  getAnimals: () =>
-    animalState.animals,
-
-  getNearest:
-    getNearestAnimal,
-
-  damage:
-    damageAnimal,
-
-  kill:
-    killAnimal,
-
-  hitNearest:
-    hitNearestAnimal,
-
-  count: type =>
-    countType(type)
-};
-
-// ============================================================
-// REGISTER
-// ============================================================
-
-window.SurvivalVR.systems.animals =
-  animalsSystem;
-
-window.SurvivalVR.animals =
-  animalsSystem;
-
-// ============================================================
-// START
-// ============================================================
-
-setupEvents();
-
-initializeAnimals();
 
 export {
-  animalsSystem,
-  initializeAnimals,
-  spawnAnimal,
-  damageAnimal,
-  killAnimal,
-  hitNearestAnimal
+  setupAnimals,
+  update,
+  clearAnimals,
+  hitAnimal,
+  hitNearestAnimal,
+  damageNearestAnimal,
+  findNearestAnimal,
+  getAnimals,
+  getAnimalCount,
+  getAnimalById
+};
+
+export default {
+  setupAnimals,
+  update,
+  clearAnimals,
+  hitAnimal,
+  hitNearestAnimal,
+  damageNearestAnimal,
+  findNearestAnimal,
+  getAnimals,
+  getAnimalCount,
+  getAnimalById
 };
