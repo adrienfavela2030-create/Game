@@ -1,794 +1,1294 @@
+/* =========================================================
+   SURVIVAL ISLAND VR
+   HANDS + CONTROLLERS + MOVEMENT
+========================================================= */
+
 import * as THREE from "three";
-import { XRHandModelFactory } from "three/addons/webxr/XRHandModelFactory.js";
-import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
+import { XRHandModelFactory } from
+  "three/addons/webxr/XRHandModelFactory.js";
+import { XRControllerModelFactory } from
+  "three/addons/webxr/XRControllerModelFactory.js";
 
 const S = window.SurvivalVR;
 
 if (!S) {
-  throw new Error("SurvivalVR was not initialized before hands.js loaded.");
+  throw new Error(
+    "SurvivalVR must exist before hands.js loads."
+  );
 }
 
-let leftController;
-let rightController;
+/* =========================================================
+   STATE
+========================================================= */
 
-let leftGrip;
-let rightGrip;
+const state = {
+  controllerLeft: null,
+  controllerRight: null,
 
-let leftHand;
-let rightHand;
+  gripLeft: null,
+  gripRight: null,
 
-let leftHandModel;
-let rightHandModel;
+  handLeft: null,
+  handRight: null,
 
-let leftRealHand;
-let rightRealHand;
+  handModelLeft: null,
+  handModelRight: null,
 
-let initialized = false;
+  controllerModelLeft: null,
+  controllerModelRight: null,
 
-const controllerFactory = new XRControllerModelFactory();
-const handFactory = new XRHandModelFactory();
+  leftFallbackHand: null,
+  rightFallbackHand: null,
 
-const handMeshes = [];
+  initialized: false,
 
-function createProceduralHand(side) {
-  const group = new THREE.Group();
+  leftGripPressed: false,
+  rightGripPressed: false,
 
-  group.name = `${side}ProceduralHand`;
+  leftTriggerPressed: false,
+  rightTriggerPressed: false,
+
+  lastLeftPosition: new THREE.Vector3(),
+  lastRightPosition: new THREE.Vector3(),
+
+  leftVelocity: new THREE.Vector3(),
+  rightVelocity: new THREE.Vector3(),
+
+  movementSpeed: 2.5,
+  sprintSpeed: 4.5,
+
+  turnCooldown: 0,
+
+  lastTime: performance.now()
+};
+
+
+/* =========================================================
+   PROCEDURAL HAND
+========================================================= */
+
+function createFallbackHand() {
+  const group =
+    new THREE.Group();
+
+  group.name =
+    "RealisticFallbackHand";
 
   /*
-   * Palm
+   * Palm.
    */
-  const palmGeometry = new THREE.SphereGeometry(
-    0.075,
-    16,
-    12
-  );
+  const palmGeometry =
+    new THREE.SphereGeometry(
+      0.075,
+      16,
+      12
+    );
 
   palmGeometry.scale(
-    0.82,
+    0.9,
     1.15,
-    0.48
+    0.65
   );
 
-  const skinMaterial = new THREE.MeshStandardMaterial({
-    color: 0xd69b78,
-    roughness: 0.72,
-    metalness: 0
-  });
+  const skinMaterial =
+    new THREE.MeshStandardMaterial({
+      color: 0xc98d6b,
+      roughness: 0.72,
+      metalness: 0
+    });
 
-  const palm = new THREE.Mesh(
-    palmGeometry,
-    skinMaterial
-  );
+  const palm =
+    new THREE.Mesh(
+      palmGeometry,
+      skinMaterial
+    );
 
   palm.castShadow = true;
   palm.receiveShadow = true;
 
-  group.add(palm);
-
-  /*
-   * Wrist
-   */
-  const wristGeometry = new THREE.CylinderGeometry(
-    0.045,
-    0.055,
-    0.10,
-    12
+  group.add(
+    palm
   );
 
-  const wrist = new THREE.Mesh(
-    wristGeometry,
-    skinMaterial
-  );
-
-  wrist.rotation.z = Math.PI / 2;
-
-  if (side === "left") {
-    wrist.position.x = 0.035;
-  } else {
-    wrist.position.x = -0.035;
-  }
-
-  wrist.castShadow = true;
-
-  group.add(wrist);
-
   /*
-   * Fingers
+   * Fingers.
    */
-  const fingerData = [
-    {
-      name: "index",
-      x: 0.045,
-      z: -0.060,
-      length: 0.090,
-      radius: 0.019
-    },
-    {
-      name: "middle",
-      x: 0.015,
-      z: -0.072,
-      length: 0.102,
-      radius: 0.020
-    },
-    {
-      name: "ring",
-      x: -0.015,
-      z: -0.069,
-      length: 0.095,
-      radius: 0.019
-    },
-    {
-      name: "pinky",
-      x: -0.042,
-      z: -0.056,
-      length: 0.078,
-      radius: 0.017
-    }
+  const fingerLengths = [
+    0.075,
+    0.09,
+    0.095,
+    0.085
   ];
 
-  for (const finger of fingerData) {
-    const fingerGroup = new THREE.Group();
+  const fingerX = [
+    -0.045,
+    -0.015,
+    0.015,
+    0.045
+  ];
 
-    fingerGroup.position.set(
-      finger.x,
-      0.055,
-      finger.z
+  for (
+    let i = 0;
+    i < 4;
+    i++
+  ) {
+    const finger =
+      createFinger(
+        fingerLengths[i],
+        skinMaterial
+      );
+
+    finger.position.set(
+      fingerX[i],
+      -0.07,
+      -0.045
     );
 
-    const fingerGeometry = new THREE.CapsuleGeometry(
-      finger.radius,
-      finger.length,
-      5,
-      10
+    finger.rotation.x =
+      -0.25;
+
+    group.add(
+      finger
     );
-
-    const fingerMesh = new THREE.Mesh(
-      fingerGeometry,
-      skinMaterial
-    );
-
-    fingerMesh.rotation.x = Math.PI / 2;
-
-    fingerMesh.castShadow = true;
-    fingerMesh.receiveShadow = true;
-
-    fingerGroup.add(fingerMesh);
-
-    /*
-     * Fingertip
-     */
-    const tipGeometry = new THREE.SphereGeometry(
-      finger.radius * 1.03,
-      10,
-      8
-    );
-
-    const tip = new THREE.Mesh(
-      tipGeometry,
-      skinMaterial
-    );
-
-    tip.position.z = -finger.length * 0.58;
-
-    tip.castShadow = true;
-
-    fingerGroup.add(tip);
-
-    group.add(fingerGroup);
   }
 
   /*
-   * Thumb
+   * Thumb.
    */
-  const thumb = new THREE.Group();
+  const thumb =
+    createFinger(
+      0.085,
+      skinMaterial
+    );
 
   thumb.position.set(
-    side === "left" ? 0.070 : -0.070,
-    0.015,
-    -0.005
+    -0.075,
+    -0.01,
+    0
   );
 
-  const thumbGeometry = new THREE.CapsuleGeometry(
-    0.021,
-    0.065,
-    5,
-    10
+  thumb.rotation.z =
+    -0.9;
+
+  thumb.rotation.x =
+    -0.25;
+
+  group.add(
+    thumb
   );
-
-  const thumbMesh = new THREE.Mesh(
-    thumbGeometry,
-    skinMaterial
-  );
-
-  thumbMesh.rotation.z =
-    side === "left"
-      ? -0.72
-      : 0.72;
-
-  thumbMesh.rotation.x = -0.35;
-
-  thumbMesh.castShadow = true;
-
-  thumb.add(thumbMesh);
-
-  group.add(thumb);
-
-  /*
-   * Small fingernail details
-   */
-  const nailMaterial = new THREE.MeshStandardMaterial({
-    color: 0xf0c7b2,
-    roughness: 0.55
-  });
-
-  const nails = [];
-
-  for (let i = 0; i < 4; i++) {
-    const nail = new THREE.Mesh(
-      new THREE.SphereGeometry(
-        0.011,
-        8,
-        6
-      ),
-      nailMaterial
-    );
-
-    nail.scale.set(
-      1.0,
-      0.45,
-      0.45
-    );
-
-    nail.position.set(
-      fingerData[i].x,
-      0.073,
-      fingerData[i].z - 0.055
-    );
-
-    group.add(nail);
-    nails.push(nail);
-  }
-
-  /*
-   * Slightly smaller for realistic VR proportions.
-   */
-  group.scale.setScalar(0.92);
-
-  /*
-   * Hands should not block the world.
-   */
-  group.traverse(object => {
-    if (object.isMesh) {
-      object.frustumCulled = false;
-    }
-  });
 
   return group;
 }
 
+
+function createFinger(
+  length,
+  material
+) {
+  const geometry =
+    new THREE.CapsuleGeometry(
+      0.018,
+      length,
+      5,
+      8
+    );
+
+  const mesh =
+    new THREE.Mesh(
+      geometry,
+      material
+    );
+
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+
+  return mesh;
+}
+
+
+/* =========================================================
+   CONTROLLERS
+========================================================= */
+
 function setupControllers() {
-  const renderer = S.renderer;
-
-  if (!renderer || !renderer.xr) {
-    console.warn("XR renderer unavailable.");
+  if (
+    !S.renderer
+  ) {
     return;
   }
 
-  const xr = renderer.xr;
+  const controllerFactory =
+    new XRControllerModelFactory();
+
+  const handFactory =
+    new XRHandModelFactory();
 
   /*
-   * Controllers
+   * LEFT.
    */
-  leftController = xr.getController(0);
-  rightController = xr.getController(1);
+  state.controllerLeft =
+    S.renderer.xr.getController(
+      0
+    );
 
-  leftGrip = xr.getControllerGrip(0);
-  rightGrip = xr.getControllerGrip(1);
+  state.gripLeft =
+    S.renderer.xr.getControllerGrip(
+      0
+    );
+
+  state.handLeft =
+    S.renderer.xr.getHand(
+      0
+    );
 
   /*
-   * Quest controller models.
+   * RIGHT.
    */
-  try {
-    const leftModel = controllerFactory.createControllerModel(
-      leftGrip
+  state.controllerRight =
+    S.renderer.xr.getController(
+      1
     );
 
-    const rightModel = controllerFactory.createControllerModel(
-      rightGrip
+  state.gripRight =
+    S.renderer.xr.getControllerGrip(
+      1
     );
 
-    leftGrip.add(leftModel);
-    rightGrip.add(rightModel);
-  } catch (error) {
-    console.warn(
-      "Controller model creation failed:",
-      error
+  state.handRight =
+    S.renderer.xr.getHand(
+      1
     );
-  }
-
-  S.playerRig.add(leftController);
-  S.playerRig.add(rightController);
-
-  S.playerRig.add(leftGrip);
-  S.playerRig.add(rightGrip);
 
   /*
-   * Hide controller models when hand tracking is active.
-   * They can be restored automatically if controllers are used.
+   * Controller models.
    */
-  leftController.addEventListener(
-    "connected",
-    event => {
-      console.log(
-        "Left XR input connected:",
-        event.data?.handedness
-      );
-    }
+  state.controllerModelLeft =
+    controllerFactory.createControllerModel(
+      state.gripLeft
+    );
+
+  state.controllerModelRight =
+    controllerFactory.createControllerModel(
+      state.gripRight
+    );
+
+  state.gripLeft.add(
+    state.controllerModelLeft
   );
 
-  rightController.addEventListener(
-    "connected",
-    event => {
-      console.log(
-        "Right XR input connected:",
-        event.data?.handedness
-      );
-    }
+  state.gripRight.add(
+    state.controllerModelRight
   );
 
-  leftController.addEventListener(
-    "disconnected",
-    () => {
-      console.log("Left XR controller disconnected.");
-    }
+  /*
+   * Hand models.
+   */
+  state.handModelLeft =
+    handFactory.createHandModel(
+      state.handLeft,
+      "mesh"
+    );
+
+  state.handModelRight =
+    handFactory.createHandModel(
+      state.handRight,
+      "mesh"
+    );
+
+  state.handLeft.add(
+    state.handModelLeft
   );
 
-  rightController.addEventListener(
-    "disconnected",
-    () => {
-      console.log("Right XR controller disconnected.");
-    }
+  state.handRight.add(
+    state.handModelRight
   );
+
+  /*
+   * Fallback hands.
+   */
+  state.leftFallbackHand =
+    createFallbackHand();
+
+  state.rightFallbackHand =
+    createFallbackHand();
+
+  state.leftFallbackHand.visible =
+    true;
+
+  state.rightFallbackHand.visible =
+    true;
+
+  state.gripLeft.add(
+    state.leftFallbackHand
+  );
+
+  state.gripRight.add(
+    state.rightFallbackHand
+  );
+
+  /*
+   * Add everything to the rig.
+   */
+  S.playerRig.add(
+    state.controllerLeft
+  );
+
+  S.playerRig.add(
+    state.controllerRight
+  );
+
+  S.playerRig.add(
+    state.gripLeft
+  );
+
+  S.playerRig.add(
+    state.gripRight
+  );
+
+  S.playerRig.add(
+    state.handLeft
+  );
+
+  S.playerRig.add(
+    state.handRight
+  );
+
+  /*
+   * Controller events.
+   */
+  setupControllerEvents(
+    state.controllerLeft,
+    "left"
+  );
+
+  setupControllerEvents(
+    state.controllerRight,
+    "right"
+  );
+
+  state.initialized =
+    true;
 }
 
-function setupHands() {
-  if (initialized) {
-    return;
-  }
 
-  initialized = true;
+/* =========================================================
+   CONTROLLER EVENTS
+========================================================= */
 
-  if (!S.renderer || !S.playerRig) {
-    console.error(
-      "hands.js requires S.renderer and S.playerRig."
-    );
-
-    initialized = false;
-    return;
-  }
-
-  setupControllers();
-
-  /*
-   * Quest hand tracking objects.
-   */
-  leftHand = S.renderer.xr.getHand(0);
-  rightHand = S.renderer.xr.getHand(1);
-
-  S.playerRig.add(leftHand);
-  S.playerRig.add(rightHand);
-
-  /*
-   * Three.js hand models.
-   *
-   * These become visible when the Quest supplies
-   * actual hand-joint tracking data.
-   */
-  try {
-    leftRealHand =
-      handFactory.createHandModel(
-        leftHand,
-        "mesh"
-      );
-
-    rightRealHand =
-      handFactory.createHandModel(
-        rightHand,
-        "mesh"
-      );
-
-    leftHand.add(leftRealHand);
-    rightHand.add(rightRealHand);
-
-    leftHandModel = leftRealHand;
-    rightHandModel = rightRealHand;
-  } catch (error) {
-    console.warn(
-      "XR hand model creation failed:",
-      error
-    );
-  }
-
-  /*
-   * Procedural fallback hands.
-   *
-   * These make sure there is still a visible
-   * hand-like representation if the Quest is
-   * currently using controllers.
-   */
-  const leftFallback =
-    createProceduralHand("left");
-
-  const rightFallback =
-    createProceduralHand("right");
-
-  leftFallback.visible = true;
-  rightFallback.visible = true;
-
-  leftController.add(leftFallback);
-  rightController.add(rightFallback);
-
-  handMeshes.push(leftFallback);
-  handMeshes.push(rightFallback);
-
-  /*
-   * Put the procedural hands slightly in front
-   * of the controller grip.
-   */
-  leftFallback.position.set(
-    0,
-    -0.015,
-    -0.045
-  );
-
-  rightFallback.position.set(
-    0,
-    -0.015,
-    -0.045
-  );
-
-  /*
-   * Hide procedural hands when actual tracked
-   * hand joints are being supplied.
-   */
-  leftHand.addEventListener(
+function setupControllerEvents(
+  controller,
+  hand
+) {
+  controller.addEventListener(
     "connected",
     event => {
-      if (event.data && event.data.hand) {
-        leftFallback.visible = false;
+      console.log(
+        `${hand} controller connected`,
+        event.data
+      );
+
+      hideControllerModelIfHandTracking(
+        hand
+      );
+    }
+  );
+
+  controller.addEventListener(
+    "disconnected",
+    () => {
+      console.log(
+        `${hand} controller disconnected`
+      );
+    }
+  );
+
+  controller.addEventListener(
+    "selectstart",
+    () => {
+      if (
+        hand === "left"
+      ) {
+        state.leftTriggerPressed =
+          true;
+      } else {
+        state.rightTriggerPressed =
+          true;
+      }
+
+      handleSelect(
+        hand
+      );
+    }
+  );
+
+  controller.addEventListener(
+    "selectend",
+    () => {
+      if (
+        hand === "left"
+      ) {
+        state.leftTriggerPressed =
+          false;
+      } else {
+        state.rightTriggerPressed =
+          false;
       }
     }
   );
 
-  rightHand.addEventListener(
-    "connected",
-    event => {
-      if (event.data && event.data.hand) {
-        rightFallback.visible = false;
+  controller.addEventListener(
+    "squeezestart",
+    () => {
+      if (
+        hand === "left"
+      ) {
+        state.leftGripPressed =
+          true;
+      } else {
+        state.rightGripPressed =
+          true;
+      }
+
+      handleGrip(
+        hand
+      );
+    }
+  );
+
+  controller.addEventListener(
+    "squeezeend",
+    () => {
+      if (
+        hand === "left"
+      ) {
+        state.leftGripPressed =
+          false;
+      } else {
+        state.rightGripPressed =
+          false;
       }
     }
   );
-
-  leftHand.addEventListener(
-    "disconnected",
-    () => {
-      leftFallback.visible = true;
-    }
-  );
-
-  rightHand.addEventListener(
-    "disconnected",
-    () => {
-      rightFallback.visible = true;
-    }
-  );
-
-  console.log(
-    "VR hands initialized."
-  );
 }
 
-/*
- * Determine whether this input source is
- * currently a tracked hand.
- */
-function isHandInputSource(inputSource) {
-  return !!(
-    inputSource &&
-    inputSource.hand
-  );
-}
 
-function updateHandVisibility() {
-  if (!S.renderer || !S.renderer.xr) {
+/* =========================================================
+   SELECT
+========================================================= */
+
+function handleSelect(
+  hand
+) {
+  /*
+   * If an item is being held,
+   * release it.
+   *
+   * Otherwise interact with
+   * the world.
+   */
+  const game =
+    S.GAME;
+
+  if (
+    !game
+  ) {
     return;
   }
 
-  const session =
-    S.renderer.xr.getSession();
+  const held =
+    game.hands?.[hand];
 
-  if (!session) {
+  if (
+    held
+  ) {
+    if (
+      typeof gameEvent ===
+      "function"
+    ) {
+      gameEvent(
+        "hand-use",
+        {
+          hand,
+          item:
+            held
+        }
+      );
+    }
+
+    return;
+  }
+
+  /*
+   * Starting interaction:
+   * holding the trigger can
+   * attempt to pick up the
+   * nearest resource.
+   */
+  tryGatherWithHand(
+    hand
+  );
+}
+
+
+/* =========================================================
+   GRIP
+========================================================= */
+
+function handleGrip(
+  hand
+) {
+  const game =
+    S.GAME;
+
+  if (
+    !game
+  ) {
+    return;
+  }
+
+  const side =
+    hand === "left"
+      ? "leftSide"
+      : "rightSide";
+
+  const sideItem =
+    game.equipment?.[
+      side
+    ];
+
+  /*
+   * Pull item from side slot
+   * into hand.
+   */
+  if (
+    sideItem &&
+    typeof game.holdItem ===
+      "function"
+  ) {
+    game.holdItem(
+      hand,
+      sideItem
+    );
+
+    game.equipment[
+      side
+    ] = null;
+  }
+}
+
+
+/* =========================================================
+   GATHER
+========================================================= */
+
+function tryGatherWithHand(
+  hand
+) {
+  if (
+    !S.systems.world
+  ) {
+    return;
+  }
+
+  if (
+    typeof S.systems.world.gatherNearestResource !==
+      "function"
+  ) {
+    return;
+  }
+
+  /*
+   * Gathering requires the
+   * hand to be reasonably close
+   * to a resource.
+   */
+  const handPosition =
+    getHandWorldPosition(
+      hand
+    );
+
+  const types = [
+    "tree",
+    "rock",
+    "log"
+  ];
+
+  for (
+    const type of types
+  ) {
+    const gathered =
+      S.systems.world.gatherNearestResource(
+        type,
+        1.45,
+        handPosition
+      );
+
+    if (
+      gathered
+    ) {
+      return;
+    }
+  }
+}
+
+
+/* =========================================================
+   HAND POSITION
+========================================================= */
+
+function getHandWorldPosition(
+  hand
+) {
+  const object =
+    hand === "left"
+      ? (
+          state.handLeft ||
+          state.gripLeft
+        )
+      : (
+          state.handRight ||
+          state.gripRight
+        );
+
+  if (
+    object
+  ) {
+    const position =
+      new THREE.Vector3();
+
+    object.getWorldPosition(
+      position
+    );
+
+    return position;
+  }
+
+  /*
+   * Fallback.
+   */
+  if (
+    S.playerRig
+  ) {
+    return new THREE.Vector3(
+      S.playerRig.position.x,
+      S.playerRig.position.y,
+      S.playerRig.position.z
+    );
+  }
+
+  return new THREE.Vector3();
+}
+
+
+/* =========================================================
+   VELOCITY
+========================================================= */
+
+function updateHandVelocity(
+  hand,
+  delta
+) {
+  const position =
+    getHandWorldPosition(
+      hand
+    );
+
+  const previous =
+    hand === "left"
+      ? state.lastLeftPosition
+      : state.lastRightPosition;
+
+  const velocity =
+    hand === "left"
+      ? state.leftVelocity
+      : state.rightVelocity;
+
+  if (
+    delta > 0
+  ) {
+    velocity.subVectors(
+      position,
+      previous
+    );
+
+    velocity.divideScalar(
+      delta
+    );
+  }
+
+  previous.copy(
+    position
+  );
+
+  /*
+   * Tell animals about the
+   * physical swing.
+   */
+  const heldItem =
+    S.GAME?.hands?.[
+      hand
+    ];
+
+  if (
+    heldItem &&
+    S.systems.animals &&
+    typeof S.systems.animals.registerItemHit ===
+      "function"
+  ) {
+    S.systems.animals.registerItemHit(
+      hand,
+      heldItem,
+      position,
+      velocity
+    );
+  }
+}
+
+
+/* =========================================================
+   MOVEMENT
+========================================================= */
+
+function updateMovement(
+  delta
+) {
+  if (
+    !S.playerRig ||
+    !S.renderer?.xr?.isPresenting
+  ) {
+    return;
+  }
+
+  const leftAxes =
+    getGamepadAxes(
+      state.controllerLeft
+    );
+
+  const rightAxes =
+    getGamepadAxes(
+      state.controllerRight
+    );
+
+  if (
+    !leftAxes
+  ) {
+    return;
+  }
+
+  let x =
+    leftAxes.x;
+
+  let z =
+    leftAxes.y;
+
+  const deadzone =
+    0.15;
+
+  if (
+    Math.abs(x) <
+    deadzone
+  ) {
+    x = 0;
+  }
+
+  if (
+    Math.abs(z) <
+    deadzone
+  ) {
+    z = 0;
+  }
+
+  const magnitude =
+    Math.min(
+      1,
+      Math.sqrt(
+        x * x +
+        z * z
+      )
+    );
+
+  if (
+    magnitude > 0
+  ) {
+    const sprinting =
+      isSprintingByInput();
+
+    const speed =
+      sprinting
+        ? state.sprintSpeed
+        : state.movementSpeed;
+
     /*
-     * Outside VR, show procedural hands only
-     * if useful for debugging.
+     * Controller stick:
+     * forward is negative Y.
      */
-    return;
-  }
+    const forward =
+      new THREE.Vector3(
+        0,
+        0,
+        -1
+      );
 
-  let leftHandActive = false;
-  let rightHandActive = false;
+    const right =
+      new THREE.Vector3(
+        1,
+        0,
+        0
+      );
 
-  for (const source of session.inputSources) {
+    const rotation =
+      S.playerRig.rotation.y;
+
+    forward.applyAxisAngle(
+      new THREE.Vector3(
+        0,
+        1,
+        0
+      ),
+      rotation
+    );
+
+    right.applyAxisAngle(
+      new THREE.Vector3(
+        0,
+        1,
+        0
+      ),
+      rotation
+    );
+
+    const movement =
+      new THREE.Vector3();
+
+    movement
+      .addScaledVector(
+        right,
+        x
+      )
+      .addScaledVector(
+        forward,
+        -z
+      );
+
     if (
-      source.handedness === "left" &&
-      isHandInputSource(source)
+      movement.lengthSq() >
+      0
     ) {
-      leftHandActive = true;
+      movement.normalize();
+
+      movement.multiplyScalar(
+        speed *
+        magnitude *
+        delta
+      );
+
+      S.playerRig.position.add(
+        movement
+      );
+
+      keepPlayerOnIsland();
+
+      S.GAME.position.x =
+        S.playerRig.position.x;
+
+      S.GAME.position.y =
+        S.playerRig.position.y;
+
+      S.GAME.position.z =
+        S.playerRig.position.z;
+
+      S.GAME.statistics.distanceWalked +=
+        movement.length();
     }
-
-    if (
-      source.handedness === "right" &&
-      isHandInputSource(source)
-    ) {
-      rightHandActive = true;
-    }
-  }
-
-  if (handMeshes.length >= 2) {
-    handMeshes[0].visible =
-      !leftHandActive;
-
-    handMeshes[1].visible =
-      !rightHandActive;
   }
 
   /*
-   * Controller models are useful only when
-   * controllers are being used.
+   * Right stick turning.
    */
-  if (leftGrip) {
-    leftGrip.visible =
-      !leftHandActive;
-  }
-
-  if (rightGrip) {
-    rightGrip.visible =
-      !rightHandActive;
-  }
-
-  /*
-   * Actual tracked hand models.
-   */
-  if (leftHandModel) {
-    leftHandModel.visible =
-      leftHandActive;
-  }
-
-  if (rightHandModel) {
-    rightHandModel.visible =
-      rightHandActive;
+  if (
+    rightAxes
+  ) {
+    updateTurning(
+      rightAxes.x,
+      delta
+    );
   }
 }
 
-/*
- * Read Quest controller sticks.
- */
-function readGamepadAxes(controller) {
-  const session =
-    S.renderer?.xr?.getSession?.();
 
-  if (!session) {
+/* =========================================================
+   GAMEPAD
+========================================================= */
+
+function getGamepadAxes(
+  controller
+) {
+  if (
+    !controller
+  ) {
     return null;
   }
 
-  for (const source of session.inputSources) {
-    if (!source.gamepad) {
+  const inputSources =
+    S.renderer?.xr?.getSession?.()
+      ?.inputSources;
+
+  if (
+    !inputSources
+  ) {
+    return null;
+  }
+
+  for (
+    const source of
+      inputSources
+  ) {
+    if (
+      !source.gamepad
+    ) {
       continue;
     }
 
+    const handedness =
+      source.handedness;
+
     if (
-      source.handedness ===
-      controller.userData.handedness
+      controller ===
+      state.controllerLeft &&
+      handedness ===
+        "left"
     ) {
-      return source.gamepad.axes || null;
-    }
-  }
-
-  return null;
-}
-
-function findInputSource(handedness) {
-  const session =
-    S.renderer?.xr?.getSession?.();
-
-  if (!session) {
-    return null;
-  }
-
-  for (const source of session.inputSources) {
-    if (
-      source.handedness === handedness
-    ) {
-      return source;
-    }
-  }
-
-  return null;
-}
-
-/*
- * Player movement.
- *
- * We move the PLAYER RIG, not the XR camera.
- * This is important because the headset owns the
- * camera's real position and rotation.
- */
-function updateMovement(delta) {
-  if (!S.isXR) {
-    return;
-  }
-
-  if (!S.playerRig) {
-    return;
-  }
-
-  const leftSource =
-    findInputSource("left");
-
-  const rightSource =
-    findInputSource("right");
-
-  /*
-   * Left joystick = movement.
-   */
-  if (
-    leftSource &&
-    leftSource.gamepad
-  ) {
-    const axes =
-      leftSource.gamepad.axes || [];
-
-    if (axes.length >= 2) {
-      const x =
-        Math.abs(axes[2] || 0) > 0.01
-          ? axes[2]
-          : axes[0];
-
-      const z =
-        Math.abs(axes[3] || 0) > 0.01
-          ? axes[3]
-          : axes[1];
-
-      const deadzone = 0.12;
-
-      let moveX =
-        Math.abs(x) > deadzone
-          ? x
-          : 0;
-
-      let moveZ =
-        Math.abs(z) > deadzone
-          ? z
-          : 0;
-
-      /*
-       * Movement speed.
-       */
-      const speed =
-        S.player?.sprinting
-          ? 4.2
-          : 2.4;
-
-      /*
-       * Move relative to player rig.
-       */
-      const direction =
-        new THREE.Vector3(
-          moveX,
+      return {
+        x:
+          source.gamepad.axes[2] ||
           0,
-          moveZ
-        );
 
-      /*
-       * Use headset/player yaw for
-       * forward direction.
-       */
-      const yaw =
-        S.playerRig.rotation.y;
+        y:
+          source.gamepad.axes[3] ||
+          0
+      };
+    }
 
-      direction.applyAxisAngle(
-        new THREE.Vector3(0, 1, 0),
-        yaw
+    if (
+      controller ===
+      state.controllerRight &&
+      handedness ===
+        "right"
+    ) {
+      return {
+        x:
+          source.gamepad.axes[2] ||
+          0,
+
+        y:
+          source.gamepad.axes[3] ||
+          0
+      };
+    }
+  }
+
+  return null;
+}
+
+
+/* =========================================================
+   TURNING
+========================================================= */
+
+function updateTurning(
+  axis,
+  delta
+) {
+  if (
+    Math.abs(axis) <
+    0.35
+  ) {
+    state.turnCooldown =
+      Math.max(
+        0,
+        state.turnCooldown -
+          delta
       );
 
-      S.playerRig.position.x +=
-        direction.x *
-        speed *
-        delta;
-
-      S.playerRig.position.z +=
-        direction.z *
-        speed *
-        delta;
-    }
+    return;
   }
 
-  /*
-   * Right joystick = smooth turning.
-   *
-   * We intentionally rotate the rig rather than
-   * changing the camera rotation.
-   */
   if (
-    rightSource &&
-    rightSource.gamepad
+    !S.GAME.settings.snapTurning
   ) {
-    const axes =
-      rightSource.gamepad.axes || [];
+    S.playerRig.rotation.y -=
+      axis *
+      2.5 *
+      delta;
 
-    if (axes.length >= 2) {
-      const turn =
-        Math.abs(axes[2] || 0) > 0.01
-          ? axes[2]
-          : axes[0];
+    return;
+  }
 
-      const deadzone = 0.18;
+  if (
+    state.turnCooldown >
+    0
+  ) {
+    return;
+  }
 
+  const amount =
+    THREE.MathUtils.degToRad(
+      Number(
+        S.GAME.settings.snapTurnAmount
+      ) || 30
+    );
+
+  S.playerRig.rotation.y -=
+    Math.sign(axis) *
+    amount;
+
+  S.GAME.position.rotationY =
+    S.playerRig.rotation.y;
+
+  state.turnCooldown =
+    0.3;
+}
+
+
+/* =========================================================
+   SPRINT
+========================================================= */
+
+function isSprintingByInput() {
+  const source =
+    S.renderer?.xr?.getSession?.()
+      ?.inputSources;
+
+  if (
+    !source
+  ) {
+    return false;
+  }
+
+  for (
+    const input of source
+  ) {
+    if (
+      !input.gamepad ||
+      !input.handedness
+    ) {
+      continue;
+    }
+
+    /*
+     * Use left stick click
+     * when available.
+     */
+    if (
+      input.handedness ===
+        "left" &&
+      input.gamepad.buttons?.[4]?.pressed
+    ) {
       if (
-        Math.abs(turn) >
-        deadzone
+        S.GAME.player.stamina >
+        2
       ) {
-        S.playerRig.rotation.y -=
-          turn *
-          1.8 *
-          delta;
+        S.GAME.player.sprinting =
+          true;
+
+        return true;
       }
     }
   }
 
-  /*
-   * Keep the player above the island.
-   */
-  if (
-    S.systems?.world &&
-    typeof S.systems.world.getTerrainHeight ===
-      "function"
-  ) {
-    const ground =
-      S.systems.world.getTerrainHeight(
-        S.playerRig.position.x,
-        S.playerRig.position.z
-      );
+  S.GAME.player.sprinting =
+    false;
 
-    if (
-      Number.isFinite(ground)
-    ) {
-      /*
-       * XR camera is approximately at
-       * head height. The rig itself represents
-       * the player's ground position.
-       */
-      const desiredY =
-        ground;
-
-      S.playerRig.position.y =
-        desiredY;
-    }
-  }
+  return false;
 }
 
-/*
- * Keep game.js player position synchronized.
- */
-function syncGamePosition() {
-  if (!S.playerRig) {
+
+/* =========================================================
+   KEEP PLAYER ON ISLAND
+========================================================= */
+
+function keepPlayerOnIsland() {
+  if (
+    !S.systems.world
+  ) {
     return;
   }
 
+  const getHeight =
+    S.systems.world
+      .getTerrainHeightAt;
+
   if (
-    S.GAME &&
-    S.GAME.position
+    typeof getHeight !==
+      "function"
+  ) {
+    return;
+  }
+
+  const x =
+    S.playerRig.position.x;
+
+  const z =
+    S.playerRig.position.z;
+
+  const terrainHeight =
+    getHeight(
+      x,
+      z
+    );
+
+  /*
+   * Do not allow the player
+   * to walk below the island.
+   */
+  if (
+    terrainHeight <= -1.5
+  ) {
+    return;
+  }
+
+  /*
+   * Keep the player slightly
+   * above terrain.
+   */
+  S.playerRig.position.y =
+    terrainHeight;
+
+  S.GAME.position.y =
+    terrainHeight;
+}
+
+
+/* =========================================================
+   HAND TRACKING VISIBILITY
+========================================================= */
+
+function hideControllerModelIfHandTracking(
+  hand
+) {
+  const controller =
+    hand === "left"
+      ? state.controllerModelLeft
+      : state.controllerModelRight;
+
+  const fallback =
+    hand === "left"
+      ? state.leftFallbackHand
+      : state.rightFallbackHand;
+
+  const handObject =
+    hand === "left"
+      ? state.handLeft
+      : state.handRight;
+
+  /*
+   * If the XR runtime has a real
+   * tracked hand, prefer the hand
+   * model over the controller.
+   */
+  const hasTrackedHand =
+    !!(
+      handObject &&
+      handObject.joints
+    );
+
+  if (
+    controller
+  ) {
+    controller.visible =
+      !hasTrackedHand;
+  }
+
+  if (
+    fallback
+  ) {
+    fallback.visible =
+      !hasTrackedHand;
+  }
+}
+
+
+/* =========================================================
+   UPDATE HAND VISUALS
+========================================================= */
+
+function updateHandVisibility() {
+  hideControllerModelIfHandTracking(
+    "left"
+  );
+
+  hideControllerModelIfHandTracking(
+    "right"
+  );
+
+  /*
+   * If controller tracking is
+   * active but the runtime doesn't
+   * provide a hand model, keep the
+   * procedural hands visible.
+   */
+  if (
+    state.leftFallbackHand
+  ) {
+    const handTracked =
+      !!(
+        state.handLeft &&
+        state.handLeft.joints
+      );
+
+    state.leftFallbackHand.visible =
+      !handTracked;
+  }
+
+  if (
+    state.rightFallbackHand
+  ) {
+    const handTracked =
+      !!(
+        state.handRight &&
+        state.handRight.joints
+      );
+
+    state.rightFallbackHand.visible =
+      !handTracked;
+  }
+}
+
+
+/* =========================================================
+   UPDATE
+========================================================= */
+
+function updateHands(
+  delta
+) {
+  if (
+    !state.initialized
+  ) {
+    return;
+  }
+
+  updateMovement(
+    delta
+  );
+
+  updateHandVelocity(
+    "left",
+    delta
+  );
+
+  updateHandVelocity(
+    "right",
+    delta
+  );
+
+  updateHandVisibility();
+
+  /*
+   * Keep game position synchronized.
+   */
+  if (
+    S.playerRig
   ) {
     S.GAME.position.x =
       S.playerRig.position.x;
@@ -804,94 +1304,166 @@ function syncGamePosition() {
   }
 }
 
-/*
- * Hand animation.
- *
- * This gives the fallback hands a tiny natural
- * movement without fighting actual XR tracking.
- */
-function animateFallbackHands(time) {
+
+/* =========================================================
+   VR SESSION EVENTS
+========================================================= */
+
+function setupXRListeners() {
   if (
-    !S.isXR ||
-    handMeshes.length < 2
+    !S.renderer
   ) {
     return;
   }
 
-  const left =
-    handMeshes[0];
+  S.renderer.xr.addEventListener(
+    "sessionstart",
+    () => {
+      S.isXR =
+        true;
 
-  const right =
-    handMeshes[1];
+      if (
+        S.GAME &&
+        typeof S.GAME.setVRState ===
+          "function"
+      ) {
+        S.GAME.setVRState(
+          true
+        );
+      }
 
-  if (left.visible) {
-    left.rotation.z =
-      Math.sin(time * 1.8) *
-      0.025;
-  }
-
-  if (right.visible) {
-    right.rotation.z =
-      Math.sin(
-        time * 1.8 +
-        Math.PI
-      ) * 0.025;
-  }
-}
-
-/*
- * Main update called by index.html.
- */
-function update(
-  delta = 0.016,
-  xrFrame = null
-) {
-  updateHandVisibility();
-
-  updateMovement(delta);
-
-  animateFallbackHands(
-    performance.now() / 1000
+      console.log(
+        "VR session started"
+      );
+    }
   );
 
-  syncGamePosition();
-}
+  S.renderer.xr.addEventListener(
+    "sessionend",
+    () => {
+      S.isXR =
+        false;
 
-/*
- * Alias used by the current index.html.
- */
-function updateHands(
-  delta = 0.016,
-  xrFrame = null
-) {
-  update(
-    delta,
-    xrFrame
+      if (
+        S.GAME &&
+        typeof S.GAME.setVRState ===
+          "function"
+      ) {
+        S.GAME.setVRState(
+          false
+        );
+      }
+
+      console.log(
+        "VR session ended"
+      );
+    }
   );
 }
 
-/*
- * Optional utility for other systems.
- */
-function getHands() {
-  return {
-    left: leftHand,
-    right: rightHand,
-    leftController,
-    rightController
-  };
+
+/* =========================================================
+   SETUP
+========================================================= */
+
+function setupHands() {
+  if (
+    state.initialized
+  ) {
+    return;
+  }
+
+  if (
+    !S.renderer ||
+    !S.playerRig
+  ) {
+    console.warn(
+      "Hands waiting for renderer/player rig."
+    );
+
+    return;
+  }
+
+  setupControllers();
+
+  setupXRListeners();
+
+  /*
+   * Initialize velocity positions.
+   */
+  state.lastLeftPosition.copy(
+    getHandWorldPosition(
+      "left"
+    )
+  );
+
+  state.lastRightPosition.copy(
+    getHandWorldPosition(
+      "right"
+    )
+  );
+
+  /*
+   * Expose hands to the
+   * SurvivalVR namespace.
+   */
+  S.hands =
+    api;
+
+  console.log(
+    "Survival Island VR hands ready."
+  );
 }
+
+
+/* =========================================================
+   API
+========================================================= */
+
+const api = {
+  setupHands,
+
+  updateHands,
+
+  update:
+    updateHands,
+
+  getHands() {
+    return {
+      left:
+        state.handLeft ||
+        state.gripLeft,
+
+      right:
+        state.handRight ||
+        state.gripRight
+    };
+  },
+
+  getHandWorldPosition,
+
+  getLeftVelocity() {
+    return state.leftVelocity;
+  },
+
+  getRightVelocity() {
+    return state.rightVelocity;
+  },
+
+  getState() {
+    return state;
+  }
+};
+
+
+/* =========================================================
+   EXPORTS
+========================================================= */
 
 export {
   setupHands,
-  update,
   updateHands,
-  getHands
+  getHandWorldPosition
 };
 
-export default {
-  setupHands,
-  update,
-  updateHands,
-  getHands
-};
+export default api;
