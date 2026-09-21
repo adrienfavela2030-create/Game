@@ -3,13 +3,11 @@ import * as THREE from "three";
 const S = window.SurvivalVR;
 
 if (!S) {
-  throw new Error(
-    "SurvivalVR must exist before hands.js loads."
-  );
+  throw new Error("SurvivalVR has not been initialized.");
 }
 
 const state = {
-  initialized: false,
+  ready: false,
 
   leftController: null,
   rightController: null,
@@ -20,68 +18,75 @@ const state = {
   leftHand: null,
   rightHand: null,
 
-  moveSpeed: 2.2,
+  leftSource: null,
+  rightSource: null,
+
+  moveSpeed: 2.4,
   sprintSpeed: 4.0,
 
-  snapTurnDegrees: 30,
-  snapCooldown: 0.35,
+  deadzone: 0.12,
+
+  snapAngle: Math.PI / 6,
   lastSnap: 0,
+  snapDelay: 300,
 
-  deadzone: 0.16,
-
-  previousLeftTrigger: false,
-  previousRightTrigger: false,
-
-  previousLeftGrip: false,
-  previousRightGrip: false
+  lastTime: 0
 };
 
 
 /* ============================================================
-   EVENTS
-   ============================================================ */
+   EVENT
+============================================================ */
 
 function emit(name, detail = {}) {
+
   window.dispatchEvent(
     new CustomEvent(name, {
       detail
     })
   );
+
 }
 
 
 /* ============================================================
-   CONTROLLER HAND MODEL
-   ============================================================ */
+   HAND
+============================================================ */
 
 function createHand(side) {
 
-  const hand = new THREE.Group();
+  const hand =
+    new THREE.Group();
 
   hand.name =
     `${side}-hand`;
 
-  const skin = new THREE.MeshStandardMaterial({
-    color: 0xc98f6b,
-    roughness: 0.8,
-    metalness: 0
-  });
+
+  const material =
+    new THREE.MeshStandardMaterial({
+      color: 0xd39a75,
+      roughness: 0.8,
+      metalness: 0
+    });
 
 
-  const palm = new THREE.Mesh(
-    new THREE.SphereGeometry(
-      0.065,
-      12,
-      8
-    ),
-    skin
-  );
+  const palm =
+    new THREE.Mesh(
+      new THREE.SphereGeometry(
+        0.065,
+        12,
+        8
+      ),
+      material
+    );
+
 
   palm.scale.set(
-    1.0,
-    1.2,
+    1,
+    1.15,
     0.7
   );
+
 
   hand.add(palm);
 
@@ -89,152 +94,188 @@ function createHand(side) {
   const fingerGeometry =
     new THREE.CapsuleGeometry(
       0.014,
-      0.065,
+      0.06,
       4,
       6
     );
 
 
-  const fingerX = [
-    -0.042,
-    -0.014,
-    0.014,
-    0.042
+  const positions = [
+    -0.045,
+    -0.015,
+    0.015,
+    0.045
   ];
 
 
-  for (const x of fingerX) {
+  for (const x of positions) {
 
-    const finger = new THREE.Mesh(
-      fingerGeometry,
-      skin
-    );
+    const finger =
+      new THREE.Mesh(
+        fingerGeometry,
+        material
+      );
 
     finger.position.set(
       x,
-      0.072,
+      0.07,
       -0.015
     );
 
     hand.add(finger);
+
   }
 
 
-  const thumb = new THREE.Mesh(
-    new THREE.CapsuleGeometry(
-      0.016,
-      0.065,
-      4,
-      6
-    ),
-    skin
-  );
+  const thumb =
+    new THREE.Mesh(
+      new THREE.CapsuleGeometry(
+        0.016,
+        0.06,
+        4,
+        6
+      ),
+      material
+    );
+
 
   thumb.position.set(
     side === "left"
       ? -0.065
       : 0.065,
-    0.01,
-    -0.01
+    0.005,
+    -0.015
   );
+
 
   thumb.rotation.z =
     side === "left"
       ? -0.65
       : 0.65;
 
+
   hand.add(thumb);
 
 
   return hand;
+
 }
 
 
 /* ============================================================
    DEADZONE
-   ============================================================ */
+============================================================ */
 
-function deadzone(value) {
+function applyDeadzone(value) {
 
   const amount =
     Math.abs(value);
 
   if (
-    amount <
+    amount <=
     state.deadzone
   ) {
+
     return 0;
+
   }
 
-  const sign =
-    Math.sign(value);
 
-  return sign *
+  const normalized =
     (
-      (amount - state.deadzone) /
-      (1 - state.deadzone)
+      amount -
+      state.deadzone
+    ) /
+    (
+      1 -
+      state.deadzone
     );
+
+
+  return (
+    Math.sign(value) *
+    Math.min(
+      normalized,
+      1
+    )
+  );
 
 }
 
 
 /* ============================================================
-   GET XR GAMEPAD
-   ============================================================ */
+   FIND XR INPUT
+============================================================ */
 
-function getInputSource(handedness) {
+function refreshInputSources() {
 
-  if (!S.renderer) {
-    return null;
-  }
+  state.leftSource = null;
+  state.rightSource = null;
 
-  if (
-    !S.renderer.xr.isPresenting
-  ) {
-    return null;
-  }
 
   const session =
-    S.renderer.xr.getSession();
+    S.renderer?.xr?.getSession();
+
 
   if (!session) {
-    return null;
+    return;
   }
 
+
   for (
-    const source of session.inputSources
+    const source of
+    session.inputSources
   ) {
 
     if (
+      !source.gamepad
+    ) {
+      continue;
+    }
+
+
+    if (
       source.handedness ===
-      handedness &&
-      source.gamepad
+      "left"
     ) {
 
-      return source;
+      state.leftSource =
+        source;
+
+    }
+
+
+    if (
+      source.handedness ===
+      "right"
+    ) {
+
+      state.rightSource =
+        source;
 
     }
 
   }
 
-  return null;
 }
 
 
 /* ============================================================
-   GET THUMBSTICK
-   ============================================================ */
+   THUMBSTICK
+============================================================ */
 
-function getStick(source) {
+function readStick(source) {
 
   if (
     !source ||
     !source.gamepad
   ) {
+
     return {
       x: 0,
       y: 0
     };
+
   }
 
 
@@ -243,50 +284,60 @@ function getStick(source) {
 
 
   /*
-   * Quest normally gives the primary thumbstick
-   * as axes 2 and 3.
-   *
-   * Some browser versions expose 0 and 1.
+   * Quest controllers commonly expose the
+   * primary thumbstick on axes 2/3.
    */
 
-  let x = 0;
-  let y = 0;
+  let x =
+    axes[2] ?? 0;
 
+  let y =
+    axes[3] ?? 0;
+
+
+  /*
+   * Some WebXR implementations expose
+   * the primary pair at 0/1.
+   */
 
   if (
-    axes.length >= 4
+    Math.abs(x) < 0.001 &&
+    Math.abs(y) < 0.001
   ) {
 
-    x = axes[2] || 0;
-    y = axes[3] || 0;
+    x =
+      axes[0] ?? 0;
 
-  } else {
-
-    x = axes[0] || 0;
-    y = axes[1] || 0;
+    y =
+      axes[1] ?? 0;
 
   }
 
 
   return {
-    x: deadzone(x),
-    y: deadzone(y)
+    x: applyDeadzone(x),
+    y: applyDeadzone(y)
   };
+
 }
 
 
 /* ============================================================
-   PLAYER HEIGHT / GROUND
-   ============================================================ */
+   GROUND
+============================================================ */
 
-function updatePlayerGround() {
+function keepPlayerOnGround() {
 
-  if (!S.playerGroup) {
+  if (
+    !S.playerRig
+  ) {
+
     return;
+
   }
 
 
-  let ground = 0;
+  let groundY = 0;
 
 
   const world =
@@ -301,141 +352,123 @@ function updatePlayerGround() {
 
     try {
 
-      const value =
+      const result =
         world.getTerrainHeight(
-          S.playerGroup.position.x,
-          S.playerGroup.position.z
+          S.playerRig.position.x,
+          S.playerRig.position.z
         );
 
 
       if (
-        Number.isFinite(value)
+        Number.isFinite(result)
       ) {
 
-        ground = value;
+        groundY =
+          result;
 
       }
 
     } catch {
-      ground = 0;
+
+      groundY = 0;
+
     }
 
   }
 
 
-  /*
-   * Keep the player's feet on the terrain.
-   */
-
-  S.playerGroup.position.y =
-    ground;
+  S.playerRig.position.y =
+    groundY;
 
 }
 
 
 /* ============================================================
-   LOCOMOTION
-   ============================================================ */
+   MOVEMENT
+============================================================ */
 
-function updateMovement(delta) {
-
-  if (!S.renderer) {
-    return;
-  }
+function movePlayer(delta) {
 
   if (
-    !S.renderer.xr.isPresenting
+    !S.renderer?.xr?.isPresenting
   ) {
-    return;
-  }
 
-  if (!S.playerGroup) {
     return;
+
   }
 
 
   if (
-    S.GAME?.state?.paused ||
-    S.GAME?.state?.gameOver
+    !S.playerRig
   ) {
+
     return;
-  }
 
-
-  const source =
-    getInputSource("left");
-
-
-  if (!source) {
-    return;
   }
 
 
   const stick =
-    getStick(source);
+    readStick(
+      state.leftSource
+    );
 
 
   if (
     Math.abs(stick.x) < 0.001 &&
     Math.abs(stick.y) < 0.001
   ) {
+
     return;
+
   }
 
 
   /*
-   * Get the direction the headset is facing.
-   *
    * IMPORTANT:
-   * We use the actual XR camera, so movement follows
-   * where the player is looking.
+   *
+   * Use the XR camera's actual horizontal
+   * direction.
    */
 
-  const direction =
+  const forward =
     new THREE.Vector3();
 
 
   S.camera.getWorldDirection(
-    direction
+    forward
   );
 
 
-  direction.y = 0;
+  forward.y = 0;
 
 
   if (
-    direction.lengthSq() <
-    0.00001
+    forward.lengthSq() <
+    0.000001
   ) {
+
     return;
+
   }
 
 
-  direction.normalize();
+  forward.normalize();
 
-
-  /*
-   * Right vector.
-   */
 
   const right =
     new THREE.Vector3(
-      direction.z,
+      forward.z,
       0,
-      -direction.x
+      -forward.x
     );
 
-
-  /*
-   * Build movement vector.
-   */
 
   const movement =
     new THREE.Vector3();
 
 
   movement.addScaledVector(
-    direction,
+    forward,
     -stick.y
   );
 
@@ -448,9 +481,11 @@ function updateMovement(delta) {
 
   if (
     movement.lengthSq() <
-    0.00001
+    0.000001
   ) {
+
     return;
+
   }
 
 
@@ -472,24 +507,30 @@ function updateMovement(delta) {
 
 
   const distance =
-    speed * delta;
+    speed *
+    delta;
 
 
-  S.playerGroup.position.x +=
+  /*
+   * MOVE THE PLAYER RIG,
+   * NOT THE CAMERA.
+   */
+
+  S.playerRig.position.x +=
     movement.x *
     distance;
 
 
-  S.playerGroup.position.z +=
+  S.playerRig.position.z +=
     movement.z *
     distance;
 
 
-  updatePlayerGround();
+  keepPlayerOnGround();
 
 
   /*
-   * Keep game.js synchronized.
+   * Synchronize game state.
    */
 
   if (
@@ -497,13 +538,13 @@ function updateMovement(delta) {
   ) {
 
     S.GAME.position.x =
-      S.playerGroup.position.x;
+      S.playerRig.position.x;
 
     S.GAME.position.y =
-      S.playerGroup.position.y;
+      S.playerRig.position.y;
 
     S.GAME.position.z =
-      S.playerGroup.position.z;
+      S.playerRig.position.z;
 
   }
 
@@ -512,13 +553,13 @@ function updateMovement(delta) {
     "survival-player-moved",
     {
       x:
-        S.playerGroup.position.x,
+        S.playerRig.position.x,
 
       y:
-        S.playerGroup.position.y,
+        S.playerRig.position.y,
 
       z:
-        S.playerGroup.position.z
+        S.playerRig.position.z
     }
   );
 
@@ -527,84 +568,68 @@ function updateMovement(delta) {
 
 /* ============================================================
    SNAP TURN
-   ============================================================ */
+============================================================ */
 
-function updateSnapTurn() {
-
-  if (!S.renderer) {
-    return;
-  }
+function snapTurn() {
 
   if (
-    !S.renderer.xr.isPresenting
+    !S.renderer?.xr?.isPresenting
   ) {
+
     return;
+
   }
 
-  if (!S.playerGroup) {
+
+  if (
+    !S.playerRig
+  ) {
+
     return;
-  }
 
-
-  const source =
-    getInputSource("right");
-
-
-  if (!source) {
-    return;
   }
 
 
   const stick =
-    getStick(source);
+    readStick(
+      state.rightSource
+    );
 
 
   if (
     Math.abs(stick.x) <
-    0.55
+    0.6
   ) {
+
     return;
+
   }
 
 
   const now =
-    performance.now() /
-    1000;
+    performance.now();
 
 
   if (
     now -
     state.lastSnap <
-    state.snapCooldown
+    state.snapDelay
   ) {
+
     return;
+
   }
 
 
-  const angle =
-    THREE.MathUtils.degToRad(
-      state.snapTurnDegrees
-    );
-
-
-  /*
-   * Push right = turn right.
-   * Push left = turn left.
-   */
-
-  if (
+  const direction =
     stick.x > 0
-  ) {
+      ? -1
+      : 1;
 
-    S.playerGroup.rotation.y -=
-      angle;
 
-  } else {
-
-    S.playerGroup.rotation.y +=
-      angle;
-
-  }
+  S.playerRig.rotation.y +=
+    direction *
+    state.snapAngle;
 
 
   state.lastSnap =
@@ -615,9 +640,7 @@ function updateSnapTurn() {
     "survival-snap-turn",
     {
       degrees:
-        stick.x > 0
-          ? state.snapTurnDegrees
-          : -state.snapTurnDegrees
+        direction * 30
     }
   );
 
@@ -625,34 +648,30 @@ function updateSnapTurn() {
 
 
 /* ============================================================
-   BUTTONS
-   ============================================================ */
+   CONTROLLER BUTTONS
+============================================================ */
 
-function updateButtons() {
+function controllerButtons() {
 
   const left =
-    getInputSource("left");
+    state.leftSource?.gamepad;
 
   const right =
-    getInputSource("right");
+    state.rightSource?.gamepad;
 
 
-  if (left?.gamepad) {
-
-    const buttons =
-      left.gamepad.buttons;
-
+  if (left) {
 
     const trigger =
-      !!buttons[0]?.pressed;
+      !!left.buttons[0]?.pressed;
+
 
     const grip =
-      !!buttons[1]?.pressed;
+      !!left.buttons[1]?.pressed;
 
 
     if (
-      trigger &&
-      !state.previousLeftTrigger
+      trigger
     ) {
 
       emit(
@@ -667,24 +686,7 @@ function updateButtons() {
 
 
     if (
-      !trigger &&
-      state.previousLeftTrigger
-    ) {
-
-      emit(
-        "survival-release",
-        {
-          side: "left",
-          source: "trigger"
-        }
-      );
-
-    }
-
-
-    if (
-      grip &&
-      !state.previousLeftGrip
+      grip
     ) {
 
       emit(
@@ -696,49 +698,22 @@ function updateButtons() {
       );
 
     }
-
-
-    if (
-      !grip &&
-      state.previousLeftGrip
-    ) {
-
-      emit(
-        "survival-squeeze",
-        {
-          side: "left",
-          pressed: false
-        }
-      );
-
-    }
-
-
-    state.previousLeftTrigger =
-      trigger;
-
-    state.previousLeftGrip =
-      grip;
 
   }
 
 
-  if (right?.gamepad) {
-
-    const buttons =
-      right.gamepad.buttons;
-
+  if (right) {
 
     const trigger =
-      !!buttons[0]?.pressed;
+      !!right.buttons[0]?.pressed;
+
 
     const grip =
-      !!buttons[1]?.pressed;
+      !!right.buttons[1]?.pressed;
 
 
     if (
-      trigger &&
-      !state.previousRightTrigger
+      trigger
     ) {
 
       emit(
@@ -753,24 +728,7 @@ function updateButtons() {
 
 
     if (
-      !trigger &&
-      state.previousRightTrigger
-    ) {
-
-      emit(
-        "survival-release",
-        {
-          side: "right",
-          source: "trigger"
-        }
-      );
-
-    }
-
-
-    if (
-      grip &&
-      !state.previousRightGrip
+      grip
     ) {
 
       emit(
@@ -782,29 +740,6 @@ function updateButtons() {
       );
 
     }
-
-
-    if (
-      !grip &&
-      state.previousRightGrip
-    ) {
-
-      emit(
-        "survival-squeeze",
-        {
-          side: "right",
-          pressed: false
-        }
-      );
-
-    }
-
-
-    state.previousRightTrigger =
-      trigger;
-
-    state.previousRightGrip =
-      grip;
 
   }
 
@@ -812,35 +747,18 @@ function updateButtons() {
 
 
 /* ============================================================
-   CONTROLLER SETUP
-   ============================================================ */
+   SETUP CONTROLLERS
+============================================================ */
 
 function setupControllers() {
-
-  if (!S.renderer) {
-    return;
-  }
-
-  if (!S.playerGroup) {
-    return;
-  }
-
 
   const xr =
     S.renderer.xr;
 
 
-  /*
-   * IMPORTANT:
-   *
-   * Controllers are children of the PLAYER GROUP.
-   *
-   * This means when the player moves, the controllers
-   * move with the player.
-   */
-
   state.leftController =
     xr.getController(0);
+
 
   state.rightController =
     xr.getController(1);
@@ -849,24 +767,32 @@ function setupControllers() {
   state.leftGrip =
     xr.getControllerGrip(0);
 
+
   state.rightGrip =
     xr.getControllerGrip(1);
 
 
-  /*
-   * Hand models.
-   */
-
   state.leftHand =
-    createHand("left");
+    createHand(
+      "left"
+    );
+
 
   state.rightHand =
-    createHand("right");
+    createHand(
+      "right"
+    );
 
+
+  /*
+   * Hand model belongs to the actual XR
+   * controller target-ray space.
+   */
 
   state.leftController.add(
     state.leftHand
   );
+
 
   state.rightController.add(
     state.rightHand
@@ -874,27 +800,32 @@ function setupControllers() {
 
 
   /*
-   * Add controllers to player rig.
+   * IMPORTANT:
+   *
+   * The controller spaces are children of
+   * the player rig.
    */
 
-  S.playerGroup.add(
+  S.playerRig.add(
     state.leftController
   );
 
-  S.playerGroup.add(
+
+  S.playerRig.add(
     state.rightController
   );
 
 
   /*
-   * Grip objects are also attached to the rig.
+   * Grip spaces are also children of the rig.
    */
 
-  S.playerGroup.add(
+  S.playerRig.add(
     state.leftGrip
   );
 
-  S.playerGroup.add(
+
+  S.playerRig.add(
     state.rightGrip
   );
 
@@ -915,32 +846,28 @@ function setupControllers() {
   S.rightHand =
     state.rightHand;
 
-
-  emit(
-    "survival-vr-controllers-ready"
-  );
-
 }
 
 
 /* ============================================================
-   XR SESSION EVENTS
-   ============================================================ */
+   XR EVENTS
+============================================================ */
 
-function setupXREvents() {
-
-  if (!S.renderer) {
-    return;
-  }
-
+function setupXR() {
 
   S.renderer.xr.addEventListener(
     "sessionstart",
     () => {
 
       console.log(
-        "SURVIVAL VR: XR SESSION STARTED"
+        "SURVIVAL VR: SESSION STARTED"
       );
+
+
+      refreshInputSources();
+
+
+      keepPlayerOnGround();
 
 
       if (
@@ -951,9 +878,6 @@ function setupXREvents() {
           true;
 
       }
-
-
-      updatePlayerGround();
 
 
       emit(
@@ -969,7 +893,7 @@ function setupXREvents() {
     () => {
 
       console.log(
-        "SURVIVAL VR: XR SESSION ENDED"
+        "SURVIVAL VR: SESSION ENDED"
       );
 
 
@@ -983,22 +907,11 @@ function setupXREvents() {
       }
 
 
-      state.previousLeftTrigger =
-        false;
+      state.leftSource =
+        null;
 
-      state.previousRightTrigger =
-        false;
-
-      state.previousLeftGrip =
-        false;
-
-      state.previousRightGrip =
-        false;
-
-
-      emit(
-        "survival-vr-ended"
-      );
+      state.rightSource =
+        null;
 
     }
   );
@@ -1007,46 +920,51 @@ function setupXREvents() {
 
 
 /* ============================================================
-   UPDATE
-   ============================================================ */
+   MAIN UPDATE
+============================================================ */
 
 function update(delta) {
 
   if (
-    !state.initialized
+    !state.ready
   ) {
+
     return;
+
   }
 
 
   if (
-    !S.renderer?.xr?.isPresenting
+    !S.renderer.xr.isPresenting
   ) {
+
     return;
+
   }
 
 
-  updateMovement(
-    delta
-  );
+  refreshInputSources();
 
 
-  updateSnapTurn();
+  movePlayer(delta);
 
 
-  updateButtons();
+  snapTurn();
+
+
+  controllerButtons();
 
 }
 
 
 /* ============================================================
-   SETUP
-   ============================================================ */
+   INITIALIZATION
+============================================================ */
 
 function setupHands() {
 
   if (
-    state.initialized
+    state.ready
   ) {
 
     return state;
@@ -1054,10 +972,12 @@ function setupHands() {
   }
 
 
-  if (!S.renderer) {
+  if (
+    !S.renderer
+  ) {
 
-    console.warn(
-      "Survival VR hands: renderer unavailable."
+    console.error(
+      "SURVIVAL VR: renderer missing."
     );
 
     return state;
@@ -1065,29 +985,54 @@ function setupHands() {
   }
 
 
-  if (!S.playerGroup) {
+  /*
+   * Create the player rig if the main game
+   * did not create one.
+   */
 
-    console.warn(
-      "Survival VR hands: player rig unavailable."
+  if (
+    !S.playerRig
+  ) {
+
+    S.playerRig =
+      new THREE.Group();
+
+    S.playerRig.name =
+      "VR_PLAYER_RIG";
+
+
+    S.scene.add(
+      S.playerRig
     );
 
-    return state;
+
+    /*
+     * Put the existing camera inside the rig.
+     */
+
+    if (
+      S.camera.parent !==
+      S.playerRig
+    ) {
+
+      S.playerRig.add(
+        S.camera
+      );
+
+    }
 
   }
 
 
   setupControllers();
 
-  setupXREvents();
+
+  setupXR();
 
 
-  state.initialized =
+  state.ready =
     true;
 
-
-  /*
-   * Register on SurvivalVR.
-   */
 
   S.hands =
     state;
@@ -1100,7 +1045,7 @@ function setupHands() {
 
 
   console.log(
-    "SURVIVAL VR: hands + locomotion ready"
+    "SURVIVAL VR: PLAYER RIG READY"
   );
 
 
@@ -1110,22 +1055,20 @@ function setupHands() {
 
 
 /* ============================================================
-   INITIALIZE
-   ============================================================ */
+   START
+============================================================ */
 
 setupHands();
 
-
-/* ============================================================
-   EXPORTS
-   ============================================================ */
 
 export {
   setupHands,
   update
 };
 
+
 export const updateHands =
   update;
+
 
 export default state;
